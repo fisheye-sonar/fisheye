@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "fisheye"
+version = "0.1.0"
+description = "Performing inference on sonar data."
+authors = ["Madison Van Horn"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.2.3"
+pillow = "^11.1.0"
+matplotlib = "^3.10.0"
+tqdm = "^4.67.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
