@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Performing inference on sonar data."
 authors = ["Madison Van Horn"]
 readme = "README.md"
+packages = [{include = "fisheye"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -11,7 +12,17 @@ pandas = "^2.2.3"
 pillow = "^11.1.0"
 matplotlib = "^3.10.0"
 tqdm = "^4.67.1"
+torch = "^2.6.0"
+opencv-python = "^4.11.0.86"
 
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3.4"
+
+
+[tool.poetry.group.dev.dependencies]
+jupyterlab = "^4.3.5"
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core"]

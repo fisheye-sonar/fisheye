@@ -10,6 +10,8 @@ from matplotlib import cm as colormap
 from PIL import Image
 import numpy as np
 
+from .beams import load_beam_width_data
+
 
 class ARIS_File:
     """This is a class container for the ARIS file headers"""
