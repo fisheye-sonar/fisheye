@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 from torch.utils.data import Dataset
 from fisheye.lib.yolo import xyxy2xywh
+import warnings
 
 BASE = Path(__file__).parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
@@ -29,6 +30,7 @@ class BaseDataset(Dataset):
         disable_output=False,
         cache_bg_frames=False,
         do_bg_subtract=True,
+        return_unwarped=False,
     ):
         """
         :param start_frame (int): Index of the start frame.
@@ -54,6 +56,11 @@ class BaseDataset(Dataset):
         self.num_frames_bg_subtract = num_frames_bg_subtract
         self.do_bg_subtract = do_bg_subtract
         self.extracted_frames = []
+        self.return_unwarped = return_unwarped
+        print(f"{return_unwarped=}")
+
+        if self.return_unwarped and annotations_file is not None:
+            warnings.warn("Labels from the nnnotations file will be ignored when return_unwarped is True.")
 
         self._initialize_labels(annotations_file)
         self._init_bg_frame()
@@ -85,7 +92,11 @@ class BaseDataset(Dataset):
 
             labels.append(l)
 
-        self.labels = labels
+        if self.return_unwarped:
+            # labels are ignored when returning unwarped frames as they are defined in a different axis system
+            self.labels = None
+        else:
+            self.labels = labels
         self.start_frame = js["start_frame"]
         self.end_frame = js["end_frame"]
 
@@ -108,8 +119,14 @@ class BaseDataset(Dataset):
 
     def _compute_bg_subtraction(self, frames_for_bg_subtract):
         """Calculate the mean blurred frame and normalization value."""
-        mean_blurred_frame = np.zeros([self.ydim, self.xdim], dtype=np.float32)
-        max_blurred_frame = np.zeros([self.ydim, self.xdim], dtype=np.float32)
+        mean_blurred_frame = np.zeros(
+            [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
+            dtype=np.float32,
+        )
+        max_blurred_frame = np.zeros(
+            [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
+            dtype=np.float32,
+        )
 
         for i in range(frames_for_bg_subtract.shape[0]):
             blurred = cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0)

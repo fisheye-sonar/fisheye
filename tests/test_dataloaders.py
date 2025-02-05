@@ -15,13 +15,19 @@ def test_aris_dataloader():
     print("Dataset size", len(dataset))
 
     for i, (frames, labels) in enumerate(dataset):
-        print(i, frames.shape)
+        # if labels is not None:
+        print(i, frames.shape, labels)
 
 
 def test_aris_dataloader_factory_func():
     fp = "/Users/mahobley/Code/salmon_counting_data/RO_2018-05-26_073004.aris"
     beam_width_dir = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
-    dataloader, _ = create_aris_dataloader(fp, beam_width_dir=beam_width_dir)
+    dataloader, _ = create_aris_dataloader(
+        fp, beam_width_dir=beam_width_dir, return_unwarped=True
+    )
+
+    for i, (frames, labels) in enumerate(dataloader):
+        print(i, frames.shape)
 
 
 def test_yolo_dataloader():
@@ -29,7 +35,12 @@ def test_yolo_dataloader():
     fp = "/Users/mahobley/Code/salmon_counting_data/RO_2018-05-26_073004.aris"
     beam_width_dir = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
     dataloader = DataloaderRegistry.get_dataloader("yolo")
-    dataset = dataloader(fp, beam_width_dir=beam_width_dir)
+    dataset = dataloader(fp, beam_width_dir=beam_width_dir, return_unwarped=True)
+    for i, (batch) in enumerate(dataset):
+        ims = [batch[j][0] for j in range(len(batch))]
+        labels = [batch[j][1] for j in range(len(batch))]
+        shapes = [batch[j][2][1] for j in range(len(batch))]
+        print(i, ims[0].shape, labels[0].shape, shapes[0])
 
 
 def test_unknown_dataloader():

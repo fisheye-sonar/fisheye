@@ -23,7 +23,9 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
 class DIDSON:
-    def __init__(self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1):
+    def __init__(
+        self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1, return_unwarped=False
+    ):
         """Load header info from DIDSON file and precompute some warps.
 
         Parameters
@@ -42,7 +44,7 @@ class DIDSON:
             Dictionary of extracted headers and computed sonar values.
 
         """
-
+        self.return_unwarped = return_unwarped
         if hasattr(file, "read"):
             file_ctx = contextlib.nullcontext(file)
         else:
@@ -222,6 +224,14 @@ class DIDSON:
 
                 read_i = read_rows * info["numbeams"] + info["numbeams"] - read_cols - 1
 
+                unique_read_coords = np.unique(
+                    np.stack((read_rows, read_cols)), axis=1
+                )
+                unwarped_shape = [
+                    np.max(unique_read_coords[0]) + 1,
+                    np.max(unique_read_coords[1]) + 1,
+                ]
+
                 pixel_meter_width = pixel_meter_size
                 pixel_meter_height = pixel_meter_size
 
@@ -270,6 +280,7 @@ class DIDSON:
                     "pixel_meter_width": pixel_meter_width,
                     "pixel_meter_height": pixel_meter_height,
                     "pixel_meter_size": pixel_meter_size,
+                    "unwarped_shape": unwarped_shape,
                 }
             )
 
@@ -497,9 +508,21 @@ class DIDSON:
 
         """
         data = self.load_raw_data(file, start_frame, end_frame)
-        frames = np.zeros(
-            (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
-        )
-        frames[:, self.write_rows, self.write_cols] = data[:, self.read_i]
+
+        if self.return_unwarped:
+            frames_shape = [
+                data.shape[0],
+                self.info["unwarped_shape"][0],
+                self.info["unwarped_shape"][1],
+            ]
+            frames = np.reshape(
+                data,
+                frames_shape,
+            )
+        else:
+            frames = np.zeros(
+                (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
+            )
+            frames[:, self.write_rows, self.write_cols] = data[:, self.read_i]
 
         return frames

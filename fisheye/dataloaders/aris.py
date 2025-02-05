@@ -28,6 +28,7 @@ class ARISBatchedDataset(BaseDataset):
         disable_output=False,
         cache_bg_frames=False,
         do_bg_subtract=True,
+        return_unwarped=False,
     ):
         """
         :param aris_filepath (str): Path to an ARIS file.
@@ -39,8 +40,11 @@ class ARISBatchedDataset(BaseDataset):
         :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
         :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
         """
-
-        self.didson = DIDSON(aris_filepath, beam_width_dir=BEAM_WIDTH_DIR)
+        self.didson = DIDSON(
+            aris_filepath,
+            beam_width_dir=beam_width_dir,
+            return_unwarped=return_unwarped,
+        )
         start_frame = self.didson.info["startframe"]
         end_frame = self.didson.info["endframe"] or self.didson.info["numframes"]
         xdim, ydim = self.didson.info["xdim"], self.didson.info["ydim"]
@@ -57,6 +61,7 @@ class ARISBatchedDataset(BaseDataset):
             disable_output,
             cache_bg_frames,
             do_bg_subtract,
+            return_unwarped,
         )
 
     def load_frames(self, start_frame, end_frame):
@@ -75,6 +80,7 @@ def create_aris_dataloader(
     disable_output=False,
     cache_bg_frames=False,
     do_bg_subtract=True,
+    return_unwarped=False,
 ):
     """
     Get a PyTorch Dataset and DataLoader for ARIS files with (optional) associated fisheye-formatted labels.
@@ -90,6 +96,7 @@ def create_aris_dataloader(
             disable_output=disable_output,
             cache_bg_frames=cache_bg_frames,
             do_bg_subtract=do_bg_subtract,
+            return_unwarped=return_unwarped,
         )
     batch_size = min(batch_size, len(dataset))
     nw = min(
