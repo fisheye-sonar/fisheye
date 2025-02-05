@@ -29,8 +29,11 @@ class ARISBatchedDataset(BaseDataset):
         :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
         :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
         """
+        try:
+            self.didson = DIDSON(aris_filepath, beam_width_dir=BEAM_WIDTH_DIR)
+        except Exception as e:
+            raise RuntimeError(f"Could not load {aris_filepath}: {e}")
 
-        self.didson = DIDSON(aris_filepath, beam_width_dir=BEAM_WIDTH_DIR)
         start_frame = self.didson.info['startframe']
         end_frame = self.didson.info['endframe'] or self.didson.info['numframes']
         xdim, ydim = self.didson.info['xdim'], self.didson.info['ydim']

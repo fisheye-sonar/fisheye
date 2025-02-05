@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 import pytorch_lightning as pl
-import torch
 from torch.utils.data import DataLoader
 
 from fisheye.dataloaders.samplers import OnePerBatchSampler

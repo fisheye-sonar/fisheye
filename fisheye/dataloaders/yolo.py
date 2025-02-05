@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import numpy as np
@@ -5,8 +6,9 @@ import torch
 import cv2
 
 from fisheye.dataloaders import ARISBatchedDataset
+from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.lib.yolo import xyxy2xywh, letterbox
-
+from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
 
 BASE = Path(__file__).parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
@@ -103,3 +105,33 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
 
         return torch.zeros((0, 6))
 
+
+def create_yolo_dataloader(aris_filepath, beam_width_dir=BEAM_WIDTH_DIR, annotations_file=None, batch_size=32,
+                                stride=64, pad=0.5, img_size=896, rank=-1, world_size=1, workers=0,
+                                disable_output=False, cache_bg_frames=False):
+    """
+    Get a PyTorch Dataset and DataLoader for ARIS files with (optional) associated fisheye-formatted labels.
+    """
+    # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
+    # this is a no-op for a single-gpu machine
+    with torch_distributed_zero_first(rank):
+        dataset = YOLOARISBatchedDataset(aris_filepath, beam_width_dir, annotations_file, stride, pad, img_size,
+                                         batch_size=batch_size,
+                                         disable_output=disable_output, cache_bg_frames=cache_bg_frames)
+
+    batch_size = min(batch_size, len(dataset))
+    nw = min([os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
+
+    if not disable_output:
+        print("Dataset size", len(dataset))
+        print("Dataset shape", dataset.shape)
+        print("Num workers", nw)
+
+    dataloader = torch.utils.data.dataloader.DataLoader(dataset,
+                                                        batch_size=None,
+                                                        sampler=OnePerBatchSampler(data_source=dataset,
+                                                                                   batch_size=batch_size),
+                                                        num_workers=nw,
+                                                        pin_memory=True,
+                                                        collate_fn=yolo_collate_fn)
+    return dataloader, dataset
