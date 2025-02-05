@@ -11,9 +11,26 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
 class BaseDataset(Dataset):
-    def __init__(self, start_frame, end_frame, xdim, ydim, beam_width_dir=BEAM_WIDTH_DIR, annotations_file=None, batch_size=32,
-                 num_frames_bg_subtract=1000,
-                 disable_output=False, cache_bg_frames=False, do_bg_subtract=True):
+    """BaseDataset
+
+    Base class for all datasets.
+    """
+    def __init__(self, start_frame, end_frame, xdim, ydim, beam_width_dir=BEAM_WIDTH_DIR, annotations_file=None,
+                 batch_size=32, num_frames_bg_subtract=1000, disable_output=False, cache_bg_frames=False,
+                 do_bg_subtract=True):
+        """
+        :param start_frame (int): Index of the start frame.
+        :param end_frame (int): Index of the end frame.
+        :param xdim (int): X dimension.
+        :param ydim (int): Y dimension.
+        :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
+        :param annotations_file (str): Path to annotations file.
+        :param batch_size (int): Batch size. Defaults to 32.
+        :param num_frames_bg_subtract: Number of frames to subtract from the background image. Defaults to 1000.
+        :param disable_output (bool): Whether to disable output. Defaults to False.
+        :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
+        :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
+        """
         self.start_frame = start_frame
         self.end_frame = end_frame
         self.xdim = xdim

@@ -1,5 +1,4 @@
 import os
-from threading import Lock
 from pathlib import Path
 
 import torch
@@ -14,13 +13,22 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
 class ARISBatchedDataset(BaseDataset):
-    """
+    """ARISBatchedDataset
+
     A Dataset class for loading an ARIS file, loading the frames, and applying background subtraction.
     """
     def __init__(self, aris_filepath, beam_width_dir=BEAM_WIDTH_DIR, annotations_file=None, batch_size=32, num_frames_bg_subtract=1000,
                  disable_output=False, cache_bg_frames=False, do_bg_subtract=True):
-        self.data = open(aris_filepath, 'rb')
-        self.data_lock = Lock()
+        """
+        :param aris_filepath (str): Path to an ARIS file.
+        :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
+        :param annotations_file (str): Path to annotations file.
+        :param batch_size (int): Batch size. Defaults to 32.
+        :param num_frames_bg_subtract: Number of frames to subtract from the background. Defaults to 1000.
+        :param disable_output (bool): Whether to disable output. Defaults to False.
+        :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
+        :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
+        """
 
         self.didson = DIDSON(aris_filepath, beam_width_dir=BEAM_WIDTH_DIR)
         start_frame = self.didson.info['startframe']

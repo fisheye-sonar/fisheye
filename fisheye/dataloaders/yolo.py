@@ -13,10 +13,22 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
 class YOLOARISBatchedDataset(ARISBatchedDataset):
-    """An ARIS Dataset tailored for YOLOv5 inference."""
+    """YOLOARISBatchedDataset
+
+    An ARIS Dataset tailored for YOLOv5 inference."""
     def __init__(self, aris_filepath, beam_width_dir=BEAM_WIDTH_DIR, annotations_file=None, stride=64, pad=0.5, img_size=896, batch_size=32,
                  disable_output=False, cache_bg_frames=False):
-
+        """
+        :param aris_filepath (str): Path to an ARIS file.
+        :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
+        :param annotations_file (str): Path to annotations file.
+        :param stride (int): Stride size for YOLOv5 inference. Defaults to 64.
+        :param pad (float): Pad size for YOLOv5 inference. Defaults to 0.5.
+        :param img_size (int): Image size for YOLOv5 inference. Defaults to 896.
+        :param batch_size (int): Batch size. Defaults to 32.
+        :param disable_output (bool): Whether to disable output. Defaults to False.
+        :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
+        """
         super().__init__(aris_filepath, beam_width_dir, annotations_file, batch_size, disable_output=disable_output,
                          cache_bg_frames=cache_bg_frames)
 
