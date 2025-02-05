@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from fisheye.dataloaders.samplers import OnePerBatchSampler
-from fisheye.utils import torch_distributed_zero_first
+from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
 
 BASE = Path(__file__).parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
@@ -17,7 +17,8 @@ class ARISDataModule(pl.LightningDataModule):
 
     A PyTorch Lightning DataModule for ARIS data.
     """
-    def __init__(self, dataset_cls, dataset_kwargs, batch_size=32, num_workers=0, world_size=1, rank=-1, disable_output=False):
+    def __init__(self, dataset_cls, dataset_kwargs, batch_size=32, num_workers=0, world_size=1, rank=-1,
+                 disable_output=False):
         """
         Args:
             dataset_cls (Dataset): The dataset class to be used (e.g., ARISBatchedDataset, YOLOBatchedDataset)
@@ -58,26 +59,25 @@ class ARISDataModule(pl.LightningDataModule):
             print(f"Dataset size: {len(self.dataset)}")
             print(f"Num workers: {self.num_workers}")
 
-    def train_dataloader(self):
-        """Returns the training dataloader."""
-        self.dataloader = DataLoader(
+    def get_dataloader(self):
+        """Returns a DataLoader with the correct collate function."""
+        collate_fn = yolo_collate_fn if self.dataset_cls.__name__ == "YOLOARISBatchedDataset" else None
+
+        return DataLoader(
             self.dataset,
             batch_size=None,
             sampler=OnePerBatchSampler(data_source=self.dataset, batch_size=self.batch_size),
             num_workers=self.num_workers,
-            pin_memory=True
+            pin_memory=True,
+            collate_fn=collate_fn
         )
 
-        return self.dataloader
+    def train_dataloader(self):
+        """Returns the training dataloader."""
+        return self.get_dataloader()
 
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.dataset, batch_size=None,
-                                           sampler=OnePerBatchSampler(data_source=self.dataset,
-                                                                      batch_size=self.batch_size),
-                                           num_workers=self.num_workers, pin_memory=True,)
+        return self.get_dataloader()
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(self.dataset, batch_size=None,
-                                           sampler=OnePerBatchSampler(data_source=self.dataset,
-                                                                      batch_size=self.batch_size),
-                                           num_workers=self.num_workers, pin_memory=True)
+        return self.get_dataloader()
