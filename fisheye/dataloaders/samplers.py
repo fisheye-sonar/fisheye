@@ -8,12 +8,13 @@ class OnePerBatchSampler(torch.utils.data.Sampler):
     This is a workaround for Pytorch's standard batch creation that allows us to manually
     select contiguous segments of an ARIS clip for each batch.
     """
+
     def __init__(self, data_source, batch_size):
         self.data_source = data_source
         self.batch_size = batch_size
 
     def __iter__(self):
-        idxs = [i*self.batch_size for i in range(len(self))]
+        idxs = [i * self.batch_size for i in range(len(self))]
         return iter(idxs)
 
     def __len__(self):

@@ -16,8 +16,19 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
     """YOLOARISBatchedDataset
 
     An ARIS Dataset tailored for YOLOv5 inference."""
-    def __init__(self, aris_filepath, beam_width_dir=BEAM_WIDTH_DIR, annotations_file=None, stride=64, pad=0.5, img_size=896, batch_size=32,
-                 disable_output=False, cache_bg_frames=False):
+
+    def __init__(
+        self,
+        aris_filepath,
+        beam_width_dir=BEAM_WIDTH_DIR,
+        annotations_file=None,
+        stride=64,
+        pad=0.5,
+        img_size=896,
+        batch_size=32,
+        disable_output=False,
+        cache_bg_frames=False,
+    ):
         """
         :param aris_filepath (str): Path to an ARIS file.
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
@@ -29,8 +40,14 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         :param disable_output (bool): Whether to disable output. Defaults to False.
         :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
         """
-        super().__init__(aris_filepath, beam_width_dir, annotations_file, batch_size, disable_output=disable_output,
-                         cache_bg_frames=cache_bg_frames)
+        super().__init__(
+            aris_filepath,
+            beam_width_dir,
+            annotations_file,
+            batch_size,
+            disable_output=disable_output,
+            cache_bg_frames=cache_bg_frames,
+        )
 
         self.stride = stride
         self.pad = pad
@@ -42,7 +59,12 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         """Computes the shape for resizing images based on aspect ratio."""
         aspect_ratio = self.ydim / self.xdim
         shape = [1, 1 / aspect_ratio] if aspect_ratio > 1 else [aspect_ratio, 1]
-        return np.ceil(np.array(shape) * self.img_size / self.stride + self.pad).astype(int) * self.stride
+        return (
+            np.ceil(np.array(shape) * self.img_size / self.stride + self.pad).astype(
+                int
+            )
+            * self.stride
+        )
 
     @classmethod
     def load_image(cls, img, img_size=896):
@@ -87,10 +109,18 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         """Processes and converts labels from normalized xywh to pixel xyxy format, applies padding from letterbox."""
         if labels is not None and labels.size > 0:
             labels = labels.copy()
-            labels[:, 1] = ratio[0] * img_shape[1] * (labels[:, 1] - labels[:, 3] / 2) + pad[0]
-            labels[:, 2] = ratio[1] * img_shape[0] * (labels[:, 2] - labels[:, 4] / 2) + pad[1]
-            labels[:, 3] = ratio[0] * img_shape[1] * (labels[:, 1] + labels[:, 3] / 2) + pad[0]
-            labels[:, 4] = ratio[1] * img_shape[0] * (labels[:, 2] + labels[:, 4] / 2) + pad[1]
+            labels[:, 1] = (
+                ratio[0] * img_shape[1] * (labels[:, 1] - labels[:, 3] / 2) + pad[0]
+            )
+            labels[:, 2] = (
+                ratio[1] * img_shape[0] * (labels[:, 2] - labels[:, 4] / 2) + pad[1]
+            )
+            labels[:, 3] = (
+                ratio[0] * img_shape[1] * (labels[:, 1] + labels[:, 3] / 2) + pad[0]
+            )
+            labels[:, 4] = (
+                ratio[1] * img_shape[0] * (labels[:, 2] + labels[:, 4] / 2) + pad[1]
+            )
 
             # Convert to xywh format and normalize
             labels[:, 1:5] = xyxy2xywh(labels[:, 1:5])
@@ -102,4 +132,3 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             return labels_out
 
         return torch.zeros((0, 6))
-
