@@ -35,3 +35,5 @@ Thumbs.db
 *.log
 *.bak
 *.tmp
+
+_debugging_images

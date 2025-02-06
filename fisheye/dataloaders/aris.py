@@ -29,6 +29,9 @@ class ARISBatchedDataset(BaseDataset):
         cache_bg_frames=False,
         do_bg_subtract=True,
         return_unwarped=False,
+        return_echogram=False,
+        start_frame=None,
+        end_frame=None,
     ):
         """
         :param aris_filepath (str): Path to an ARIS file.
@@ -45,10 +48,13 @@ class ARISBatchedDataset(BaseDataset):
             beam_width_dir=beam_width_dir,
             return_unwarped=return_unwarped,
         )
-        start_frame = self.didson.info["startframe"]
-        end_frame = self.didson.info["endframe"] or self.didson.info["numframes"]
+        if start_frame is None:
+            start_frame = self.didson.info["startframe"]
+        if end_frame is None:
+            end_frame = self.didson.info["endframe"] or self.didson.info["numframes"]
+        else:
+            end_frame = min(end_frame, self.didson.info["endframe"] or self.didson.info["numframes"])
         xdim, ydim = self.didson.info["xdim"], self.didson.info["ydim"]
-
         super().__init__(
             start_frame,
             end_frame,
@@ -62,11 +68,16 @@ class ARISBatchedDataset(BaseDataset):
             cache_bg_frames,
             do_bg_subtract,
             return_unwarped,
+            return_echogram,
         )
 
     def load_frames(self, start_frame, end_frame):
         """Load ARIS frames."""
-        return self.didson.load_frames(start_frame=start_frame, end_frame=end_frame)
+        frames, unwarped_frames = self.didson.load_frames(
+            start_frame=start_frame,
+            end_frame=end_frame,
+        )
+        return frames, unwarped_frames
 
 
 def create_aris_dataloader(
@@ -81,12 +92,16 @@ def create_aris_dataloader(
     cache_bg_frames=False,
     do_bg_subtract=True,
     return_unwarped=False,
+    return_echogram=False,
+    start_frame=None,
+    end_frame=None,
 ):
     """
     Get a PyTorch Dataset and DataLoader for ARIS files with (optional) associated fisheye-formatted labels.
     """
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     # this is a no-op for a single-gpu machine
+
     with torch_distributed_zero_first(rank):
         dataset = ARISBatchedDataset(
             aris_filepath,
@@ -97,6 +112,9 @@ def create_aris_dataloader(
             cache_bg_frames=cache_bg_frames,
             do_bg_subtract=do_bg_subtract,
             return_unwarped=return_unwarped,
+            return_echogram=return_echogram,
+            start_frame=start_frame,
+            end_frame=end_frame,
         )
     batch_size = min(batch_size, len(dataset))
     nw = min(

@@ -6,6 +6,7 @@ import cv2
 from torch.utils.data import Dataset
 from fisheye.lib.yolo import xyxy2xywh
 import warnings
+import torch
 
 BASE = Path(__file__).parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
@@ -31,6 +32,7 @@ class BaseDataset(Dataset):
         cache_bg_frames=False,
         do_bg_subtract=True,
         return_unwarped=False,
+        return_echogram=False,
     ):
         """
         :param start_frame (int): Index of the start frame.
@@ -57,10 +59,12 @@ class BaseDataset(Dataset):
         self.do_bg_subtract = do_bg_subtract
         self.extracted_frames = []
         self.return_unwarped = return_unwarped
-        print(f"{return_unwarped=}")
+        self.return_echogram = return_echogram
 
         if self.return_unwarped and annotations_file is not None:
-            warnings.warn("Labels from the nnnotations file will be ignored when return_unwarped is True.")
+            warnings.warn(
+                "Labels from the nnnotations file will be ignored when return_unwarped is True."
+            )
 
         self._initialize_labels(annotations_file)
         self._init_bg_frame()
@@ -109,12 +113,15 @@ class BaseDataset(Dataset):
             self.end_frame - self.start_frame,
             self.num_frames_bg_subtract // self.batch_size * self.batch_size + 1,
         )
-        frames_for_bg_subtract = self.load_frames(
+        frames_for_bg_subtract, unwarped_frames_for_bg_subtract = self.load_frames(
             self.start_frame, self.start_frame + num_frames_bg
         )
 
         self.mean_blurred_frame, self.mean_normalization_value = (
             self._compute_bg_subtraction(frames_for_bg_subtract)
+        )
+        self.unwarped_mean_blurred_frame, self.unwarped_mean_normalization_value = (
+            self._compute_bg_subtraction(unwarped_frames_for_bg_subtract)
         )
 
     def _compute_bg_subtraction(self, frames_for_bg_subtract):
@@ -149,29 +156,62 @@ class BaseDataset(Dataset):
         frame_labels = self.labels[idx:final_idx] if self.labels else None
 
         if idx + 1 < len(self.extracted_frames):
-            return self._postprocess(self.extracted_frames[idx:final_idx], frame_labels)
-        else:
-            frames = self.load_frames(
-                self.start_frame + idx, self.start_frame + final_idx + 1
+            return self._postprocess(
+                self.extracted_frames[idx:final_idx], frame_labels, None
             )
+        else:
+
+            frames, unwarped_frames = self.load_frames(
+                self.start_frame + idx,
+                self.start_frame + final_idx + 1,
+            )
+
+            if self.return_unwarped:
+                frame_images = unwarped_frames
+            else:
+                frame_images = frames
+
             frame_images = (
-                self._apply_bg_subtraction(frames)
+                self._apply_bg_subtraction(frame_images)
                 if self.do_bg_subtract
-                else frames[:-1]
+                else frame_images[:-1]
             )
 
             if self.cache_bg_frames:
                 self.extracted_frames.extend(frame_images)
 
-        return self._postprocess(frame_images, frame_labels)
+            if self.return_echogram:
+                echogram = self._get_echogram(unwarped_frames)
+            else:
+                echogram = None
+        frame_images, frame_labels, echogram = self._postprocess(
+            frame_images, frame_labels, echogram
+        )
+
+        # MAH 2025-02-05 18:57:55 I very much dislike this but I think it needs to be in their for backwards compatibility,
+        # I think we should use the dict approach going forward so we can have variable outpus
+        if not self.return_unwarped and not self.return_echogram:
+            return frame_images, frame_labels
+        else:
+            return {
+                "frames": frame_images,
+                "unwarped_frames": unwarped_frames,
+                "labels": frame_labels,
+                "echogram": echogram,
+            }
 
     def _apply_bg_subtraction(self, frames: np.ndarray):
         """Apply background subtraction."""
+        # MAH 2025-02-05 19:16:34 TODO this function should be renamed to something that describes the fact it is stacking the channels
         blurred_frames = frames.astype(np.float32)
         for i in range(frames.shape[0]):
             blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
-        blurred_frames -= self.mean_blurred_frame
-        blurred_frames /= self.mean_normalization_value
+        if self.return_unwarped:
+            blurred_frames -= self.unwarped_mean_blurred_frame
+            blurred_frames /= self.unwarped_mean_normalization_value
+        else:
+            blurred_frames -= self.mean_blurred_frame
+            blurred_frames /= self.mean_normalization_value
         blurred_frames += 1
         blurred_frames /= 2
 
@@ -186,9 +226,27 @@ class BaseDataset(Dataset):
 
         return frame_image
 
-    def _postprocess(self, frame_images, frame_labels):
+    def _get_echogram(self, unwarped_frames):
+        """Generate Echogram from the frames.
+        the return channels are the magnitude and the normailsed angle between -0.5 and 0.5
+        """
+        unwarped_frames_bgs = (
+            unwarped_frames.astype(np.float32) - self.unwarped_mean_blurred_frame
+        )
+        unwarped_frames_bgs -= self.unwarped_mean_blurred_frame
+        unwarped_frames_bgs /= self.unwarped_mean_normalization_value
+        echogram = np.max(unwarped_frames_bgs.astype(np.float32), axis=2).astype(
+            np.float32
+        )
+        col = np.argmax(unwarped_frames_bgs, axis=2).astype(np.float32)
+        col = col / unwarped_frames.shape[2]
+        col -= 0.5
+        echogram = np.stack([echogram, col], axis=2)
+        return echogram
+
+    def _postprocess(self, frame_images, frame_labels, echogram):
         """Postprocess frames before returning."""
-        return frame_images, frame_labels
+        return frame_images, frame_labels, echogram
 
     def load_frames(self, idx, final_idx):
         raise NotImplementedError("Subclasses should implement this method.")

@@ -1,0 +1,128 @@
+import pytest
+import sys
+import os
+
+sys.path.append("/Users/mahobley/Code/fisheye")
+from fisheye.dataloaders.aris import create_aris_dataloader
+from fisheye.dataloaders.register import DataloaderRegistry
+import matplotlib.pyplot as plt
+import torch
+import numpy as np
+from MAH_utils import (
+    make_gif_from_np_stack,
+    numpy_to_redblue,
+    zero_pad_to_match_one_dim,
+)
+from tqdm import tqdm
+
+
+def make_echogram_image(echograms, echogram_pop=False):
+
+    ec_mag = echograms[:, :, 0]  # magnitude of the echogram
+    ec_angle = echograms[:, :, 1]  # angle of the echogram
+
+    ec_mag -= ec_mag.min()
+    ec_mag /= ec_mag.max()
+
+    # find the areas of the echogram that are brighter than the average for that row
+    ec_mag_bgs = ec_mag - np.mean(ec_mag, axis=0)
+    ec_mag_bgs[ec_mag_bgs < 0] = 0
+    ec_mag_bgs /= ec_mag_bgs.max()
+
+    colmapped = numpy_to_redblue(((ec_angle) * ec_mag_bgs) * 2)
+
+    if echogram_pop:
+        # take the average subtracted echogram
+        stacked_echogram_image = np.stack([ec_mag_bgs, ec_mag_bgs, ec_mag_bgs], axis=-1)
+    else:
+        # take the raw echogram
+        stacked_echogram_image = np.stack([ec_mag, ec_mag, ec_mag], axis=-1)
+
+    colour_mask = np.stack([ec_mag_bgs, ec_mag_bgs, ec_mag_bgs], axis=-1)
+    colour_mask[colour_mask < 0.25] = 0
+    colour_mask[colour_mask > 0] = 1
+
+    output_image = stacked_echogram_image * (1 - colour_mask) + colmapped * (
+        colour_mask
+    )
+    output_image = output_image.transpose(1, 0, 2)
+
+    # make it a video
+    output_image = np.stack([output_image] * output_image.shape[1])
+    output_image = (output_image * 253).astype(np.uint8)
+
+    # add the vertical white line
+    for i in range(output_image.shape[0]):
+        output_image[i, :, i] = 254
+
+    return output_image
+
+
+def generate_echogram_gif_from_aris(
+    fp,
+    beam_width_dir,
+    return_unwarped,
+    return_echogram,
+    start_frame,
+    end_frame,
+    save_filename,
+    echogram_pop=False,
+):
+
+    dataset, _ = create_aris_dataloader(
+        fp,
+        beam_width_dir=beam_width_dir,
+        return_unwarped=return_unwarped,
+        return_echogram=return_echogram,
+        start_frame=start_frame,
+        end_frame=end_frame,
+    )
+
+    echograms = []
+    frames_vis = []
+    for i, batch in enumerate(dataset):
+        frames, unwarped_frames, echogram = (
+            batch["frames"],
+            batch["unwarped_frames"],
+            batch["echogram"],
+        )
+        print(type(frames))
+        print(type(unwarped_frames))
+        print(type(echogram))
+        frames_vis.append(frames)
+        echograms.append(echogram)
+    # echograms = np.concatenate(echograms, axis=0)
+    # frames_vis = np.concatenate(frames_vis, axis=0)
+
+    # coloured_echogram = make_echogram_image(echograms, echogram_pop=echogram_pop)
+
+    # coloured_echogram = coloured_echogram[: frames_vis.shape[0]]
+    # coloured_echogram = zero_pad_to_match_one_dim(coloured_echogram, frames_vis.shape, dim=1)
+    # frames_vis = np.stack([frames_vis[:, :, :, 0]] * 3, axis=-1)
+    # if coloured_echogram.shape[2] < frames_vis.shape[2]:
+    #     coloured_echogram = np.repeat(
+    #         coloured_echogram, int(frames_vis.shape[2] / coloured_echogram.shape[2]), axis=2
+    #     )
+    # comb = np.concatenate([frames_vis, coloured_echogram], axis=2)
+    # print("Saving gif...")
+    # make_gif_from_np_stack(save_filename, comb, frame_rate=25)
+
+
+fp = "/Users/mahobley/Code/salmon_counting_data/RO_2018-05-26_073004.aris"
+fp = "/Users/mahobley/Downloads/2024-10-28_113000.aris"
+beam_width_dir = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
+
+generate_echogram_gif_from_aris(
+    fp,
+    beam_width_dir=beam_width_dir,
+    return_unwarped=False,
+    return_echogram=True,
+    start_frame=181,
+    end_frame=311,
+    save_filename="_debugging_images/test9.gif",
+    echogram_pop=True,
+)
+
+
+# test_aris_dataloader_factory_func()
+# test_yolo_dataloader()
