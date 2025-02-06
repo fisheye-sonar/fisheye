@@ -113,6 +113,21 @@ def test_loading_selected_frames_aris_dataloader_factory_func():
     assert len(dataset) == 1
 
 
+def test_loading_bad_end_frame_aris_dataloader_factory_func():
+    """Test ARIS factory function does not load frames from an outside range."""
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(dataset) == 3
+
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=6)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # Defaults to using end frame from file header if end_frame specified is larger and doesn't exist
+    assert len(dataset) == 3
+
+
 def test_loading_selected_frames_aris_dataloader_lightning():
     """Test ARIS DataModule correctly loads frames from specified range."""
     config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
@@ -130,6 +145,23 @@ def test_loading_selected_frames_aris_dataloader_lightning():
     assert len(data_module.dataset) == 1
 
 
+def test_loading_bad_end_frame_aris_dataloader_lightning():
+    """Test ARIS DataModule does not load frames from an outside range."""
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
+    data_module = ARISDataModule(ARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(data_module.dataset) == 3
+
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=6)
+    data_module = ARISDataModule(ARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # Defaults to using end frame - 1 from file header if end_frame specified is larger and doesn't exist
+    assert len(data_module.dataset) == 3
+
+
 def test_loading_selected_frames_yolo_dataloader_factory_func():
     """Test YOLO factory function correctly loads frames from specified range."""
     config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
@@ -145,8 +177,23 @@ def test_loading_selected_frames_yolo_dataloader_factory_func():
     assert len(dataset) == 1
 
 
+def test_loading_bad_end_frame_yolo_dataloader_factory_func():
+    """Test YOLO factory function does not load frames from an outside range."""
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
+    dataloader, dataset = create_yolo_dataloader(config)
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(dataset) == 3
+
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=6)
+    dataloader, dataset = create_yolo_dataloader(config)
+
+    # end_frame is exclusive in DIDSON
+    assert len(dataset) == 3
+
+
 def test_loading_selected_frames_yolo_dataloader_lightning():
-    """Test ARIS DataModule correctly loads frames from specified range in YOLO format."""
+    """Test ARIS DataModule correctly loads frames from specified range for YOLO Datasets."""
     config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
     data_module = ARISDataModule(YOLOARISBatchedDataset, config)
     data_module.setup(stage="test")
@@ -158,6 +205,22 @@ def test_loading_selected_frames_yolo_dataloader_lightning():
     data_module = ARISDataModule(YOLOARISBatchedDataset, config)
     data_module.setup(stage="test")
     assert len(data_module.dataset) == 1
+
+
+def test_loading_bad_end_frame_yolo_dataloader_lightning():
+    """Test ARIS DataModule does not load frames from an outside range for YOLO Datasets."""
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
+    data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(data_module.dataset) == 3
+
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=6)
+    data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+    data_module.setup(stage="test")
+    # Defaults to using end frame from file header if end_frame specified is larger and doesn't exist
+    assert len(data_module.dataset) == 3
 
 
 def test_corrupted_aris():
