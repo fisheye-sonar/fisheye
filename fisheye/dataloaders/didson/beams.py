@@ -13,13 +13,14 @@ import pandas as pd
 
 
 def parse_beam_header_file(fp):
-    """ Utility to parse the beam width header files.
-    """
+    """Utility to parse the beam width header files."""
 
     # example of what we are trying to parse:
     # DEFINE_BEAMWIDTH3(0, -13.5735, -13.7893, -13.3577)
 
-    pattern = re.compile(r"^DEFINE_BEAMWIDTH3\D*(\d+), ([-+]?\d*\.\d+), ([-+]?\d*\.\d+), ([-+]?\d*\.\d+)")
+    pattern = re.compile(
+        r"^DEFINE_BEAMWIDTH3\D*(\d+), ([-+]?\d*\.\d+), ([-+]?\d*\.\d+), ([-+]?\d*\.\d+)"
+    )
 
     beam_angles = []
 
@@ -39,13 +40,15 @@ def parse_beam_header_file(fp):
     for i in range(len(beam_angles)):
         assert beam_angles[i][0] == i
 
-    beam_angles = pd.DataFrame(beam_angles, columns=['beam_num', 'beam_center', 'beam_left', 'beam_right'])
+    beam_angles = pd.DataFrame(
+        beam_angles, columns=["beam_num", "beam_center", "beam_left", "beam_right"]
+    )
 
     return beam_angles
 
 
 def convert_beam_header_files(beam_dir):
-    """ Convert the aris-file-sdk/beam-width-metrics directory to pandas data frames."""
+    """Convert the aris-file-sdk/beam-width-metrics directory to pandas data frames."""
 
     system_beam_angles = {}
 
@@ -61,7 +64,7 @@ def convert_beam_header_files(beam_dir):
 
 
 def make_csv_files_for_beam_widths(beam_dir, output_dir):
-    """ Convert the aris-file-sdk/beam-width-metrics directory to pandas data frames
+    """Convert the aris-file-sdk/beam-width-metrics directory to pandas data frames
     and save them as csv files.
     """
 
@@ -73,7 +76,7 @@ def make_csv_files_for_beam_widths(beam_dir, output_dir):
 
 
 def load_beam_width_data(frame, beam_width_dir):
-    """ Load in the beam spacing file that corresponds to the correct ARIS setup for this frame."""
+    """Load in the beam spacing file that corresponds to the correct ARIS setup for this frame."""
 
     system_type = frame.thesystemtype
     beam_count = frame.BeamCount
@@ -87,19 +90,19 @@ def load_beam_width_data(frame, beam_width_dir):
 
             if used_telephoto:
                 # ARIS_Telephoto_48
-                beam_width_fn = 'ARIS_Telephoto_48.csv'
+                beam_width_fn = "ARIS_Telephoto_48.csv"
             else:
                 # ARIS1800_1200_48
-                beam_width_fn = 'ARIS1800_1200_48.csv'
+                beam_width_fn = "ARIS1800_1200_48.csv"
 
         elif beam_count == 96:
 
             if used_telephoto:
                 # ARIS_Telephoto_96
-                beam_width_fn = 'ARIS_Telephoto_96.csv'
+                beam_width_fn = "ARIS_Telephoto_96.csv"
             else:
                 # ARIS1800_96
-                beam_width_fn = 'ARIS1800_96.csv'
+                beam_width_fn = "ARIS1800_96.csv"
 
         else:
             raise ValueError("Invalid Beam Count %d for ARIS 1800" % (beam_count,))
@@ -111,11 +114,11 @@ def load_beam_width_data(frame, beam_width_dir):
 
         if beam_count == 64:
             # ARIS3000_64
-            beam_width_fn = 'ARIS3000_64.csv'
+            beam_width_fn = "ARIS3000_64.csv"
 
         elif beam_count == 128:
             # ARIS3000_128
-            beam_width_fn = 'ARIS3000_128.csv'
+            beam_width_fn = "ARIS3000_128.csv"
 
         else:
             raise ValueError("Invalid Beam Count %d for ARIS 3000" % (beam_count,))
@@ -127,14 +130,14 @@ def load_beam_width_data(frame, beam_width_dir):
 
         if used_telephoto:
             # ARIS_Telephoto_48
-            beam_width_fn = 'ARIS_Telephoto_48.csv'
+            beam_width_fn = "ARIS_Telephoto_48.csv"
         else:
             # ARIS1800_1200_48
-            beam_width_fn = 'ARIS1800_1200_48.csv'
+            beam_width_fn = "ARIS1800_1200_48.csv"
 
     else:
         raise ValueError("Unknown System Type: %s" % (system_type,))
 
     beam_width_fp = os.path.join(beam_width_dir, beam_width_fn)
 
-    return pd.read_csv(beam_width_fp), beam_width_fn.replace('.csv', '')
+    return pd.read_csv(beam_width_fp), beam_width_fn.replace(".csv", "")

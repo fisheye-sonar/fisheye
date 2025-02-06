@@ -14,7 +14,7 @@ FishEye simplifies the process of loading, preprocessing, and analyzing sonar da
 
 `pyenv virtualenv 3.10.8 fisheye-dev`
 
-2. Copy virutal environment name so poetry can access and automatically enable.
+2. Copy virtual environment name so poetry can access and automatically enable.
 
 `echo fisheye-dev > .python-version`
 

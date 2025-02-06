@@ -22,19 +22,3 @@ def yolo_collate_fn(batch):
     for i, l in enumerate(label):
         l[:, 0] = i  # add target image index for build_targets()
     return torch.stack(img, 0), torch.cat(label, 0), shapes
-
-
-def select_device(device='cpu', batch_size=32):
-    """Select the appropriate device (CPU or CUDA).
-
-    Args:
-        device: device string (e.g., 'cpu' or 'cuda')
-        batch_size: batch size (needed for some specific configurations)
-
-    Returns:
-        device: selected torch device
-    """
-    if device == 'cuda' and torch.cuda.is_available():
-        return torch.device('cuda')
-    else:
-        return torch.device('cpu')

@@ -4,6 +4,7 @@ from fisheye.dataloaders.yolo import YOLOARISBatchedDataset
 
 class DataloaderRegistry:
     """Dynamically load the appropriate dataloader based on the model."""
+
     _registry = {}
 
     @classmethod
