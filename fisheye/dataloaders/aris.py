@@ -14,6 +14,7 @@ class ARISBatchedDataset(BaseDataset):
 
     A Dataset class for loading an ARIS file, loading the frames, and applying background subtraction.
     """
+
     def __init__(self, config: ARISDatasetConfig):
         """
         :param aris_filepath (str): Path to an ARIS file.
@@ -28,17 +29,24 @@ class ARISBatchedDataset(BaseDataset):
         :param end_frame (int): Ending frame for ARIS file. Defaults to None.
         """
         try:
-            self.didson = DIDSON(config.aris_filepath, beam_width_dir=config.beam_width_dir)
+            self.didson = DIDSON(
+                config.aris_filepath, beam_width_dir=config.beam_width_dir
+            )
         except Exception as e:
             raise RuntimeError(f"Could not load {config.aris_filepath}: {e}")
 
         if config.start_frame is None:
-            config.start_frame = self.didson.info['startframe']
+            config.start_frame = self.didson.info["startframe"]
         if config.end_frame is None:
-            config.end_frame = self.didson.info['endframe'] or self.didson.info['numframes']
+            config.end_frame = (
+                self.didson.info["endframe"] or self.didson.info["numframes"]
+            )
 
-        config.end_frame = min(config.end_frame, self.didson.info["endframe"] or self.didson.info["numframes"])
-        config.xdim, config.ydim = self.didson.info['xdim'], self.didson.info['ydim']
+        config.end_frame = min(
+            config.end_frame,
+            self.didson.info["endframe"] or self.didson.info["numframes"],
+        )
+        config.xdim, config.ydim = self.didson.info["xdim"], self.didson.info["ydim"]
 
         super().__init__(config)
 
@@ -56,16 +64,23 @@ def create_aris_dataloader(config: ARISDatasetConfig):
     with torch_distributed_zero_first(config.rank):
         dataset = ARISBatchedDataset(config)
     batch_size = min(config.batch_size, len(dataset))
-    nw = min([os.cpu_count() // config.world_size, batch_size if batch_size > 1 else 0, config.workers])  # number of workers
+    nw = min(
+        [
+            os.cpu_count() // config.world_size,
+            batch_size if batch_size > 1 else 0,
+            config.workers,
+        ]
+    )  # number of workers
 
     if not config.disable_output:
         print("Dataset size", len(dataset))
         print("Num workers", nw)
 
-    dataloader = torch.utils.data.dataloader.DataLoader(dataset,
-                                                        batch_size=None,
-                                                        sampler=OnePerBatchSampler(data_source=dataset,
-                                                                                   batch_size=batch_size),
-                                                        num_workers=nw,
-                                                        pin_memory=True)
+    dataloader = torch.utils.data.dataloader.DataLoader(
+        dataset,
+        batch_size=None,
+        sampler=OnePerBatchSampler(data_source=dataset, batch_size=batch_size),
+        num_workers=nw,
+        pin_memory=True,
+    )
     return dataloader, dataset

@@ -26,6 +26,7 @@ jupyterlab = "^4.3.5"
 ipykernel = "^6.29.5"
 wandb = "^0.19.5"
 pre-commit = "^4.1.0"
+black = "^25.1.0"
 
 [build-system]
 requires = ["poetry-core"]

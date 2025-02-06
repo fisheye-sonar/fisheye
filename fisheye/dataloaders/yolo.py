@@ -15,6 +15,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
     """YOLOARISBatchedDataset
 
     An ARIS Dataset tailored for YOLOv5 inference."""
+
     def __init__(self, config: YOLODatasetConfig):
         """
         :param aris_filepath (str): Path to an ARIS file.
@@ -41,7 +42,12 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         """Computes the shape for resizing images based on aspect ratio."""
         aspect_ratio = self.ydim / self.xdim
         shape = [1, 1 / aspect_ratio] if aspect_ratio > 1 else [aspect_ratio, 1]
-        return np.ceil(np.array(shape) * self.img_size / self.stride + self.pad).astype(int) * self.stride
+        return (
+            np.ceil(np.array(shape) * self.img_size / self.stride + self.pad).astype(
+                int
+            )
+            * self.stride
+        )
 
     @classmethod
     def load_image(cls, img, img_size=896):
@@ -86,10 +92,18 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         """Processes and converts labels from normalized xywh to pixel xyxy format, applies padding from letterbox."""
         if labels is not None and labels.size > 0:
             labels = labels.copy()
-            labels[:, 1] = ratio[0] * img_shape[1] * (labels[:, 1] - labels[:, 3] / 2) + pad[0]
-            labels[:, 2] = ratio[1] * img_shape[0] * (labels[:, 2] - labels[:, 4] / 2) + pad[1]
-            labels[:, 3] = ratio[0] * img_shape[1] * (labels[:, 1] + labels[:, 3] / 2) + pad[0]
-            labels[:, 4] = ratio[1] * img_shape[0] * (labels[:, 2] + labels[:, 4] / 2) + pad[1]
+            labels[:, 1] = (
+                ratio[0] * img_shape[1] * (labels[:, 1] - labels[:, 3] / 2) + pad[0]
+            )
+            labels[:, 2] = (
+                ratio[1] * img_shape[0] * (labels[:, 2] - labels[:, 4] / 2) + pad[1]
+            )
+            labels[:, 3] = (
+                ratio[0] * img_shape[1] * (labels[:, 1] + labels[:, 3] / 2) + pad[0]
+            )
+            labels[:, 4] = (
+                ratio[1] * img_shape[0] * (labels[:, 2] + labels[:, 4] / 2) + pad[1]
+            )
 
             # Convert to xywh format and normalize
             labels[:, 1:5] = xyxy2xywh(labels[:, 1:5])
@@ -113,7 +127,13 @@ def create_yolo_dataloader(config: YOLODatasetConfig):
         dataset = YOLOARISBatchedDataset(config)
 
     batch_size = min(config.batch_size, len(dataset))
-    nw = min([os.cpu_count() // config.world_size, batch_size if batch_size > 1 else 0, config.workers])  # number of
+    nw = min(
+        [
+            os.cpu_count() // config.world_size,
+            batch_size if batch_size > 1 else 0,
+            config.workers,
+        ]
+    )  # number of
     # workers
 
     if not config.disable_output:
@@ -121,11 +141,12 @@ def create_yolo_dataloader(config: YOLODatasetConfig):
         print("Dataset shape", dataset.shape)
         print("Num workers", nw)
 
-    dataloader = torch.utils.data.dataloader.DataLoader(dataset,
-                                                        batch_size=None,
-                                                        sampler=OnePerBatchSampler(data_source=dataset,
-                                                                                   batch_size=batch_size),
-                                                        num_workers=nw,
-                                                        pin_memory=True,
-                                                        collate_fn=yolo_collate_fn)
+    dataloader = torch.utils.data.dataloader.DataLoader(
+        dataset,
+        batch_size=None,
+        sampler=OnePerBatchSampler(data_source=dataset, batch_size=batch_size),
+        num_workers=nw,
+        pin_memory=True,
+        collate_fn=yolo_collate_fn,
+    )
     return dataloader, dataset

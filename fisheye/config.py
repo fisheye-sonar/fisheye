@@ -26,7 +26,7 @@ class BaseDatasetConfig:
 
 @dataclass
 class ARISDatasetConfig(BaseDatasetConfig):
-    aris_filepath: str = ''
+    aris_filepath: str = ""
 
 
 @dataclass

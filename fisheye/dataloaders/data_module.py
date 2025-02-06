@@ -17,6 +17,7 @@ class ARISDataModule(pl.LightningDataModule):
 
     A PyTorch Lightning DataModule for ARIS data.
     """
+
     def __init__(self, dataset_cls, dataset_config: ARISDatasetConfig):
         """
         Args:
@@ -46,11 +47,13 @@ class ARISDataModule(pl.LightningDataModule):
             self.dataset = self.dataset_cls(self.dataset_config)
 
         self.batch_size = min(self.batch_size, len(self.dataset))
-        self.num_workers = min([
-            os.cpu_count() // self.world_size,
-            self.batch_size if self.batch_size > 1 else 0,
-            self.num_workers
-        ])
+        self.num_workers = min(
+            [
+                os.cpu_count() // self.world_size,
+                self.batch_size if self.batch_size > 1 else 0,
+                self.num_workers,
+            ]
+        )
 
         if not self.disable_output:
             print(f"Dataset size: {len(self.dataset)}")
@@ -58,15 +61,21 @@ class ARISDataModule(pl.LightningDataModule):
 
     def get_dataloader(self):
         """Returns a DataLoader with the correct collate function."""
-        collate_fn = yolo_collate_fn if self.dataset_cls.__name__ == "YOLOARISBatchedDataset" else None
+        collate_fn = (
+            yolo_collate_fn
+            if self.dataset_cls.__name__ == "YOLOARISBatchedDataset"
+            else None
+        )
 
         return DataLoader(
             self.dataset,
             batch_size=None,
-            sampler=OnePerBatchSampler(data_source=self.dataset, batch_size=self.batch_size),
+            sampler=OnePerBatchSampler(
+                data_source=self.dataset, batch_size=self.batch_size
+            ),
             num_workers=self.num_workers,
             pin_memory=True,
-            collate_fn=collate_fn
+            collate_fn=collate_fn,
         )
 
     def train_dataloader(self):
