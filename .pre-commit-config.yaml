@@ -1,4 +1,12 @@
 repos:
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        language: system
+        entry: poetry run black
+        files: \.py$
+
   - repo: local
     hooks:
       - id: pytest
@@ -7,4 +15,3 @@ repos:
         language: system
         pass_filenames: false
         args: [--rootdir=tests]
-
