@@ -4,12 +4,9 @@ from pathlib import Path
 import numpy as np
 import cv2
 from torch.utils.data import Dataset
-from fisheye.lib.yolo import xyxy2xywh
-import warnings
-import torch
 
-BASE = Path(__file__).parent.parent
-BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
+from fisheye.config import BaseDatasetConfig
+from fisheye.lib.yolo import xyxy2xywh
 
 
 class BaseDataset(Dataset):
@@ -34,6 +31,7 @@ class BaseDataset(Dataset):
         return_unwarped=False,
         return_echogram=False,
     ):
+    def __init__(self, config: BaseDatasetConfig):
         """
         :param start_frame (int): Index of the start frame.
         :param end_frame (int): Index of the end frame.
@@ -67,6 +65,19 @@ class BaseDataset(Dataset):
             )
 
         self._initialize_labels(annotations_file)
+        self.start_frame = config.start_frame
+        self.end_frame = config.end_frame
+        self.xdim = config.xdim
+        self.ydim = config.ydim
+        self.beam_width_dir = config.beam_width_dir
+        self.batch_size = config.batch_size
+        self.disable_output = config.disable_output
+        self.cache_bg_frames = config.cache_bg_frames
+        self.num_frames_bg_subtract = config.num_frames_bg_subtract
+        self.do_bg_subtract = config.do_bg_subtract
+        self.extracted_frames = []
+
+        self._initialize_labels(config.annotations_file)
         self._init_bg_frame()
 
     def _initialize_labels(self, annotations_file):

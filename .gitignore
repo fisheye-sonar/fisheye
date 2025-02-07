@@ -36,4 +36,8 @@ Thumbs.db
 *.bak
 *.tmp
 
-_debugging_images
+*gif
+_debugging_images/
+
+*gif
+_debugging_images/

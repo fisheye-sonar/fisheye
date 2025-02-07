@@ -33,6 +33,7 @@ class ARISBatchedDataset(BaseDataset):
         start_frame=None,
         end_frame=None,
     ):
+    def __init__(self, config: ARISDatasetConfig):
         """
         :param aris_filepath (str): Path to an ARIS file.
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
@@ -96,32 +97,54 @@ def create_aris_dataloader(
     start_frame=None,
     end_frame=None,
 ):
+        :param start_frame (int): Starting frame for ARIS file. Defaults to None.
+        :param end_frame (int): Ending frame for ARIS file. Defaults to None.
+        """
+        try:
+            self.didson = DIDSON(
+                config.aris_filepath, beam_width_dir=config.beam_width_dir
+            )
+        except Exception as e:
+            raise RuntimeError(f"Could not load {config.aris_filepath}: {e}")
+
+        if config.start_frame is None:
+            config.start_frame = self.didson.info["startframe"]
+        if config.end_frame is None:
+            config.end_frame = (
+                self.didson.info["endframe"] or self.didson.info["numframes"]
+            )
+
+        config.end_frame = min(
+            config.end_frame,
+            self.didson.info["endframe"] or self.didson.info["numframes"],
+        )
+        config.xdim, config.ydim = self.didson.info["xdim"], self.didson.info["ydim"]
+
+        super().__init__(config)
+
+    def load_frames(self, start_frame, end_frame):
+        """Load ARIS frames."""
+        return self.didson.load_frames(start_frame=start_frame, end_frame=end_frame)
+
+
+def create_aris_dataloader(config: ARISDatasetConfig):
     """
     Get a PyTorch Dataset and DataLoader for ARIS files with (optional) associated fisheye-formatted labels.
     """
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     # this is a no-op for a single-gpu machine
-
-    with torch_distributed_zero_first(rank):
-        dataset = ARISBatchedDataset(
-            aris_filepath,
-            beam_width_dir,
-            annotations_file,
-            batch_size=batch_size,
-            disable_output=disable_output,
-            cache_bg_frames=cache_bg_frames,
-            do_bg_subtract=do_bg_subtract,
-            return_unwarped=return_unwarped,
-            return_echogram=return_echogram,
-            start_frame=start_frame,
-            end_frame=end_frame,
-        )
-    batch_size = min(batch_size, len(dataset))
+    with torch_distributed_zero_first(config.rank):
+        dataset = ARISBatchedDataset(config)
+    batch_size = min(config.batch_size, len(dataset))
     nw = min(
-        [os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers]
+        [
+            os.cpu_count() // config.world_size,
+            batch_size if batch_size > 1 else 0,
+            config.workers,
+        ]
     )  # number of workers
 
-    if not disable_output:
+    if not config.disable_output:
         print("Dataset size", len(dataset))
         print("Num workers", nw)
 

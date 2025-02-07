@@ -2,9 +2,9 @@ import os
 from pathlib import Path
 
 import pytorch_lightning as pl
-import torch
 from torch.utils.data import DataLoader
 
+from fisheye.config import ARISDatasetConfig
 from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
 
@@ -18,16 +18,7 @@ class ARISDataModule(pl.LightningDataModule):
     A PyTorch Lightning DataModule for ARIS data.
     """
 
-    def __init__(
-        self,
-        dataset_cls,
-        dataset_kwargs,
-        batch_size=32,
-        num_workers=0,
-        world_size=1,
-        rank=-1,
-        disable_output=False,
-    ):
+    def __init__(self, dataset_cls, dataset_config: ARISDatasetConfig):
         """
         Args:
             dataset_cls (Dataset): The dataset class to be used (e.g., ARISBatchedDataset, YOLOBatchedDataset)
@@ -40,22 +31,20 @@ class ARISDataModule(pl.LightningDataModule):
         """
         super().__init__()
         self.dataset_cls = dataset_cls
-        self.dataset_kwargs = dataset_kwargs
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.world_size = world_size
-        self.rank = rank
-        self.disable_output = disable_output
+        self.dataset_config = dataset_config
+        self.batch_size = dataset_config.batch_size
+        self.num_workers = dataset_config.workers
+        self.world_size = dataset_config.world_size
+        self.rank = dataset_config.rank
+        self.disable_output = dataset_config.disable_output
         self.dataset = None
         self.dataloader = None
 
     def setup(self, stage=None):
-        """
-        Setup dataset. Called once before training/validation starts.
-        """
+        """Setup dataset. Called once before training/validation starts."""
         # Ensure only the first DDP process initializes the dataset
         with torch_distributed_zero_first(self.rank):
-            self.dataset = self.dataset_cls(**self.dataset_kwargs)
+            self.dataset = self.dataset_cls(self.dataset_config)
 
         self.batch_size = min(self.batch_size, len(self.dataset))
         self.num_workers = min(
