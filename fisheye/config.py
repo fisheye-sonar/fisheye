@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 BASE = Path(__file__).parent
-BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
+BEAM_WIDTH_DIR = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
 
 
 @dataclass
@@ -22,6 +22,8 @@ class BaseDatasetConfig:
     start_frame: int = None
     end_frame: int = None
     num_frames_bg_subtract: int = 1000
+    return_unwarped: bool = False
+    return_echogram: bool = False
 
 
 @dataclass

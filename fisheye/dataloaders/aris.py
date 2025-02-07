@@ -7,6 +7,7 @@ from fisheye.dataloaders.base import BaseDataset
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
 from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.utils import torch_distributed_zero_first
+from fisheye.config import ARISDatasetConfig
 
 BASE = Path(__file__).parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
@@ -18,21 +19,6 @@ class ARISBatchedDataset(BaseDataset):
     A Dataset class for loading an ARIS file, loading the frames, and applying background subtraction.
     """
 
-    def __init__(
-        self,
-        aris_filepath,
-        beam_width_dir=BEAM_WIDTH_DIR,
-        annotations_file=None,
-        batch_size=32,
-        num_frames_bg_subtract=1000,
-        disable_output=False,
-        cache_bg_frames=False,
-        do_bg_subtract=True,
-        return_unwarped=False,
-        return_echogram=False,
-        start_frame=None,
-        end_frame=None,
-    ):
     def __init__(self, config: ARISDatasetConfig):
         """
         :param aris_filepath (str): Path to an ARIS file.
@@ -44,62 +30,6 @@ class ARISBatchedDataset(BaseDataset):
         :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
         :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
         """
-        self.didson = DIDSON(
-            aris_filepath,
-            beam_width_dir=beam_width_dir,
-            return_unwarped=return_unwarped,
-        )
-        if start_frame is None:
-            start_frame = self.didson.info["startframe"]
-        if end_frame is None:
-            end_frame = self.didson.info["endframe"] or self.didson.info["numframes"]
-        else:
-            end_frame = min(end_frame, self.didson.info["endframe"] or self.didson.info["numframes"])
-        xdim, ydim = self.didson.info["xdim"], self.didson.info["ydim"]
-        super().__init__(
-            start_frame,
-            end_frame,
-            xdim,
-            ydim,
-            beam_width_dir,
-            annotations_file,
-            batch_size,
-            num_frames_bg_subtract,
-            disable_output,
-            cache_bg_frames,
-            do_bg_subtract,
-            return_unwarped,
-            return_echogram,
-        )
-
-    def load_frames(self, start_frame, end_frame):
-        """Load ARIS frames."""
-        frames, unwarped_frames = self.didson.load_frames(
-            start_frame=start_frame,
-            end_frame=end_frame,
-        )
-        return frames, unwarped_frames
-
-
-def create_aris_dataloader(
-    aris_filepath,
-    beam_width_dir=BEAM_WIDTH_DIR,
-    annotations_file=None,
-    batch_size=32,
-    rank=-1,
-    world_size=1,
-    workers=0,
-    disable_output=False,
-    cache_bg_frames=False,
-    do_bg_subtract=True,
-    return_unwarped=False,
-    return_echogram=False,
-    start_frame=None,
-    end_frame=None,
-):
-        :param start_frame (int): Starting frame for ARIS file. Defaults to None.
-        :param end_frame (int): Ending frame for ARIS file. Defaults to None.
-        """
         try:
             self.didson = DIDSON(
                 config.aris_filepath, beam_width_dir=config.beam_width_dir
@@ -109,11 +39,15 @@ def create_aris_dataloader(
 
         if config.start_frame is None:
             config.start_frame = self.didson.info["startframe"]
+
         if config.end_frame is None:
             config.end_frame = (
                 self.didson.info["endframe"] or self.didson.info["numframes"]
             )
-
+        print(f"{config.end_frame=}")
+        print(f"{self.didson.info['endframe']=}")
+        print(f"{self.didson.info['numframes']=}")
+        print(f"{self.didson.info['endframe'] or self.didson.info['numframes']=}")
         config.end_frame = min(
             config.end_frame,
             self.didson.info["endframe"] or self.didson.info["numframes"],
@@ -125,8 +59,6 @@ def create_aris_dataloader(
     def load_frames(self, start_frame, end_frame):
         """Load ARIS frames."""
         return self.didson.load_frames(start_frame=start_frame, end_frame=end_frame)
-
-
 def create_aris_dataloader(config: ARISDatasetConfig):
     """
     Get a PyTorch Dataset and DataLoader for ARIS files with (optional) associated fisheye-formatted labels.

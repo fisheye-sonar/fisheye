@@ -1,61 +1,230 @@
+import numpy as np
 import pytest
-import sys
-import os
+import torch
 
-sys.path.append("/Users/mahobley/Code/fisheye")
-from fisheye.dataloaders.aris import create_aris_dataloader
-from fisheye.dataloaders.register import DataloaderRegistry
+from fisheye.dataloaders import (
+    create_aris_dataloader,
+    ARISBatchedDataset,
+    YOLOARISBatchedDataset,
+)
+from fisheye.dataloaders.data_module import ARISDataModule
+from fisheye.dataloaders.didson.pyDIDSON import DIDSON
+from conftest import ARIS_FILE, CORRUPTED_FILE
+from fisheye.dataloaders.yolo import create_yolo_dataloader
 
-
-def test_aris_dataloader():
-    fp = "/Users/mahobley/Code/salmon_counting_data/RO_2018-05-26_073004.aris"
-    beam_width_dir = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
-    dataloader = DataloaderRegistry.get_dataloader("aris")
-    dataset = dataloader(fp, beam_width_dir=beam_width_dir, return_unwarped=True)
-    print("Dataset size", len(dataset))
-
-    for i, (frames, labels) in enumerate(dataset):
-        # if labels is not None:
-        print(i, frames.shape, labels)
+from fisheye.config import ARISDatasetConfig, YOLODatasetConfig
 
 
-def test_aris_dataloader_factory_func():
-    fp = "/Users/mahobley/Code/salmon_counting_data/RO_2018-05-26_073004.aris"
-    beam_width_dir = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
-    dataloader, _ = create_aris_dataloader(
-        fp, beam_width_dir=beam_width_dir, return_unwarped=True
-    )
+def test_creating_aris_dataloader_factory_func(beam_widths_path):
+    """Test creating a ARIS dataloader using factory function with no labels."""
+    didson = DIDSON(ARIS_FILE, beam_widths_path)
+    frames = didson.load_frames()
 
-    for i, (frames, labels) in enumerate(dataloader):
-        print(i, frames.shape)
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
+    dataloader, dataset = create_aris_dataloader(config)
+    num_batches = len(dataloader)
 
+    assert len(dataset) == len(frames) - 1
+    assert num_batches == 1
 
-def test_yolo_dataloader():
-    """Successful case: load a dataloader for YOLOv5."""
-    fp = "/Users/mahobley/Code/salmon_counting_data/RO_2018-05-26_073004.aris"
-    beam_width_dir = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
-    dataloader = DataloaderRegistry.get_dataloader("yolo")
-    dataset = dataloader(fp, beam_width_dir=beam_width_dir, return_unwarped=True)
-    for i, (batch) in enumerate(dataset):
-        ims = [batch[j][0] for j in range(len(batch))]
-        labels = [batch[j][1] for j in range(len(batch))]
-        shapes = [batch[j][2][1] for j in range(len(batch))]
-        print(i, ims[0].shape, labels[0].shape, shapes[0])
+    batch = next(iter(dataloader))
+    batch_data, batch_labels = batch
+    # Check batch content
+    assert batch_data.shape == torch.Size([3, 2686, 1307, 3])
+    # Check batch labels
+    assert batch_labels is None
 
 
-def test_unknown_dataloader():
-    """Failure case: load an unknown dataloader."""
-    model_name = "unknown_model"
-    with pytest.raises(
-        ValueError, match="No dataloader found for model: unknown_model"
-    ):
-        DataloaderRegistry.get_dataloader(model_name)
+def test_creating_aris_dataloader_lightning(beam_widths_path):
+    """Test creating a ARIS dataloader using Lightning DataModule with no labels."""
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
+    data_module = ARISDataModule(ARISBatchedDataset, config)
+    data_module.setup(stage="test")
+    dataloader = data_module.test_dataloader()
+
+    num_batches = len(dataloader)
+    assert num_batches == 1
+
+    batch = next(iter(dataloader))
+    batch_data, batch_labels = batch
+    # Check batch content
+    assert batch_data.shape == torch.Size([3, 2686, 1307, 3])
+    # Check batch labels
+    assert batch_labels is None
 
 
-def test_loading_corrupted_data_to_dataloader():
-    pass
+def test_creating_yolo_dataloader_factory_func(beam_widths_path):
+    """Test creating a YOLO dataloader using factory function with no labels."""
+    didson = DIDSON(ARIS_FILE, beam_widths_path)
+    frames = didson.load_frames()
+
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
+    dataloader, dataset = create_yolo_dataloader(config)
+    num_batches = len(dataloader)
+
+    assert len(dataset) == len(frames) - 1
+    assert num_batches == 1
+
+    batch = next(iter(dataloader))
+    # Check batch content
+    assert batch[0].shape == torch.Size([3, 3, 960, 512])
+    # Check batch labels
+    assert batch[1] is None or batch[1].numel() == 0
 
 
-test_aris_dataloader()
-# test_aris_dataloader_factory_func()
-# test_yolo_dataloader()
+def test_creating_yolo_dataloader_lightning(beam_widths_path):
+    """Test creating a YOLO dataloader using Lightning DataModule with no labels."""
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
+    data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+    data_module.setup(stage="test")
+    dataloader = data_module.test_dataloader()
+
+    num_batches = len(dataloader)
+    assert num_batches == 1
+
+    batch = next(iter(dataloader))
+    # Check batch content
+    assert batch[0].shape == torch.Size([3, 3, 960, 512])
+    # Check batch labels
+    assert batch[1] is None or batch[1].numel() == 0
+
+
+def test_aris_loading_frames(beam_widths_path):
+    """Test loading frames directly from DIDSON class."""
+    didson = DIDSON(ARIS_FILE, beam_widths_path)
+    frames = didson.load_frames()
+    assert isinstance(frames, np.ndarray)
+    assert frames.shape == (4, 2686, 1307)  # Num of frames, ydim, xdim
+    assert frames.dtype == np.uint8
+
+
+def test_loading_selected_frames_aris_dataloader_factory_func():
+    """Test ARIS factory function correctly loads frames from specified range."""
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(dataset) == 3
+
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=2)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # end_frame is exclusive in DIDSON
+    assert len(dataset) == 1
+
+
+def test_loading_bad_end_frame_aris_dataloader_factory_func():
+    """Test ARIS factory function does not load frames from an outside range."""
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(dataset) == 3
+
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=6)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # Defaults to using end frame from file header if end_frame specified is larger and doesn't exist
+    assert len(dataset) == 3
+
+
+def test_loading_selected_frames_aris_dataloader_lightning():
+    """Test ARIS DataModule correctly loads frames from specified range."""
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
+    data_module = ARISDataModule(ARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(data_module.dataset) == 3
+
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=2)
+    data_module = ARISDataModule(ARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # end_frame is exclusive in DIDSON
+    assert len(data_module.dataset) == 1
+
+
+def test_loading_bad_end_frame_aris_dataloader_lightning():
+    """Test ARIS DataModule does not load frames from an outside range."""
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
+    data_module = ARISDataModule(ARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(data_module.dataset) == 3
+
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=6)
+    data_module = ARISDataModule(ARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # Defaults to using end frame - 1 from file header if end_frame specified is larger and doesn't exist
+    assert len(data_module.dataset) == 3
+
+
+def test_loading_selected_frames_yolo_dataloader_factory_func():
+    """Test YOLO factory function correctly loads frames from specified range."""
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
+    dataloader, dataset = create_yolo_dataloader(config)
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(dataset) == 3
+
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=2)
+    dataloader, dataset = create_yolo_dataloader(config)
+
+    # end_frame is exclusive in DIDSON
+    assert len(dataset) == 1
+
+
+def test_loading_bad_end_frame_yolo_dataloader_factory_func():
+    """Test YOLO factory function does not load frames from an outside range."""
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
+    dataloader, dataset = create_yolo_dataloader(config)
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(dataset) == 3
+
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=6)
+    dataloader, dataset = create_yolo_dataloader(config)
+
+    # end_frame is exclusive in DIDSON
+    assert len(dataset) == 3
+
+
+def test_loading_selected_frames_yolo_dataloader_lightning():
+    """Test ARIS DataModule correctly loads frames from specified range for YOLO Datasets."""
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
+    data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(data_module.dataset) == 3
+
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=2)
+    data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+    data_module.setup(stage="test")
+    assert len(data_module.dataset) == 1
+
+
+def test_loading_bad_end_frame_yolo_dataloader_lightning():
+    """Test ARIS DataModule does not load frames from an outside range for YOLO Datasets."""
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
+    data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # originally 4 frames in file, but subtract 1 for optical flow
+    assert len(data_module.dataset) == 3
+
+    config = YOLODatasetConfig(aris_filepath=ARIS_FILE, start_frame=0, end_frame=6)
+    data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+    data_module.setup(stage="test")
+    # Defaults to using end frame from file header if end_frame specified is larger and doesn't exist
+    assert len(data_module.dataset) == 3
+
+
+def test_corrupted_aris():
+    """Test dataloader fails to create due to corrupted ARIS file."""
+    with pytest.raises(RuntimeError) as exc_info:
+        config = ARISDatasetConfig(aris_filepath=CORRUPTED_FILE)
+        create_aris_dataloader(config)

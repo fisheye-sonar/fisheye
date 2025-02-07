@@ -16,6 +16,26 @@ from MAH_utils import (
 from tqdm import tqdm
 
 
+import numpy as np
+import pytest
+import torch
+
+from fisheye.dataloaders import (
+    create_aris_dataloader,
+    ARISBatchedDataset,
+    YOLOARISBatchedDataset,
+)
+from fisheye.dataloaders.data_module import ARISDataModule
+from fisheye.dataloaders.didson.pyDIDSON import DIDSON
+# from conftest import ARIS_FILE, CORRUPTED_FILE
+from fisheye.dataloaders.yolo import create_yolo_dataloader
+
+from fisheye.config import ARISDatasetConfig, YOLODatasetConfig
+
+
+ARIS_FILE = "/Users/mahobley/Downloads/2024-10-28_113000.aris"
+
+
 def make_echogram_image(echograms, echogram_pop=False):
 
     ec_mag = echograms[:, :, 0]  # magnitude of the echogram
@@ -58,25 +78,39 @@ def make_echogram_image(echograms, echogram_pop=False):
     return output_image
 
 
-def generate_echogram_gif_from_aris(
-    fp,
-    beam_width_dir,
-    return_unwarped,
-    return_echogram,
-    start_frame,
-    end_frame,
-    save_filename,
-    echogram_pop=False,
-):
+# def test_creating_aris_dataloader_factory_func(beam_widths_path):
+#     """Test creating a ARIS dataloader using factory function with no labels."""
+#     didson = DIDSON(ARIS_FILE, beam_widths_path)
+#     frames = didson.load_frames()
 
-    dataset, _ = create_aris_dataloader(
-        fp,
-        beam_width_dir=beam_width_dir,
-        return_unwarped=return_unwarped,
-        return_echogram=return_echogram,
-        start_frame=start_frame,
-        end_frame=end_frame,
-    )
+#     config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
+#     dataloader, dataset = create_aris_dataloader(config)
+#     num_batches = len(dataloader)
+
+#     assert len(dataset) == len(frames) - 1
+#     assert num_batches == 1
+
+#     batch = next(iter(dataloader))
+#     batch_data, batch_labels = batch
+#     # Check batch content
+#     assert batch_data.shape == torch.Size([3, 2686, 1307, 3])
+#     # Check batch labels
+#     assert batch_labels is None
+
+
+def generate_echogram_gif_from_aris(config, save_filename, echogram_pop):
+    # config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
+
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # dataset, _ = create_aris_dataloader(
+    #     fp,
+    #     beam_width_dir=beam_width_dir,
+    #     return_unwarped=return_unwarped,
+    #     return_echogram=return_echogram,
+    #     start_frame=start_frame,
+    #     end_frame=end_frame,
+    # )
 
     echograms = []
     frames_vis = []
@@ -86,40 +120,44 @@ def generate_echogram_gif_from_aris(
             batch["unwarped_frames"],
             batch["echogram"],
         )
+        print(i)
         print(type(frames))
         print(type(unwarped_frames))
         print(type(echogram))
         frames_vis.append(frames)
         echograms.append(echogram)
-    # echograms = np.concatenate(echograms, axis=0)
-    # frames_vis = np.concatenate(frames_vis, axis=0)
+    echograms = np.concatenate(echograms, axis=0)
+    frames_vis = np.concatenate(frames_vis, axis=0)
 
-    # coloured_echogram = make_echogram_image(echograms, echogram_pop=echogram_pop)
+    coloured_echogram = make_echogram_image(echograms, echogram_pop=echogram_pop)
 
-    # coloured_echogram = coloured_echogram[: frames_vis.shape[0]]
-    # coloured_echogram = zero_pad_to_match_one_dim(coloured_echogram, frames_vis.shape, dim=1)
-    # frames_vis = np.stack([frames_vis[:, :, :, 0]] * 3, axis=-1)
-    # if coloured_echogram.shape[2] < frames_vis.shape[2]:
-    #     coloured_echogram = np.repeat(
-    #         coloured_echogram, int(frames_vis.shape[2] / coloured_echogram.shape[2]), axis=2
-    #     )
-    # comb = np.concatenate([frames_vis, coloured_echogram], axis=2)
-    # print("Saving gif...")
-    # make_gif_from_np_stack(save_filename, comb, frame_rate=25)
+    coloured_echogram = coloured_echogram[: frames_vis.shape[0]]
+    coloured_echogram = zero_pad_to_match_one_dim(coloured_echogram, frames_vis.shape, dim=1)
+    frames_vis = np.stack([frames_vis[:, :, :, 0]] * 3, axis=-1)
+    if coloured_echogram.shape[2] < frames_vis.shape[2]:
+        coloured_echogram = np.repeat(
+            coloured_echogram, int(frames_vis.shape[2] / coloured_echogram.shape[2]), axis=2
+        )
+    comb = np.concatenate([frames_vis, coloured_echogram], axis=2)
+    print("Saving gif...")
+    make_gif_from_np_stack(save_filename, comb, frame_rate=25)
 
 
 fp = "/Users/mahobley/Code/salmon_counting_data/RO_2018-05-26_073004.aris"
 fp = "/Users/mahobley/Downloads/2024-10-28_113000.aris"
 beam_width_dir = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
 
-generate_echogram_gif_from_aris(
-    fp,
+config = ARISDatasetConfig(    aris_filepath=fp,
     beam_width_dir=beam_width_dir,
-    return_unwarped=False,
+    return_unwarped=True,
     return_echogram=True,
     start_frame=181,
-    end_frame=311,
-    save_filename="_debugging_images/test9.gif",
+    end_frame=188,
+)
+
+generate_echogram_gif_from_aris(
+    config,
+    save_filename="_debugging_images/test13.gif",
     echogram_pop=True,
 )
 

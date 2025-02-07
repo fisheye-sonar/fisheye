@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 
 from fisheye.config import BaseDatasetConfig
 from fisheye.lib.yolo import xyxy2xywh
+import warnings
 
 
 class BaseDataset(Dataset):
@@ -14,23 +15,6 @@ class BaseDataset(Dataset):
 
     Base class for all datasets.
     """
-
-    def __init__(
-        self,
-        start_frame,
-        end_frame,
-        xdim,
-        ydim,
-        beam_width_dir=BEAM_WIDTH_DIR,
-        annotations_file=None,
-        batch_size=32,
-        num_frames_bg_subtract=1000,
-        disable_output=False,
-        cache_bg_frames=False,
-        do_bg_subtract=True,
-        return_unwarped=False,
-        return_echogram=False,
-    ):
     def __init__(self, config: BaseDatasetConfig):
         """
         :param start_frame (int): Index of the start frame.
@@ -45,26 +29,8 @@ class BaseDataset(Dataset):
         :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
         :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
         """
-        self.start_frame = start_frame
-        self.end_frame = end_frame
-        self.xdim = xdim
-        self.ydim = ydim
-        self.beam_width_dir = beam_width_dir
-        self.batch_size = batch_size
-        self.disable_output = disable_output
-        self.cache_bg_frames = cache_bg_frames
-        self.num_frames_bg_subtract = num_frames_bg_subtract
-        self.do_bg_subtract = do_bg_subtract
-        self.extracted_frames = []
-        self.return_unwarped = return_unwarped
-        self.return_echogram = return_echogram
 
-        if self.return_unwarped and annotations_file is not None:
-            warnings.warn(
-                "Labels from the nnnotations file will be ignored when return_unwarped is True."
-            )
-
-        self._initialize_labels(annotations_file)
+        # self._initialize_labels(annotations_file)
         self.start_frame = config.start_frame
         self.end_frame = config.end_frame
         self.xdim = config.xdim
@@ -76,6 +42,13 @@ class BaseDataset(Dataset):
         self.num_frames_bg_subtract = config.num_frames_bg_subtract
         self.do_bg_subtract = config.do_bg_subtract
         self.extracted_frames = []
+        self.return_unwarped = config.return_unwarped
+        self.return_echogram = config.return_echogram
+
+        if self.return_unwarped and config.annotations_file is not None:
+            warnings.warn(
+                "Labels from the nnnotations file will be ignored when return_unwarped is True."
+            )
 
         self._initialize_labels(config.annotations_file)
         self._init_bg_frame()
