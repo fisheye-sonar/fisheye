@@ -35,13 +35,14 @@ def generate_echogram_gif_from_aris(
             batch[3],
         )
         print(f"{i=} {frames.shape=} {echogram.shape=}")
-        frames_vis.append(frames)
-        echograms.append(echogram)
+        if frames.shape[0] != 0:
+            frames_vis.append(frames[:1])
+            echograms.append(echogram[:1])
     echograms = np.concatenate(echograms, axis=0)
     frames_vis = np.concatenate(frames_vis, axis=0)
     print(f"{frames_vis.shape=} {echograms.shape=} ")
 
-    coloured_echogram = make_echogram_image(echograms, echogram_pop=echogram_pop)
+    coloured_echogram = make_echogram_image(echograms.astype('float'), echogram_pop=echogram_pop)
 
     coloured_echogram = coloured_echogram[: frames_vis.shape[0]]
     coloured_echogram = zero_pad_to_match_one_dim(
@@ -60,7 +61,7 @@ def generate_echogram_gif_from_aris(
 
 
 fp = "/Users/mahobley/Code/salmon_counting_data/RO_2018-05-26_073004.aris"
-fp = "/Users/mahobley/Downloads/2024-10-28_113000.aris"
+# fp = "/Users/mahobley/Downloads/2024-10-28_113000.aris"
 beam_width_dir = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
 
 config = ARISDatasetConfig(
@@ -68,13 +69,13 @@ config = ARISDatasetConfig(
     beam_width_dir=beam_width_dir,
     return_unwarped=False,
     return_echogram=True,
-    start_frame=181,
-    end_frame=185,
+    start_frame=0,
+    end_frame=150,
 )
 
 generate_echogram_gif_from_aris(
     config,
-    save_filename="_debugging_images/test14.gif",
+    save_filename="_debugging_images/test15.gif",
     echogram_pop=True,
     return_unwarped=False,
 )

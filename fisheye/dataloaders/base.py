@@ -40,6 +40,8 @@ class BaseDataset(Dataset):
         self.num_frames_bg_subtract = config.num_frames_bg_subtract
         self.do_bg_subtract = config.do_bg_subtract
         self.extracted_frames = []
+        self.extracted_unwarped_frames = []
+        self.extracted_echograms = []
         self.return_unwarped = config.return_unwarped
         self.return_echogram = config.return_echogram
 
@@ -138,9 +140,14 @@ class BaseDataset(Dataset):
         frame_labels = self.labels[idx:final_idx] if self.labels else None
 
         if idx + 1 < len(self.extracted_frames):
+            # MAH 2025-02-07 18:09:11 why is frame_labels not indexed
             return self._postprocess(
-                self.extracted_frames[idx:final_idx], frame_labels, None
+                np.stack(self.extracted_frames[idx:final_idx]),
+                frame_labels,
+                np.stack(self.extracted_unwarped_frames[idx:final_idx]),
+                np.stack(self.extracted_echograms[idx:final_idx]),
             )
+
         else:
 
             frames, unwarped_frames = self.load_frames(
@@ -161,9 +168,6 @@ class BaseDataset(Dataset):
                 else np.expand_dims(frame_images[:-1], -1)
             )
 
-            if self.cache_bg_frames:
-                self.extracted_frames.extend(frame_images)
-
             if self.return_echogram:
                 echogram = self._get_echogram(unwarped_frames)
                 # MAH 2025-02-07 17:16:18 to match the above from the frames, though i dont know why we are doing this
@@ -171,8 +175,13 @@ class BaseDataset(Dataset):
             else:
                 echogram = None
 
-        frame_images, frame_labels, echogram = self._postprocess(
-            frame_images, frame_labels, echogram
+            if self.cache_bg_frames:
+                self.extracted_frames.extend(frame_images)
+                self.extracted_unwarped_frames.extend(unwarped_frames)
+                self.extracted_echograms.extend(echogram)
+
+        frame_images, frame_labels, unwarped_frames, echogram = self._postprocess(
+            frame_images, frame_labels, unwarped_frames, echogram
         )
 
         # MAH 2025-02-07 16:48:40 I thinnk this is likely the best solution, it means indexes will be consistent and if needed we can add more things to the list when required
@@ -204,9 +213,9 @@ class BaseDataset(Dataset):
 
         return frame_image
 
-    def _postprocess(self, frame_images, frame_labels, echogram):
+    def _postprocess(self, frame_images, frame_labels, unwarped_frames, echogram):
         """Postprocess frames before returning."""
-        return frame_images, frame_labels, echogram
+        return frame_images, frame_labels, unwarped_frames, echogram
 
     def _get_echogram(self, unwarped_frames):
         """Generate Echogram from the frames.

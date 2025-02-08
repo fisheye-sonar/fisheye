@@ -17,7 +17,7 @@ class BaseDatasetConfig:
     world_size: int = 1
     workers: int = 0
     disable_output: bool = False
-    cache_bg_frames: bool = False
+    cache_bg_frames: bool = True
     do_bg_subtract: bool = True
     start_frame: int = None
     end_frame: int = None
