@@ -88,23 +88,23 @@ class BaseDataset(Dataset):
 
     def _init_bg_frame(self):
         """Initialize background frame for subtraction."""
-        if not self.do_bg_subtract:
-            return
+        if self.do_bg_subtract or self.return_echogram:
+            num_frames_bg = min(
+                self.end_frame - self.start_frame,
+                self.num_frames_bg_subtract // self.batch_size * self.batch_size + 1,
+            )
+            frames_for_bg_subtract, unwarped_frames_for_bg_subtract = self.load_frames(
+                self.start_frame, self.start_frame + num_frames_bg
+            )
+            self.unwarped_mean_blurred_frame, self.unwarped_mean_normalization_value = (
+                self._compute_bg_subtraction(unwarped_frames_for_bg_subtract)
+            )
 
-        num_frames_bg = min(
-            self.end_frame - self.start_frame,
-            self.num_frames_bg_subtract // self.batch_size * self.batch_size + 1,
-        )
-        frames_for_bg_subtract, unwarped_frames_for_bg_subtract = self.load_frames(
-            self.start_frame, self.start_frame + num_frames_bg
-        )
+        if self.do_bg_subtract:
 
-        self.mean_blurred_frame, self.mean_normalization_value = (
-            self._compute_bg_subtraction(frames_for_bg_subtract)
-        )
-        self.unwarped_mean_blurred_frame, self.unwarped_mean_normalization_value = (
-            self._compute_bg_subtraction(unwarped_frames_for_bg_subtract)
-        )
+            self.mean_blurred_frame, self.mean_normalization_value = (
+                    self._compute_bg_subtraction(frames_for_bg_subtract)
+                )
 
     def _compute_bg_subtraction(self, frames_for_bg_subtract):
         """Calculate the mean blurred frame and normalization value."""
@@ -153,10 +153,12 @@ class BaseDataset(Dataset):
             else:
                 frame_images = frames
 
+            # MAH 2025-02-07 17:13:36 Question, why are we removing the last frame?
+            # whether or not we are doing background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w, 3] not was [t,h,w])
             frame_images = (
                 self._apply_bg_subtraction(frame_images)
                 if self.do_bg_subtract
-                else frame_images[:-1]
+                else np.expand_dims(frame_images[:-1], -1)
             )
 
             if self.cache_bg_frames:
@@ -164,29 +166,17 @@ class BaseDataset(Dataset):
 
             if self.return_echogram:
                 echogram = self._get_echogram(unwarped_frames)
+                # MAH 2025-02-07 17:16:18 to match the above from the frames, though i dont know why we are doing this
+                echogram = echogram[:-1]
             else:
                 echogram = None
+
         frame_images, frame_labels, echogram = self._postprocess(
             frame_images, frame_labels, echogram
         )
 
-        # MAH 2025-02-05 18:57:55 I very much dislike this but I think it needs to be in their for backwards compatibility,
-        # I think we should use the dict or list approach going forward so we can have variable outpus
-        if not self.return_unwarped and not self.return_echogram:
-            return frame_images, frame_labels
-        elif self.return_unwarped and not self.return_echogram:
-            return frame_images, frame_labels, unwarped_frames
-        elif not self.return_unwarped and self.return_echogram:
-            return frame_images, frame_labels, echogram
-        elif self.return_unwarped and self.return_echogram:
-            return frame_images, frame_labels, unwarped_frames, echogram
-        else:
-            return {
-                "frames": frame_images,
-                "unwarped_frames": unwarped_frames,
-                "labels": frame_labels,
-                "echogram": echogram,
-            }
+        # MAH 2025-02-07 16:48:40 I thinnk this is likely the best solution, it means indexes will be consistent and if needed we can add more things to the list when required
+        return [frame_images, frame_labels, unwarped_frames, echogram]
 
     def _apply_bg_subtraction(self, frames: np.ndarray):
         """Apply background subtraction."""
@@ -234,6 +224,7 @@ class BaseDataset(Dataset):
         col = col / unwarped_frames.shape[2]
         col -= 0.5
         echogram = np.stack([echogram, col], axis=2)
+
         return echogram
 
     def load_frames(self, idx, final_idx):

@@ -1,28 +1,6 @@
-import pytest
 import sys
-import os
-
 sys.path.append("/Users/mahobley/Code/fisheye")
-from fisheye.dataloaders.aris import create_aris_dataloader
-import matplotlib.pyplot as plt
 import numpy as np
-from MAH_utils import (
-    make_gif_from_np_stack,
-    numpy_to_redblue,
-    zero_pad_to_match_one_dim,
-)
-
-import numpy as np
-import pytest
-import torch
-
-from fisheye.dataloaders import     create_aris_dataloader
-
-from fisheye.config import ARISDatasetConfig
-
-
-ARIS_FILE = "/Users/mahobley/Downloads/2024-10-28_113000.aris"
-
 
 def make_echogram_image(echograms, echogram_pop=False):
 
@@ -66,55 +44,59 @@ def make_echogram_image(echograms, echogram_pop=False):
     return output_image
 
 
+def numpy_to_redblue(array):
+    """
+    Maps a value from -1 to 1 to an RGB color gradient transitioning
+    from red (-1) to white (0) to blue (1).
 
-def generate_echogram_gif_from_aris(config, save_filename, echogram_pop):
-    dataloader, dataset = create_aris_dataloader(config)
+    Args:
+        value (float): A number between -1 and 1.
 
-    echograms = []
-    frames_vis = []
-    for i, batch in enumerate(dataset):
-        frames, unwarped_frames, echogram = (
-            batch[0],
-            batch[2],
-            batch[3],
-        )
-        print(i)
-        print(type(frames))
-        print(type(unwarped_frames))
-        print(type(echogram))
-        frames_vis.append(frames)
-        echograms.append(echogram)
-    echograms = np.concatenate(echograms, axis=0)
-    frames_vis = np.concatenate(frames_vis, axis=0)
+    Returns:
+        tuple: (R, G, B) values as integers in the range [0, 255].
+    """
+    # Ensure the value is clamped between -1 and 1
+    # value = max(-1, min(1, value))
+    cmapped_pos = np.stack(
+        [255 * np.ones_like(array), 255 * (1 + array), 255 * (1 + array)], axis=-1
+    )
+    cmapped_neg = np.stack(
+        [
+            255 * (1 - array),
+            255 * (1 - array) * 0.5 + 128 * np.ones_like(array),
+            255 * np.ones_like(array),
+        ],
+        axis=-1,
+    )
+    array_stacked = np.stack([array, array, array], axis=-1)
+    cmapped = np.where(
+        array_stacked <= 0,
+        cmapped_pos,
+        cmapped_neg,
+    )
+    cmapped = cmapped.astype(np.float32) / 255
 
-    coloured_echogram = make_echogram_image(echograms, echogram_pop=echogram_pop)
-
-    coloured_echogram = coloured_echogram[: frames_vis.shape[0]]
-    coloured_echogram = zero_pad_to_match_one_dim(coloured_echogram, frames_vis.shape, dim=1)
-    frames_vis = np.stack([frames_vis[:, :, :, 0]] * 3, axis=-1)
-    if coloured_echogram.shape[2] < frames_vis.shape[2]:
-        coloured_echogram = np.repeat(
-            coloured_echogram, int(frames_vis.shape[2] / coloured_echogram.shape[2]), axis=2
-        )
-    comb = np.concatenate([frames_vis, coloured_echogram], axis=2)
-    print("Saving gif...")
-    make_gif_from_np_stack(save_filename, comb, frame_rate=25)
+    cmapped = np.clip(
+        cmapped,
+        0,
+        1,
+    )
+    return cmapped
 
 
-fp = "/Users/mahobley/Code/salmon_counting_data/RO_2018-05-26_073004.aris"
-fp = "/Users/mahobley/Downloads/2024-10-28_113000.aris"
-beam_width_dir = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
+def zero_pad_to_match_one_dim(array, target_shape, dim):
+    """
+    Zero-pads the input array to match the target shape in one dimension.
 
-config = ARISDatasetConfig(aris_filepath=fp,
-    beam_width_dir=beam_width_dir,
-    return_unwarped=True,
-    return_echogram=True,
-    start_frame=181,
-    end_frame=188,
-)
+    Args:
+        array (np.ndarray): The input array to be padded.
+        target_shape (tuple): The target shape to pad the array to.
+        dim (int): The dimension to pad.
 
-generate_echogram_gif_from_aris(
-    config,
-    save_filename="_debugging_images/test13.gif",
-    echogram_pop=True,
-)
+    Returns:
+        np.ndarray: The zero-padded array with the target shape in the specified dimension.
+    """
+    pad_width = [(0, 0)] * array.ndim
+    pad_width[dim] = (0, max(0, target_shape[dim] - array.shape[dim]))
+    padded_array = np.pad(array, pad_width, mode="constant", constant_values=0)
+    return padded_array
