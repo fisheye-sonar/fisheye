@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 import numpy as np
 import cv2
@@ -30,7 +29,6 @@ class BaseDataset(Dataset):
         :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
         """
 
-        # self._initialize_labels(annotations_file)
         self.start_frame = config.start_frame
         self.end_frame = config.end_frame
         self.xdim = config.xdim
@@ -173,9 +171,15 @@ class BaseDataset(Dataset):
         )
 
         # MAH 2025-02-05 18:57:55 I very much dislike this but I think it needs to be in their for backwards compatibility,
-        # I think we should use the dict approach going forward so we can have variable outpus
+        # I think we should use the dict or list approach going forward so we can have variable outpus
         if not self.return_unwarped and not self.return_echogram:
             return frame_images, frame_labels
+        elif self.return_unwarped and not self.return_echogram:
+            return frame_images, frame_labels, unwarped_frames
+        elif not self.return_unwarped and self.return_echogram:
+            return frame_images, frame_labels, echogram
+        elif self.return_unwarped and self.return_echogram:
+            return frame_images, frame_labels, unwarped_frames, echogram
         else:
             return {
                 "frames": frame_images,
@@ -210,6 +214,10 @@ class BaseDataset(Dataset):
 
         return frame_image
 
+    def _postprocess(self, frame_images, frame_labels, echogram):
+        """Postprocess frames before returning."""
+        return frame_images, frame_labels, echogram
+
     def _get_echogram(self, unwarped_frames):
         """Generate Echogram from the frames.
         the return channels are the magnitude and the normailsed angle between -0.5 and 0.5
@@ -227,10 +235,6 @@ class BaseDataset(Dataset):
         col -= 0.5
         echogram = np.stack([echogram, col], axis=2)
         return echogram
-
-    def _postprocess(self, frame_images, frame_labels, echogram):
-        """Postprocess frames before returning."""
-        return frame_images, frame_labels, echogram
 
     def load_frames(self, idx, final_idx):
         raise NotImplementedError("Subclasses should implement this method.")

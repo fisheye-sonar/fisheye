@@ -116,9 +116,9 @@ def generate_echogram_gif_from_aris(config, save_filename, echogram_pop):
     frames_vis = []
     for i, batch in enumerate(dataset):
         frames, unwarped_frames, echogram = (
-            batch["frames"],
-            batch["unwarped_frames"],
-            batch["echogram"],
+            batch[0],
+            batch[2],
+            batch[3],
         )
         print(i)
         print(type(frames))

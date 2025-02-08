@@ -24,7 +24,7 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 class DIDSON:
     def __init__(
-        self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1, return_unwarped=False
+        self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1
     ):
         """Load header info from DIDSON file and precompute some warps.
 
@@ -44,7 +44,6 @@ class DIDSON:
             Dictionary of extracted headers and computed sonar values.
 
         """
-        self.return_unwarped = return_unwarped
         if hasattr(file, "read"):
             file_ctx = contextlib.nullcontext(file)
         else:

@@ -9,9 +9,6 @@ from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.utils import torch_distributed_zero_first
 from fisheye.config import ARISDatasetConfig
 
-BASE = Path(__file__).parent.parent
-BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
-
 
 class ARISBatchedDataset(BaseDataset):
     """ARISBatchedDataset
@@ -29,6 +26,8 @@ class ARISBatchedDataset(BaseDataset):
         :param disable_output (bool): Whether to disable output. Defaults to False.
         :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
         :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
+        :param start_frame (int): Starting frame for ARIS file. Defaults to None.
+        :param end_frame (int): Ending frame for ARIS file. Defaults to None.
         """
         try:
             self.didson = DIDSON(
@@ -39,15 +38,11 @@ class ARISBatchedDataset(BaseDataset):
 
         if config.start_frame is None:
             config.start_frame = self.didson.info["startframe"]
-
         if config.end_frame is None:
             config.end_frame = (
                 self.didson.info["endframe"] or self.didson.info["numframes"]
             )
-        print(f"{config.end_frame=}")
-        print(f"{self.didson.info['endframe']=}")
-        print(f"{self.didson.info['numframes']=}")
-        print(f"{self.didson.info['endframe'] or self.didson.info['numframes']=}")
+            
         config.end_frame = min(
             config.end_frame,
             self.didson.info["endframe"] or self.didson.info["numframes"],
@@ -59,6 +54,8 @@ class ARISBatchedDataset(BaseDataset):
     def load_frames(self, start_frame, end_frame):
         """Load ARIS frames."""
         return self.didson.load_frames(start_frame=start_frame, end_frame=end_frame)
+
+
 def create_aris_dataloader(config: ARISDatasetConfig):
     """
     Get a PyTorch Dataset and DataLoader for ARIS files with (optional) associated fisheye-formatted labels.
