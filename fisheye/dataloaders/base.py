@@ -142,9 +142,14 @@ class BaseDataset(Dataset):
         frame_labels = self.labels[idx:final_idx] if self.labels else None
 
         if idx + 1 < len(self.extracted_frames):
+            fl = (
+                self.frame_labels[idx:final_idx]
+                if self.frame_labels is not None
+                else None
+            )
             return [
                 np.stack(self.extracted_frames[idx:final_idx]),
-                self.frame_labels[idx:final_idx],
+                fl,
                 np.stack(self.extracted_unwarped_frames[idx:final_idx]),
                 np.stack(self.extracted_echograms[idx:final_idx]),
             ]
@@ -182,8 +187,11 @@ class BaseDataset(Dataset):
 
             if self.cache_bg_frames:
                 self.extracted_frames.extend(frame_images)
-                self.frame_labels.extend(frame_labels)
-                self.extracted_unwarped_frames.extend(unwarped_frames)
+                if frame_labels is not None:
+                    self.frame_labels.extend(frame_labels)
+                else:
+                    self.frame_labels = None
+                    self.extracted_unwarped_frames.extend(unwarped_frames)
                 self.extracted_echograms.extend(echogram)
 
         # MAH 2025-02-07 16:48:40 I think this is likely the best solution, it means indexes will be consistent and if needed we can add more things to the list when required
