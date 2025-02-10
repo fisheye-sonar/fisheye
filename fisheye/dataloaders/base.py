@@ -177,8 +177,6 @@ class BaseDataset(Dataset):
 
             if self.return_echogram:
                 echogram = self._get_echogram(unwarped_frames)
-                # MAH 2025-02-07 17:16:18 to match the above from the frames, though i dont know why we are doing this
-                echogram = echogram[:-1]
             else:
                 echogram = None
 
