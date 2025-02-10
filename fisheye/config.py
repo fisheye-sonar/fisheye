@@ -3,9 +3,7 @@ from pathlib import Path
 
 
 BASE = Path(__file__).parent
-BEAM_WIDTH_DIR = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
-
-
+BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 @dataclass
 class BaseDatasetConfig:
     annotations_file: str = None
@@ -17,7 +15,7 @@ class BaseDatasetConfig:
     world_size: int = 1
     workers: int = 0
     disable_output: bool = False
-    cache_bg_frames: bool = True
+    cache_bg_frames: bool = False
     do_bg_subtract: bool = True
     start_frame: int = None
     end_frame: int = None
@@ -36,3 +34,4 @@ class YOLODatasetConfig(ARISDatasetConfig):
     stride: int = 64
     pad: float = 0.5
     img_size: int = 896
+    

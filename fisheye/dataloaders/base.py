@@ -219,7 +219,7 @@ class BaseDataset(Dataset):
 
     def _get_echogram(self, unwarped_frames):
         """Generate Echogram from the frames.
-        the return channels are the magnitude and the normailsed angle between -0.5 and 0.5
+        the return channels are the magnitude and the normalised angle between -0.5 and 0.5
         """
         unwarped_frames_bgs = (
             unwarped_frames.astype(np.float32) - self.unwarped_mean_blurred_frame

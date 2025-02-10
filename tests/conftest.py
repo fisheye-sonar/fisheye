@@ -5,6 +5,7 @@ import pytest
 
 ARIS_FILE = os.path.join(os.path.dirname(__file__), "sample.aris")
 CORRUPTED_FILE = os.path.join(os.path.dirname(__file__), "corrupted.aris")
+MIDLEN_FILE = os.path.join(os.path.dirname(__file__), "sample_midlength.aris")
 
 
 @pytest.fixture(scope="session")

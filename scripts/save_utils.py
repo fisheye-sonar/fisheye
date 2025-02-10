@@ -1,6 +1,7 @@
 import numpy as np
 from PIL import Image
 
+
 def make_gif_from_np_stack(
     fn, fish_images_out_of_ordinary_vals, frame_rate=25, norm=False
 ):
@@ -20,4 +21,3 @@ def make_gif_from_np_stack(
         fn, save_all=True, append_images=pil_images[1:], duration=1 / frame_rate, loop=0
     )
     print(f"GIF saved as {fn}")
-

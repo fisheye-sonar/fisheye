@@ -3,11 +3,11 @@ from pathlib import Path
 
 import torch
 
+from fisheye.config import ARISDatasetConfig
 from fisheye.dataloaders.base import BaseDataset
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
 from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.utils import torch_distributed_zero_first
-from fisheye.config import ARISDatasetConfig
 
 
 class ARISBatchedDataset(BaseDataset):

@@ -1,12 +1,11 @@
 import pytest
-import sys
 import os
+from conftest import ARIS_FILE, CORRUPTED_FILE, MIDLEN_FILE, beam_widths_path
 
-sys.path.append("/Users/mahobley/Code/fisheye")
 from fisheye.dataloaders.aris import create_aris_dataloader
 import matplotlib.pyplot as plt
 import numpy as np
-from MAH_utils import (
+from scripts.save_utils import (
     make_gif_from_np_stack,
 )
 
@@ -15,7 +14,7 @@ import pytest
 import torch
 
 from fisheye.dataloaders import create_aris_dataloader
-from generate_echograms import (
+from scripts.generate_echograms import (
     make_echogram_image,
     zero_pad_to_match_one_dim,
 )
@@ -60,13 +59,13 @@ def generate_echogram_gif_from_aris(
     make_gif_from_np_stack(save_filename, comb, frame_rate=25)
 
 
-fp = "/Users/mahobley/Code/salmon_counting_data/RO_2018-05-26_073004.aris"
-# fp = "/Users/mahobley/Downloads/2024-10-28_113000.aris"
-beam_width_dir = "/Users/mahobley/Code/salmon_counting_data/beam_widths"
+# fp = "../salmon_counting_data/RO_2018-05-26_073004.aris"
+fp = ""
+if fp == "":
+    fp = MIDLEN_FILE
 
 config = ARISDatasetConfig(
     aris_filepath=fp,
-    beam_width_dir=beam_width_dir,
     return_unwarped=False,
     return_echogram=True,
     start_frame=0,
