@@ -49,7 +49,7 @@ class BaseDataset(Dataset):
 
         if self.return_unwarped and config.annotations_file is not None:
             warnings.warn(
-                "Labels from the nnnotations file will be ignored when return_unwarped is True."
+                "Labels from the annotations file will be ignored when return_unwarped is True."
             )
 
         self._initialize_labels(config.annotations_file)
@@ -147,12 +147,12 @@ class BaseDataset(Dataset):
                 if self.frame_labels is not None
                 else None
             )
-            return [
+            return self._postprocess(
                 np.stack(self.extracted_frames[idx:final_idx]),
-                fl,
+                frame_labels,
                 np.stack(self.extracted_unwarped_frames[idx:final_idx]),
                 np.stack(self.extracted_echograms[idx:final_idx]),
-            ]
+            )
 
         else:
 
@@ -173,6 +173,7 @@ class BaseDataset(Dataset):
                 if self.do_bg_subtract
                 else np.expand_dims(frame_images[:-1], -1)
             )
+            unwarped_frames = unwarped_frames[:-1]
 
             if self.return_echogram:
                 echogram = self._get_echogram(unwarped_frames)
@@ -180,10 +181,6 @@ class BaseDataset(Dataset):
                 echogram = echogram[:-1]
             else:
                 echogram = None
-
-            frame_images, frame_labels, unwarped_frames, echogram = self._postprocess(
-                frame_images, frame_labels, unwarped_frames, echogram
-            )
 
             if self.cache_bg_frames:
                 self.extracted_frames.extend(frame_images)
@@ -195,7 +192,7 @@ class BaseDataset(Dataset):
                 self.extracted_echograms.extend(echogram)
 
         # MAH 2025-02-07 16:48:40 I think this is likely the best solution, it means indexes will be consistent and if needed we can add more things to the list when required
-        return [frame_images, frame_labels, unwarped_frames, echogram]
+        return self._postprocess(frame_images, frame_labels, unwarped_frames, echogram)
 
     def _apply_bg_subtraction(self, frames: np.ndarray):
         """Apply background subtraction."""

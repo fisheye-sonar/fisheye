@@ -58,7 +58,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
         return img, (h0, w0), img.shape[:2]  # returns img, original hw, resized hw
 
-    def _postprocess(self, frame_images, frame_labels):
+    def _postprocess(self, frame_images, frame_labels, unwarped_frames, echogram):
         """
         Return a batch of data in the format used by ScaledYOLOv4.
         That is, a list of tuples, on tuple per image in the batch:
@@ -72,7 +72,6 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         """
         outputs = []
         frame_labels = frame_labels or [None for _ in frame_images]
-
         for image, labels in zip(frame_images, frame_labels):
             img, (h0, w0), (h, w) = self.load_image(image)
 
@@ -84,8 +83,13 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             img = np.ascontiguousarray(img)
 
             labels_out = self._process_labels(labels, ratio, pad, img.shape)
-            outputs.append((torch.from_numpy(img), labels_out, shapes))
-
+            outputs.append(
+                (
+                    torch.from_numpy(img),
+                    labels_out,
+                    shapes,
+                )
+            )
         return outputs
 
     def _process_labels(self, labels, ratio, pad, img_shape):
