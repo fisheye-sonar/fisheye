@@ -14,6 +14,7 @@ class BaseDataset(Dataset):
 
     Base class for all datasets.
     """
+
     def __init__(self, config: BaseDatasetConfig):
         """
         :param start_frame (int): Index of the start frame.
@@ -40,6 +41,7 @@ class BaseDataset(Dataset):
         self.num_frames_bg_subtract = config.num_frames_bg_subtract
         self.do_bg_subtract = config.do_bg_subtract
         self.extracted_frames = []
+        self.frame_labels = []
         self.extracted_unwarped_frames = []
         self.extracted_echograms = []
         self.return_unwarped = config.return_unwarped
@@ -105,8 +107,8 @@ class BaseDataset(Dataset):
         if self.do_bg_subtract:
 
             self.mean_blurred_frame, self.mean_normalization_value = (
-                    self._compute_bg_subtraction(frames_for_bg_subtract)
-                )
+                self._compute_bg_subtraction(frames_for_bg_subtract)
+            )
 
     def _compute_bg_subtraction(self, frames_for_bg_subtract):
         """Calculate the mean blurred frame and normalization value."""
@@ -140,13 +142,12 @@ class BaseDataset(Dataset):
         frame_labels = self.labels[idx:final_idx] if self.labels else None
 
         if idx + 1 < len(self.extracted_frames):
-            # MAH 2025-02-07 18:09:11 why is frame_labels not indexed
-            return self._postprocess(
+            return [
                 np.stack(self.extracted_frames[idx:final_idx]),
-                frame_labels,
+                self.frame_labels[idx:final_idx],
                 np.stack(self.extracted_unwarped_frames[idx:final_idx]),
                 np.stack(self.extracted_echograms[idx:final_idx]),
-            )
+            ]
 
         else:
 
@@ -175,16 +176,17 @@ class BaseDataset(Dataset):
             else:
                 echogram = None
 
+            frame_images, frame_labels, unwarped_frames, echogram = self._postprocess(
+                frame_images, frame_labels, unwarped_frames, echogram
+            )
+
             if self.cache_bg_frames:
                 self.extracted_frames.extend(frame_images)
+                self.frame_labels.extend(frame_labels)
                 self.extracted_unwarped_frames.extend(unwarped_frames)
                 self.extracted_echograms.extend(echogram)
 
-        frame_images, frame_labels, unwarped_frames, echogram = self._postprocess(
-            frame_images, frame_labels, unwarped_frames, echogram
-        )
-
-        # MAH 2025-02-07 16:48:40 I thinnk this is likely the best solution, it means indexes will be consistent and if needed we can add more things to the list when required
+        # MAH 2025-02-07 16:48:40 I think this is likely the best solution, it means indexes will be consistent and if needed we can add more things to the list when required
         return [frame_images, frame_labels, unwarped_frames, echogram]
 
     def _apply_bg_subtraction(self, frames: np.ndarray):
