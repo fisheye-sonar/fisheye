@@ -226,7 +226,6 @@ class BaseDataset(Dataset):
         """Generate Echogram from the frames.
         the return channels are the magnitude and the normalised angle between -0.5 and 0.5
         """
-        print(f"{type(unwarped_frames)=}")
         unwarped_frames_bgs = (
             unwarped_frames.astype(np.float32) - self.unwarped_mean_blurred_frame
         )
