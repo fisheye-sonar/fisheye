@@ -11,8 +11,6 @@ def test_generate_echogram_gif_from_small_aris():
         aris_filepath=ARIS_FILE,
         return_unwarped=False,
         return_echogram=True,
-        start_frame=0,
-        end_frame=50,
     )
 
     generate_echogram_gif_from_aris(
@@ -28,8 +26,6 @@ def test_generate_echogram_gif_from_small_aris_no_echo_pop():
         aris_filepath=ARIS_FILE,
         return_unwarped=False,
         return_echogram=True,
-        start_frame=0,
-        end_frame=50,
     )
 
     generate_echogram_gif_from_aris(
