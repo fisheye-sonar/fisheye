@@ -23,9 +23,7 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
 class DIDSON:
-    def __init__(
-        self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1
-    ):
+    def __init__(self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1):
         """Load header info from DIDSON file and precompute some warps.
 
         Parameters
