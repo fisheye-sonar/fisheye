@@ -23,9 +23,7 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
 class DIDSON:
-    def __init__(
-        self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1
-    ):
+    def __init__(self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1):
         """Load header info from DIDSON file and precompute some warps.
 
         Parameters
@@ -486,7 +484,9 @@ class DIDSON:
             data = self.__FasterDIDSONRead(fid, start_frame, end_frame)
             return data
 
-    def load_frames(self, file=None, start_frame=-1, end_frame=-1):
+    def load_frames(
+        self, file=None, start_frame=-1, end_frame=-1, return_unwarped=False
+    ):
         """Load and warp DIDSON frames into images.
 
         Parameters
@@ -505,19 +505,21 @@ class DIDSON:
 
         """
         data = self.load_raw_data(file, start_frame, end_frame)
-        unwarped_frames_shape = [
-            data.shape[0],
-            self.info["unwarped_shape"][0],
-            self.info["unwarped_shape"][1],
-        ]
-        unwarped_frames = np.reshape(
-            data,
-            unwarped_frames_shape,
-        )
-        unwarped_frames = unwarped_frames[
-            :, ::-1, ::-1
-        ].copy()  # MAH 2025-02-05 19:11:09 I have no idea why this copy is needed but you get a negative indexing error without it
-
+        if return_unwarped:
+            unwarped_frames_shape = [
+                data.shape[0],
+                self.info["unwarped_shape"][0],
+                self.info["unwarped_shape"][1],
+            ]
+            unwarped_frames = np.reshape(
+                data,
+                unwarped_frames_shape,
+            )
+            unwarped_frames = unwarped_frames[
+                :, ::-1, ::-1
+            ].copy()  # MAH 2025-02-05 19:11:09 I have no idea why this copy is needed but you get a negative indexing error without it
+        else:
+            unwarped_frames = None
         frames = np.zeros(
             (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
         )

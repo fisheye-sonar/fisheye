@@ -98,11 +98,14 @@ class BaseDataset(Dataset):
                 self.num_frames_bg_subtract // self.batch_size * self.batch_size + 1,
             )
             frames_for_bg_subtract, unwarped_frames_for_bg_subtract = self.load_frames(
-                self.start_frame, self.start_frame + num_frames_bg
+                self.start_frame, self.start_frame + num_frames_bg, return_unwarped=True
             )
-            self.unwarped_mean_blurred_frame, self.unwarped_mean_normalization_value = (
-                self._compute_bg_subtraction(unwarped_frames_for_bg_subtract)
-            )
+
+            if self.return_unwarped or self.return_echogram:
+                (
+                    self.unwarped_mean_blurred_frame,
+                    self.unwarped_mean_normalization_value,
+                ) = self._compute_bg_subtraction(unwarped_frames_for_bg_subtract)
 
         if self.do_bg_subtract:
 
@@ -154,6 +157,7 @@ class BaseDataset(Dataset):
             frames, unwarped_frames = self.load_frames(
                 self.start_frame + idx,
                 self.start_frame + final_idx + 1,
+                return_unwarped=self.return_unwarped or self.return_echogram,
             )
 
             if self.return_unwarped:
@@ -168,7 +172,8 @@ class BaseDataset(Dataset):
                 if self.do_bg_subtract
                 else np.expand_dims(frame_images[:-1], -1)
             )
-            unwarped_frames = unwarped_frames[:-1]
+            if self.return_unwarped or self.return_echogram:
+                unwarped_frames = unwarped_frames[:-1]
 
             if self.return_echogram:
                 echogram = self._get_echogram(unwarped_frames)
@@ -221,6 +226,7 @@ class BaseDataset(Dataset):
         """Generate Echogram from the frames.
         the return channels are the magnitude and the normalised angle between -0.5 and 0.5
         """
+        print(f"{type(unwarped_frames)=}")
         unwarped_frames_bgs = (
             unwarped_frames.astype(np.float32) - self.unwarped_mean_blurred_frame
         )
@@ -236,5 +242,5 @@ class BaseDataset(Dataset):
 
         return echogram
 
-    def load_frames(self, idx, final_idx):
+    def load_frames(self, idx, final_idx, return_unwarped):
         raise NotImplementedError("Subclasses should implement this method.")

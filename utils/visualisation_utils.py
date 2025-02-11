@@ -41,8 +41,8 @@ def generate_echogram_gif_from_aris(
         )
         print(f"{i=} {frames.shape=} {echogram.shape=}")
         if frames.shape[0] != 0:
-            frames_vis.append(frames[:1])
-            echograms.append(echogram[:1])
+            frames_vis.append(frames)
+            echograms.append(echogram)
     echograms = np.concatenate(echograms, axis=0)
     frames_vis = np.concatenate(frames_vis, axis=0)
     print(f"{frames_vis.shape=} {echograms.shape=} ")

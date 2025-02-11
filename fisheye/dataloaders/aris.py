@@ -42,7 +42,7 @@ class ARISBatchedDataset(BaseDataset):
             config.end_frame = (
                 self.didson.info["endframe"] or self.didson.info["numframes"]
             )
-            
+
         config.end_frame = min(
             config.end_frame,
             self.didson.info["endframe"] or self.didson.info["numframes"],
@@ -51,9 +51,13 @@ class ARISBatchedDataset(BaseDataset):
 
         super().__init__(config)
 
-    def load_frames(self, start_frame, end_frame):
+    def load_frames(self, start_frame, end_frame, return_unwarped=False):
         """Load ARIS frames."""
-        return self.didson.load_frames(start_frame=start_frame, end_frame=end_frame)
+        return self.didson.load_frames(
+            start_frame=start_frame,
+            end_frame=end_frame,
+            return_unwarped=return_unwarped,
+        )
 
 
 def create_aris_dataloader(config: ARISDatasetConfig):
