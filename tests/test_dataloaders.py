@@ -18,21 +18,41 @@ from fisheye.config import ARISDatasetConfig, YOLODatasetConfig
 def test_creating_aris_dataloader_factory_func(beam_widths_path):
     """Test creating a ARIS dataloader using factory function with no labels."""
     didson = DIDSON(ARIS_FILE, beam_widths_path)
-    frames = didson.load_frames()
+    frames, unwarped_frames = didson.load_frames()
 
     config = ARISDatasetConfig(aris_filepath=ARIS_FILE)
     dataloader, dataset = create_aris_dataloader(config)
     num_batches = len(dataloader)
-
     assert len(dataset) == len(frames) - 1
     assert num_batches == 1
 
     batch = next(iter(dataloader))
-    batch_data, batch_labels = batch
+    batch_data, batch_labels = batch[0], batch[1]
     # Check batch content
     assert batch_data.shape == torch.Size([3, 2686, 1307, 3])
     # Check batch labels
     assert batch_labels is None
+
+
+def test_creating_aris_dataloader_unwarped_image(beam_widths_path):
+    """Test creating a ARIS dataloader using factory function with no labels."""
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE, return_unwarped=True)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    batch = next(iter(dataloader))
+    batch_data, batch_unwarped = batch[0], batch[2]
+    assert batch_data.shape == torch.Size([3, 2684, 48, 3])
+    assert batch_unwarped.shape == torch.Size([3, 2684, 48])
+
+
+def test_creating_aris_dataloader_echogram(beam_widths_path):
+    """Test creating a ARIS dataloader using factory function with no labels."""
+    config = ARISDatasetConfig(aris_filepath=ARIS_FILE, return_echogram=True)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    batch = next(iter(dataloader))
+    batch_echogram = batch[3]
+    assert batch_echogram.shape == torch.Size([3, 2684, 2])
 
 
 def test_creating_aris_dataloader_lightning(beam_widths_path):
@@ -46,7 +66,8 @@ def test_creating_aris_dataloader_lightning(beam_widths_path):
     assert num_batches == 1
 
     batch = next(iter(dataloader))
-    batch_data, batch_labels = batch
+    batch_data, batch_labels = batch[0], batch[1]
+
     # Check batch content
     assert batch_data.shape == torch.Size([3, 2686, 1307, 3])
     # Check batch labels
@@ -56,7 +77,7 @@ def test_creating_aris_dataloader_lightning(beam_widths_path):
 def test_creating_yolo_dataloader_factory_func(beam_widths_path):
     """Test creating a YOLO dataloader using factory function with no labels."""
     didson = DIDSON(ARIS_FILE, beam_widths_path)
-    frames = didson.load_frames()
+    frames, unwarped_frames = didson.load_frames()
 
     config = YOLODatasetConfig(aris_filepath=ARIS_FILE)
     dataloader, dataset = create_yolo_dataloader(config)
@@ -92,10 +113,13 @@ def test_creating_yolo_dataloader_lightning(beam_widths_path):
 def test_aris_loading_frames(beam_widths_path):
     """Test loading frames directly from DIDSON class."""
     didson = DIDSON(ARIS_FILE, beam_widths_path)
-    frames = didson.load_frames()
+    frames, unwarped_frames = didson.load_frames()
     assert isinstance(frames, np.ndarray)
+    assert isinstance(unwarped_frames, np.ndarray)
     assert frames.shape == (4, 2686, 1307)  # Num of frames, ydim, xdim
+    assert unwarped_frames.shape == (4, 2684, 48)  # Num of frames, ydim, xdim
     assert frames.dtype == np.uint8
+    assert unwarped_frames.dtype == np.uint8
 
 
 def test_loading_selected_frames_aris_dataloader_factory_func():

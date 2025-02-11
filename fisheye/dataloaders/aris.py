@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import torch
 
@@ -41,7 +42,7 @@ class ARISBatchedDataset(BaseDataset):
             config.end_frame = (
                 self.didson.info["endframe"] or self.didson.info["numframes"]
             )
-
+            
         config.end_frame = min(
             config.end_frame,
             self.didson.info["endframe"] or self.didson.info["numframes"],
