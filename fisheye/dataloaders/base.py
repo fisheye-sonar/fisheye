@@ -142,11 +142,6 @@ class BaseDataset(Dataset):
         frame_labels = self.labels[idx:final_idx] if self.labels else None
 
         if idx + 1 < len(self.extracted_frames):
-            fl = (
-                self.frame_labels[idx:final_idx]
-                if self.frame_labels is not None
-                else None
-            )
             return self._postprocess(
                 np.stack(self.extracted_frames[idx:final_idx]),
                 frame_labels,
