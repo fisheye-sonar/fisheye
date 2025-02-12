@@ -9,7 +9,7 @@ from yolov5.utils.general import xyxy2xywh
 from fisheye.config import YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset
 from fisheye.dataloaders.samplers import OnePerBatchSampler
-from fisheye.util import torch_distributed_zero_first, yolo_collate_fn
+from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
 
 
 class YOLOARISBatchedDataset(ARISBatchedDataset):
