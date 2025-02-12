@@ -9,7 +9,7 @@ from fisheye.dataloaders import (
 )
 from fisheye.dataloaders.data_module import ARISDataModule
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
-from conftest import ARIS_FILE, CORRUPTED_FILE
+from conftest import ARIS_FILE, CORRUPTED_FILE, DDF_FILE
 from fisheye.dataloaders.yolo import create_yolo_dataloader
 
 from fisheye.config import ARISDatasetConfig, YOLODatasetConfig
@@ -43,6 +43,20 @@ def test_creating_aris_dataloader_unwarped_image(beam_widths_path):
     batch_data, batch_unwarped = batch[0], batch[2]
     assert batch_data.shape == torch.Size([3, 2684, 48, 3])
     assert batch_unwarped.shape == torch.Size([3, 2684, 48])
+
+
+def test_creating_aris_dataloader_unwarped_image_didson_v3(beam_widths_path):
+    """Test creating a ARIS dataloader using factory function with no labels."""
+    config = ARISDatasetConfig(aris_filepath=DDF_FILE, return_unwarped=True)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    batch = next(iter(dataloader))
+    batch_data, batch_unwarped = batch[0], batch[2]
+
+    print(f"{batch_data.shape=}")
+    print(f"{batch_unwarped.shape=}")
+    assert batch_data.shape == torch.Size([32, 512, 96, 3])
+    assert batch_unwarped.shape == torch.Size([32, 512, 96])
 
 
 def test_creating_aris_dataloader_echogram(beam_widths_path):

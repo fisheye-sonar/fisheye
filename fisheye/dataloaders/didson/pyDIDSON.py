@@ -221,12 +221,6 @@ class DIDSON:
 
                 read_i = read_rows * info["numbeams"] + info["numbeams"] - read_cols - 1
 
-                unique_read_coords = np.unique(np.stack((read_rows, read_cols)), axis=1)
-                unwarped_shape = [
-                    np.max(unique_read_coords[0]) + 1,
-                    np.max(unique_read_coords[1]) + 1,
-                ]
-
                 pixel_meter_width = pixel_meter_size
                 pixel_meter_height = pixel_meter_size
 
@@ -263,6 +257,11 @@ class DIDSON:
                 ) / ydim
 
                 pixel_meter_size = (pixel_meter_width + pixel_meter_height) / 2
+
+            unwarped_shape = [
+                info["samplesperchannel"],
+                info["numbeams"],
+            ]
 
             self.write_rows = write_rows
             self.write_cols = write_cols
