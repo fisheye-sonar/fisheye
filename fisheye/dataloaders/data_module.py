@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 
 from fisheye.config import ARISDatasetConfig
 from fisheye.dataloaders.samplers import OnePerBatchSampler
-from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
+from fisheye.util import torch_distributed_zero_first, yolo_collate_fn
 
 BASE = Path(__file__).parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()

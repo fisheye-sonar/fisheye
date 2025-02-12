@@ -1,5 +1,3 @@
-import pytest
-
 from conftest import ARIS_FILE
 
 from fisheye.config import ARISDatasetConfig

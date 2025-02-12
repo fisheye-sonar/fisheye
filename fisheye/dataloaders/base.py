@@ -3,9 +3,9 @@ import json
 import numpy as np
 import cv2
 from torch.utils.data import Dataset
+from yolov5.utils.general import xyxy2xywh
 
 from fisheye.config import BaseDatasetConfig
-from fisheye.lib.yolo import xyxy2xywh
 import warnings
 
 

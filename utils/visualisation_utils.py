@@ -1,7 +1,6 @@
 import numpy as np
 from PIL import Image
 
-from fisheye.dataloaders import create_aris_dataloader
 from fisheye.dataloaders.aris import create_aris_dataloader
 from utils.generate_echograms import make_echogram_image, zero_pad_to_match_one_dim
 
