@@ -55,6 +55,7 @@ def generate_echogram_gif_from_aris(
     coloured_echogram = zero_pad_to_match_one_dim(
         coloured_echogram, frames_vis.shape, dim=1
     )
+    frames_vis = zero_pad_to_match_one_dim(frames_vis, coloured_echogram.shape, dim=1)
     frames_vis = np.stack([frames_vis[:, :, :, 0]] * 3, axis=-1)
     if coloured_echogram.shape[2] < frames_vis.shape[2]:
         coloured_echogram = np.repeat(
