@@ -94,7 +94,7 @@ def numpy_to_redblue(array):
     return cmapped
 
 
-def zero_pad_to_match_one_dim(array, target_shape, dim):
+def zero_pad_to_match_one_dim(array, target_shape, dim, centered=True):
     """
     Zero-pads the input array to match the target shape in one dimension.
 
@@ -107,6 +107,11 @@ def zero_pad_to_match_one_dim(array, target_shape, dim):
         np.ndarray: The zero-padded array with the target shape in the specified dimension.
     """
     pad_width = [(0, 0)] * array.ndim
-    pad_width[dim] = (0, max(0, target_shape[dim] - array.shape[dim]))
+    pad_ammount = max(0, target_shape[dim] - array.shape[dim])
+    if centered:
+        padd = (int(pad_ammount / 2), pad_ammount - int(pad_ammount / 2))
+    else:
+        padd = (0, pad_ammount)
+    pad_width[dim] = padd
     padded_array = np.pad(array, pad_width, mode="constant", constant_values=0)
     return padded_array

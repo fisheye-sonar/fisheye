@@ -22,5 +22,9 @@ FishEye simplifies the process of loading, preprocessing, and analyzing sonar da
 
 `poetry install`
 
+4. Activate the virtual environment
+
+`poetry shell`
+
 ## Step 2: Activate pre-commit hooks
 Run `pre-commit install`.
