@@ -6,6 +6,7 @@ import pytest
 ARIS_FILE = os.path.join(os.path.dirname(__file__), "sample.aris")
 DDF_FILE = os.path.join(os.path.dirname(__file__), "sample.ddf")
 CORRUPTED_FILE = os.path.join(os.path.dirname(__file__), "corrupted.aris")
+SHORTENED_DDF_FILE = os.path.join(os.path.dirname(__file__), "shortened_clip.ddf")
 
 
 @pytest.fixture(scope="session")

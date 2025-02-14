@@ -9,6 +9,8 @@ Portions of this code were adapted from SoundMetrics MATLAB code.
 __version__ = "b1.0.2"
 
 import contextlib
+import warnings
+
 import numpy as np
 import os
 import struct
@@ -442,6 +444,29 @@ class DIDSON:
         with file_ctx as fid:
             framesize = self.info["samplesperchannel"] * self.info["numbeams"]
             frameheadersize = self.info["frameheadersize"]
+
+            fid.seek(
+                self.info["fileheadersize"]
+                + start_frame * (frameheadersize + framesize)
+                + frameheadersize,
+                0,
+            )
+
+            # Read data from the first frame
+            first_frame_data = np.frombuffer(
+                fid.read(framesize + frameheadersize)[:framesize], dtype=np.uint8
+            )
+
+            # Possible byte misalignment if the data from the first frames is empty/zero. This can mean we are working
+            # with a modified, shortened clip.
+            if np.all(first_frame_data == 0):
+                warnings.warn(
+                    f"First frame at start_frame={start_frame} contains only zeroes. "
+                    "This may indicate a shorted clip (modified version of the original DIDSON/ARIS file."
+                    f"Resetting start_frame to 0 and adjusting the end_frame to {end_frame}."
+                )
+                end_frame = end_frame - start_frame + 1  # inclusive
+                start_frame = 0
 
             fid.seek(
                 self.info["fileheadersize"]
