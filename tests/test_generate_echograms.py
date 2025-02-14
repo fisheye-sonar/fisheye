@@ -1,12 +1,12 @@
 from conftest import ARIS_FILE
 
-from fisheye.config import ARISDatasetConfig
+from fisheye.dataclasses import ARISDatasetConfig
 from utils.visualisation_utils import generate_echogram_gif_from_aris
 
 
 def test_generate_echogram_gif_from_small_aris():
     config = ARISDatasetConfig(
-        aris_filepath=ARIS_FILE,
+        filepath=ARIS_FILE,
         return_unwarped=False,
         return_echogram=True,
     )
@@ -21,7 +21,7 @@ def test_generate_echogram_gif_from_small_aris():
 
 def test_generate_echogram_gif_from_small_aris_no_echo_pop():
     config = ARISDatasetConfig(
-        aris_filepath=ARIS_FILE,
+        filepath=ARIS_FILE,
         return_unwarped=False,
         return_echogram=True,
     )

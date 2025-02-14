@@ -5,7 +5,7 @@ import cv2
 from torch.utils.data import Dataset
 from yolov5.utils.general import xyxy2xywh
 
-from fisheye.config import BaseDatasetConfig
+from fisheye.dataclasses import BaseDatasetConfig
 import warnings
 
 

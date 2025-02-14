@@ -1,20 +1,10 @@
-from dataclasses import dataclass
-
-import torch
-
-from fisheye.config import YOLODatasetConfig
+from fisheye.dataclasses import (
+    YOLODatasetConfig,
+    YOLOv5ModelConfig,
+    ObjectDetectionPipelineOutput,
+)
 from fisheye.dataloaders.yolo import create_yolo_dataloader
-from fisheye.models.base import BaseModel
-
-
-@dataclass
-class ObjectDetectionOutput:
-    """Object Detection Output."""
-
-    pred_bboxes: torch.Tensor = None
-    image_shape: torch.Tensor = None
-    width: int = None
-    height: int = None
+from fisheye.models.yolov5 import YOLOv5ObjectDetectionModel
 
 
 class ObjectDetectionPipeline:
@@ -25,14 +15,20 @@ class ObjectDetectionPipeline:
 
     def __init__(
         self,
-        model: BaseModel,
-        device: torch.device,
-        config: YOLODatasetConfig = YOLODatasetConfig(),
-        do_suppression: bool = True,
+        pipeline_cfg: YOLOv5ModelConfig = YOLOv5ModelConfig(),
+        dataset_cfg: YOLODatasetConfig = YOLODatasetConfig(),
     ):
-        self.device = device
-        self.model = model
-        self.dataloader, self.dataset = create_yolo_dataloader(config)
+        self.device = pipeline_cfg.device
+        if not pipeline_cfg.model:
+            raise ValueError("A model must be specified in the pipeline configuration.")
+
+        self.model = (
+            YOLOv5ObjectDetectionModel(pipeline_cfg)
+            if isinstance(pipeline_cfg.model, str)
+            else (pipeline_cfg.model)
+        )
+
+        self.dataloader, self.dataset = create_yolo_dataloader(dataset_cfg)
 
     def __call__(self, *args, **kwargs):
         """Executes the detection pipeline."""
@@ -41,20 +37,20 @@ class ObjectDetectionPipeline:
     def preprocess(self, image):
         image = image.to(self.device, non_blocking=True)
         image = (
-            image.half() if self.device.type != "cpu" else image.float()
+            image.half() if self.device != "cpu" else image.float()
         )  # uint8 to fp16/32
         image /= 255.0  # 0 - 255 to 0.0 - 1.0
 
         return image
 
-    def postprocess(self, model_outputs):
-        """Process model outputs."""
-
-        processed_outputs = [
-            {"detections": output, "shape": shape}
-            for output, shape in zip(model_outputs, image_shapes)
-        ]
-        return processed_outputs
+    # def postprocess(self, model_outputs):
+    #     """Process model outputs."""
+    #
+    #     processed_outputs = [
+    #         {"detections": output, "shape": shape}
+    #         for output, shape in zip(model_outputs, image_shapes)
+    #     ]
+    #     return processed_outputs
 
     def _forward(self):
         """Performs inference.
@@ -66,11 +62,14 @@ class ObjectDetectionPipeline:
         """
         inference = []
         image_shapes = []
+        width = None
+        height = None
+
         for batch_idx, (img, _, shapes) in enumerate(self.dataloader):
             img = self.preprocess(img)
             size = tuple(img.shape)
             nb, _, height, width = size  # batch size, channels, height, width
-            inf_out, _ = self.model.predict(img)
+            inf_out = self.model.predict(img)
 
             # Save shapes for resizing to original shape
             batch_shape = []
@@ -88,7 +87,4 @@ class ObjectDetectionPipeline:
         Returns:
             List[Any]: Processed detection results.
         """
-        raw_outputs, shapes = self._forward()
-        processed_results = self.postprocess(raw_outputs, shapes)
-
-        return processed_results
+        return ObjectDetectionPipelineOutput(*self._forward())

@@ -2,10 +2,9 @@ from pathlib import Path
 from typing import Union
 
 import torch
-import torch.nn as nn
 
 
-class BaseModel(nn.Module):
+class BaseModel:
     """BaseModel
 
     A base class for detection models to standardize loading weights and running inference.
@@ -43,7 +42,7 @@ class BaseModel(nn.Module):
         """
         raise NotImplementedError("`_load_model` must be implemented.")
 
-    def predict(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+    def predict(self, x, *args, **kwargs) -> torch.Tensor:
         """Forward pass for the model.
 
         Args:

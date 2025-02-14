@@ -6,7 +6,7 @@ import torch
 from yolov5.utils.augmentations import letterbox
 from yolov5.utils.general import xyxy2xywh
 
-from fisheye.config import YOLODatasetConfig
+from fisheye.dataclasses import YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset
 from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
@@ -19,7 +19,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
 
     def __init__(self, config: YOLODatasetConfig):
         """
-        :param aris_filepath (str): Path to an ARIS file.
+        :param filepath (str): Path to an ARIS file.
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
         :param annotations_file (str): Path to annotations file.
         :param stride (int): Stride size for YOLOv5 inference. Defaults to 64.
