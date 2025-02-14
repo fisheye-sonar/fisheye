@@ -221,12 +221,6 @@ class DIDSON:
 
                 read_i = read_rows * info["numbeams"] + info["numbeams"] - read_cols - 1
 
-                unique_read_coords = np.unique(np.stack((read_rows, read_cols)), axis=1)
-                unwarped_shape = [
-                    np.max(unique_read_coords[0]) + 1,
-                    np.max(unique_read_coords[1]) + 1,
-                ]
-
                 pixel_meter_width = pixel_meter_size
                 pixel_meter_height = pixel_meter_size
 
@@ -263,6 +257,11 @@ class DIDSON:
                 ) / ydim
 
                 pixel_meter_size = (pixel_meter_width + pixel_meter_height) / 2
+
+            unwarped_shape = [
+                info["samplesperchannel"],
+                info["numbeams"],
+            ]
 
             self.write_rows = write_rows
             self.write_cols = write_cols
@@ -484,7 +483,9 @@ class DIDSON:
             data = self.__FasterDIDSONRead(fid, start_frame, end_frame)
             return data
 
-    def load_frames(self, file=None, start_frame=-1, end_frame=-1):
+    def load_frames(
+        self, file=None, start_frame=-1, end_frame=-1, return_unwarped=False
+    ):
         """Load and warp DIDSON frames into images.
 
         Parameters
@@ -503,19 +504,21 @@ class DIDSON:
 
         """
         data = self.load_raw_data(file, start_frame, end_frame)
-        unwarped_frames_shape = [
-            data.shape[0],
-            self.info["unwarped_shape"][0],
-            self.info["unwarped_shape"][1],
-        ]
-        unwarped_frames = np.reshape(
-            data,
-            unwarped_frames_shape,
-        )
-        unwarped_frames = unwarped_frames[
-            :, ::-1, ::-1
-        ].copy()  # MAH 2025-02-05 19:11:09 I have no idea why this copy is needed but you get a negative indexing error without it
-
+        if return_unwarped:
+            unwarped_frames_shape = [
+                data.shape[0],
+                self.info["unwarped_shape"][0],
+                self.info["unwarped_shape"][1],
+            ]
+            unwarped_frames = np.reshape(
+                data,
+                unwarped_frames_shape,
+            )
+            unwarped_frames = unwarped_frames[
+                :, ::-1, ::-1
+            ].copy()  # MAH 2025-02-05 19:11:09 I have no idea why this copy is needed but you get a negative indexing error without it
+        else:
+            unwarped_frames = None
         frames = np.zeros(
             (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
         )

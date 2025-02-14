@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 ARIS_FILE = os.path.join(os.path.dirname(__file__), "sample.aris")
+DDF_FILE = os.path.join(os.path.dirname(__file__), "sample.ddf")
 CORRUPTED_FILE = os.path.join(os.path.dirname(__file__), "corrupted.aris")
 
 
