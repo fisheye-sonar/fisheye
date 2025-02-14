@@ -4,6 +4,8 @@ from pathlib import Path
 
 BASE = Path(__file__).parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
+
+
 @dataclass
 class BaseDatasetConfig:
     annotations_file: str = None
@@ -34,4 +36,3 @@ class YOLODatasetConfig(ARISDatasetConfig):
     stride: int = 64
     pad: float = 0.5
     img_size: int = 896
-    
