@@ -117,6 +117,7 @@ def test_aris_loading_frames(beam_widths_path):
     assert isinstance(frames, np.ndarray)
     assert frames.shape == (4, 2686, 1307)  # Num of frames, ydim, xdim
     assert frames.dtype == np.uint8
+    assert np.any(frames != 0)
 
 
 def test_aris_loading_unwarped_frames(beam_widths_path):
@@ -126,6 +127,7 @@ def test_aris_loading_unwarped_frames(beam_widths_path):
     assert isinstance(unwarped_frames, np.ndarray)
     assert unwarped_frames.shape == (4, 2684, 48)  # Num of frames, ydim, xdim
     assert unwarped_frames.dtype == np.uint8
+    assert np.any(frames != 0)
 
 
 def test_loading_selected_frames_aris_dataloader_factory_func():

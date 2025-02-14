@@ -9,7 +9,7 @@ from fisheye.dataloaders import (
 )
 from fisheye.dataloaders.data_module import ARISDataModule
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
-from conftest import CORRUPTED_FILE, DDF_FILE
+from conftest import CORRUPTED_FILE, DDF_FILE, SHORTENED_DDF_FILE
 from fisheye.dataloaders.yolo import create_yolo_dataloader
 
 from fisheye.dataclasses import ARISDatasetConfig, YOLODatasetConfig
@@ -260,3 +260,15 @@ def test_corrupted_aris():
     with pytest.raises(RuntimeError) as exc_info:
         config = ARISDatasetConfig(filepath=CORRUPTED_FILE)
         create_aris_dataloader(config)
+
+
+def test_modified_start_end_frames(beam_widths_path):
+    """Test handling modified start and end frame indices exceeding the total number of frames. This is a test case
+    for when a shorted clip is created from the original ARIS/DIDSON file."""
+    didson = DIDSON(SHORTENED_DDF_FILE, beam_widths_path)
+    frames, unwarped_frames = didson.load_frames()
+
+    assert isinstance(frames, np.ndarray)
+    assert frames.shape == (57, 486, 300)  # Num of frames, ydim, xdim
+    assert frames.dtype == np.uint8
+    assert np.any(frames != 0)
