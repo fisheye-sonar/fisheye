@@ -26,7 +26,6 @@ coverage.xml
 *.swp
 .DS_Store
 Thumbs.db
-*.csv
 *.json
 *.h5
 *.pickle
