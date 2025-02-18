@@ -11,12 +11,18 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
 @dataclass
-class BaseDatasetConfig:
+class BaseConfig:
+    """Base configuration class for shared parameters between datasets and models."""
+
+    batch_size: int = 32
+
+
+@dataclass
+class BaseDatasetConfig(BaseConfig):
     """Base dataset configuration."""
 
     annotations_file: str = None
     beam_width_dir: Path = BEAM_WIDTH_DIR
-    batch_size: int = 32
     xdim: int = 0
     ydim: int = 0
     rank: int = -1
@@ -49,7 +55,7 @@ class YOLODatasetConfig(ARISDatasetConfig):
 
 
 @dataclass
-class BaseModelConfig:
+class BaseModelConfig(BaseConfig):
     """Base model configuration."""
 
     model: str | BaseModel = None
@@ -72,6 +78,7 @@ class YOLOv5ModelConfig(BaseModelConfig):
     )
     max_det: int = 300  # Maximum number of detections per image
     amp: bool = False  # Automatic Mixed Precision (AMP) inference
+    max_length: int = 0.3  # Minimum fish length, in meters
 
 
 @dataclass
