@@ -1,13 +1,14 @@
 import os
 
+import cv2
 import numpy as np
 import torch
-import cv2
+from yolov5.utils.augmentations import letterbox
+from yolov5.utils.general import xyxy2xywh
 
-from fisheye.config import YOLODatasetConfig
+from fisheye.dataclasses import YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset
 from fisheye.dataloaders.samplers import OnePerBatchSampler
-from fisheye.lib.yolo import xyxy2xywh, letterbox
 from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
 
 
@@ -18,7 +19,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
 
     def __init__(self, config: YOLODatasetConfig):
         """
-        :param aris_filepath (str): Path to an ARIS file.
+        :param filepath (str): Path to an ARIS file.
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
         :param annotations_file (str): Path to annotations file.
         :param stride (int): Stride size for YOLOv5 inference. Defaults to 64.
@@ -76,7 +77,9 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             img, (h0, w0), (h, w) = self.load_image(image)
 
             # Apply letterboxing to resize and pad images
-            img, ratio, pad = letterbox(img, self.shape, auto=False, scaleup=False)
+            img, ratio, pad = letterbox(
+                img, self.shape, auto=False, scaleup=False, stride=self.stride
+            )
             shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
 
             img = img.transpose(2, 0, 1)  # Convert to CxHxW format
@@ -137,8 +140,7 @@ def create_yolo_dataloader(config: YOLODatasetConfig):
             batch_size if batch_size > 1 else 0,
             config.workers,
         ]
-    )  # number of
-    # workers
+    )  # number of workers
 
     if not config.disable_output:
         print("Dataset size", len(dataset))

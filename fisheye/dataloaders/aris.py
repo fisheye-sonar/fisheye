@@ -1,9 +1,8 @@
 import os
-from pathlib import Path
 
 import torch
 
-from fisheye.config import ARISDatasetConfig
+from fisheye.dataclasses import ARISDatasetConfig
 from fisheye.dataloaders.base import BaseDataset
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
 from fisheye.dataloaders.samplers import OnePerBatchSampler
@@ -18,7 +17,7 @@ class ARISBatchedDataset(BaseDataset):
 
     def __init__(self, config: ARISDatasetConfig):
         """
-        :param aris_filepath (str): Path to an ARIS file.
+        :param filepath (str): Path to an ARIS file.
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
         :param annotations_file (str): Path to annotations file.
         :param batch_size (int): Batch size. Defaults to 32.
@@ -30,11 +29,9 @@ class ARISBatchedDataset(BaseDataset):
         :param end_frame (int): Ending frame for ARIS file. Defaults to None.
         """
         try:
-            self.didson = DIDSON(
-                config.aris_filepath, beam_width_dir=config.beam_width_dir
-            )
+            self.didson = DIDSON(config.filepath, beam_width_dir=config.beam_width_dir)
         except Exception as e:
-            raise RuntimeError(f"Could not load {config.aris_filepath}: {e}")
+            raise RuntimeError(f"Could not load {config.filepath}: {e}")
 
         if config.start_frame is None:
             config.start_frame = self.didson.info["startframe"]
