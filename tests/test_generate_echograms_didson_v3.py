@@ -24,11 +24,45 @@ def test_generate_echogram_gif_from_small_aris():
     )
 
 
+def test_generate_echogram_gif_from_small_aris_filter():
+    config = ARISDatasetConfig(
+        filepath=DDF_FILE,
+        return_unwarped=False,
+        return_echogram=True,
+        echogram_filter_kernel=7,
+        echogram_filter_tol=0.15,
+    )
+
+    generate_echogram_gif_from_aris(
+        config,
+        save_filename="",
+        echogram_pop=True,
+        return_unwarped=False,
+    )
+
+
 def test_generate_echogram_gif_from_small_aris_no_echo_pop():
     config = ARISDatasetConfig(
         filepath=DDF_FILE,
         return_unwarped=False,
         return_echogram=True,
+    )
+
+    generate_echogram_gif_from_aris(
+        config,
+        save_filename="",
+        echogram_pop=False,
+        return_unwarped=False,
+    )
+
+
+def test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered():
+    config = ARISDatasetConfig(
+        filepath=DDF_FILE,
+        return_unwarped=False,
+        return_echogram=True,
+        echogram_filter_kernel=7,
+        echogram_filter_tol=0.15,
     )
 
     generate_echogram_gif_from_aris(

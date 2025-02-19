@@ -30,6 +30,8 @@ class BaseDatasetConfig:
     num_frames_bg_subtract: int = 1000
     return_unwarped: bool = False
     return_echogram: bool = False
+    echogram_filter_kernel: int = 0
+    echogram_filter_tol: int = 0.15
 
 
 @dataclass

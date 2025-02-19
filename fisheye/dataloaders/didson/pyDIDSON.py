@@ -296,6 +296,15 @@ class DIDSON:
                 info["numbeams"] * info["samplesperchannel"]
             )
 
+            if info["proportion_warp"] > 0.01:
+                warnings.warn(
+                    f'{info["proportion_warp"]*100:.2f}% of sensor readings are not being used'
+                )
+            if unwarped_shape[0] < ydim:
+                warnings.warn(
+                    f"The warped image is shorter than the unwarped image {ydim} compared to {unwarped_shape[0]}"
+                )
+
     def __lens_distortion(self, nbeams, theta):
         """Removes Lens distortion determined by empirical work at the barge.
 

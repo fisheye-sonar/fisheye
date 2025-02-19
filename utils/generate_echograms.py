@@ -1,7 +1,8 @@
 import numpy as np
+from scipy.signal import convolve
 
 
-def make_echogram_image(echograms, echogram_pop=False):
+def make_echogram_image(echograms, echogram_pop=False, filter_kernel=0, filter_tol=0.5):
     """
 
     Args:
@@ -25,8 +26,15 @@ def make_echogram_image(echograms, echogram_pop=False):
     ec_mag_bgs[ec_mag_bgs < 0] = 0
     ec_mag_bgs /= ec_mag_bgs.max()
 
-    colmapped = numpy_to_redblue(((ec_angle) * ec_mag_bgs) * 2)
-
+    colmapped = numpy_to_redblue(
+        ec_angle * 2
+    )  # the squared makes the colours more extreme
+    if filter_kernel != 0:
+        kernel = np.ones((filter_kernel, filter_kernel))
+        ec_mag_bgs_bin = np.where(ec_mag_bgs > filter_tol, 1, 0)
+        neighbourhood = convolve(ec_mag_bgs_bin, kernel, mode="same")
+        neighbourhood_bin = np.where(neighbourhood > 2, 1, 0.5)
+        ec_mag_bgs *= neighbourhood_bin
     if echogram_pop:
         # take the average subtracted echogram
         stacked_echogram_image = np.stack([ec_mag_bgs, ec_mag_bgs, ec_mag_bgs], axis=-1)
@@ -94,7 +102,7 @@ def numpy_to_redblue(array):
     return cmapped
 
 
-def zero_pad_to_match_one_dim(array, target_shape, dim, centered=True):
+def zero_pad_to_match_one_dim(array, target_shape, dim, centered=True, const_value=0):
     """
     Zero-pads the input array to match the target shape in one dimension.
 
@@ -113,5 +121,7 @@ def zero_pad_to_match_one_dim(array, target_shape, dim, centered=True):
     else:
         padd = (0, pad_ammount)
     pad_width[dim] = padd
-    padded_array = np.pad(array, pad_width, mode="constant", constant_values=0)
+    padded_array = np.pad(
+        array, pad_width, mode="constant", constant_values=const_value
+    )
     return padded_array
