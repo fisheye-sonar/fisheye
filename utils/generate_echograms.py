@@ -14,7 +14,6 @@ def make_echogram_image(echograms, echogram_pop=False, filter_kernel=0, filter_t
         np.array: [time, height, 3] (R, G, B) values as integers in the range [0, 255] of the echogram,
                     with a colour scheme going from red to blue (left to right).
     """
-    print(f"{echograms.shape=}")
     ec_mag = echograms[:, :, 0]  # magnitude of the echogram
     ec_angle = echograms[:, :, 1]  # angle of the echogram
 

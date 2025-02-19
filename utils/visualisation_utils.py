@@ -135,7 +135,7 @@ def generate_echogram_vis_from_aris(
         filter_tol=config.echogram_filter_tol,
     )
     coloured_echogram = coloured_echogram[: frames_vis.shape[0]]
-    coloured_echogram = coloured_echogram[:, :50]
+
     scale_factor = frames_vis.shape[1] / coloured_echogram.shape[1]
 
     # if its within 5% dont modify the pixels, just crop, this is because the scaling
@@ -177,16 +177,17 @@ def generate_echogram_vis_from_aris(
             coloured_echogram = zero_pad_to_match_one_dim(
                 coloured_echogram, frames_vis.shape, dim=1, const_value=125
             )
-            # frames_vis = zero_pad_to_match_one_dim(
-            #     frames_vis,
-            #     coloured_echogram.shape,
-            #     dim=1,
-            #     centered=False,
-            #     const_value=125,
-            # )
+
+            frames_vis = zero_pad_to_match_one_dim(
+                frames_vis,
+                coloured_echogram.shape,
+                dim=1,
+                centered=False,
+                const_value=125,
+            )
     assert (
         frames_vis.shape[1] == coloured_echogram.shape[1]
-    ), "The echogram and the normal frame should be the same height"
+    ), f"The echogram and the normal frame should be the same height {frames_vis.shape[1]=} != {coloured_echogram.shape[1]=}"
     frames_vis = np.stack([frames_vis[:, :, :, 0]] * 3, axis=-1)
     if colour_image_edges:
         frames_vis_mask = np.max(frames_vis, axis=0)
@@ -214,7 +215,19 @@ def generate_echogram_vis_from_aris(
             int(frames_vis.shape[2] / coloured_echogram.shape[2]),
             axis=2,
         )
-    comb = np.concatenate([frames_vis, coloured_echogram], axis=2)
+    buffer = (
+        np.ones(
+            (
+                frames_vis.shape[0],
+                frames_vis.shape[1],
+                int(frames_vis.shape[2] / 10),
+                frames_vis.shape[3],
+            ),
+            dtype=np.uint8,
+        )
+        * 100
+    )
+    comb = np.concatenate([frames_vis, buffer, coloured_echogram], axis=2)
     if return_list:
         return [x for x in comb]
     else:

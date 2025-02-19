@@ -70,4 +70,26 @@ def test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered():
         save_filename="",
         echogram_pop=False,
         return_unwarped=False,
+        resize_mode="scale",
     )
+
+
+def test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered_pad():
+    config = ARISDatasetConfig(
+        filepath=DDF_FILE,
+        return_unwarped=False,
+        return_echogram=True,
+        echogram_filter_kernel=7,
+        echogram_filter_tol=0.15,
+    )
+
+    generate_echogram_gif_from_aris(
+        config,
+        save_filename="",
+        echogram_pop=False,
+        return_unwarped=False,
+        resize_mode="pad",
+    )
+
+
+test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered()

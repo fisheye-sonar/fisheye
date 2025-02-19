@@ -6,6 +6,7 @@ from utils.visualisation_utils import (
     make_gif_from_np_stack,
     make_vid_from_np_stack,
 )
+from PIL import Image
 
 config = ARISDatasetConfig(
     filepath="/Users/mahobley/Code/salmon_counting_data/2024-10-28_113000.aris",
@@ -20,9 +21,9 @@ config = ARISDatasetConfig(
 
 list_frames = generate_echogram_vis_from_aris(
     config,
-    echogram_pop=False,
+    echogram_pop=True,
     return_unwarped=False,
-    resize_mode="pad",
+    resize_mode="scale",  # scale or pad
     return_list=True,
     colour_image_edges=True,
 )
@@ -35,10 +36,10 @@ filename += f"_{config.start_frame}-{config.end_frame}_{config.echogram_filter_k
 print("Saving video...")
 make_vid_from_np_stack(filename + ".mp4", list_frames, frame_rate=12)
 
-# print("Saving image...")
+print("Saving image...")
 
-# im = Image.fromarray(list_frames[0])
-# im.save(filename+"_firstframe.jpeg")
+im = Image.fromarray(list_frames[0])
+im.save(filename + "_firstframe.jpeg")
 
 
 # print("Saving gif...")
