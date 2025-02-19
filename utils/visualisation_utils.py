@@ -135,15 +135,22 @@ def generate_echogram_vis_from_aris(
         filter_tol=config.echogram_filter_tol,
     )
     coloured_echogram = coloured_echogram[: frames_vis.shape[0]]
-
+    coloured_echogram = coloured_echogram[:, :50]
     scale_factor = frames_vis.shape[1] / coloured_echogram.shape[1]
 
     # if its within 5% dont modify the pixels, just crop, this is because the scaling
     if coloured_echogram.shape[1] < frames_vis.shape[1]:
         # pad
+        coloured_echogram = np.repeat(
+            coloured_echogram,
+            int(frames_vis.shape[1] / coloured_echogram.shape[1]),
+            axis=1,
+        )
+
         coloured_echogram = zero_pad_to_match_one_dim(
             coloured_echogram, frames_vis.shape, dim=1, centered=True, const_value=125
         )
+
     elif coloured_echogram.shape[1] > frames_vis.shape[1] and scale_factor > 0.95:
         # crop
         height_diff = coloured_echogram.shape[1] - frames_vis.shape[1]
@@ -170,13 +177,16 @@ def generate_echogram_vis_from_aris(
             coloured_echogram = zero_pad_to_match_one_dim(
                 coloured_echogram, frames_vis.shape, dim=1, const_value=125
             )
-            frames_vis = zero_pad_to_match_one_dim(
-                frames_vis,
-                coloured_echogram.shape,
-                dim=1,
-                centered=False,
-                const_value=125,
-            )
+            # frames_vis = zero_pad_to_match_one_dim(
+            #     frames_vis,
+            #     coloured_echogram.shape,
+            #     dim=1,
+            #     centered=False,
+            #     const_value=125,
+            # )
+    assert (
+        frames_vis.shape[1] == coloured_echogram.shape[1]
+    ), "The echogram and the normal frame should be the same height"
     frames_vis = np.stack([frames_vis[:, :, :, 0]] * 3, axis=-1)
     if colour_image_edges:
         frames_vis_mask = np.max(frames_vis, axis=0)
