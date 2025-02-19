@@ -25,6 +25,8 @@ class BaseDatasetConfig(BaseConfig):
     beam_width_dir: Path = BEAM_WIDTH_DIR
     xdim: int = 0
     ydim: int = 0
+    image_meter_width: int = 0
+    image_meter_height: int = 0
     rank: int = -1
     world_size: int = 1
     workers: int = 0
@@ -70,7 +72,7 @@ class YOLOv5ModelConfig(BaseModelConfig):
     """
 
     conf: float = 0.05  # NMS confidence threshold
-    iou: float = 0.2  # NMS IoU threshold
+    iou: float = 0.25  # NMS IoU threshold
     agnostic: bool = False  # NMS class-agnostic
     multi_label: bool = False  # NMS multiple labels per box
     classes: Optional[list[int]] = (
@@ -78,7 +80,7 @@ class YOLOv5ModelConfig(BaseModelConfig):
     )
     max_det: int = 300  # Maximum number of detections per image
     amp: bool = False  # Automatic Mixed Precision (AMP) inference
-    max_length: int = 0.3  # Minimum fish length, in meters
+    max_length: int = 0  # Minimum fish length, in meters
 
 
 @dataclass

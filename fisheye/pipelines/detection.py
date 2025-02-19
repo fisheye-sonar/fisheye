@@ -52,7 +52,7 @@ class ObjectDetectionPipeline:
     #     ]
     #     return processed_outputs
 
-    def _forward(self):
+    def predict(self):
         """Performs inference.
 
         Returns:
@@ -69,7 +69,7 @@ class ObjectDetectionPipeline:
             img = self.preprocess(img)
             size = tuple(img.shape)
             nb, _, height, width = size  # batch size, channels, height, width
-            inf_out = self.model.predict(img)
+            inf_out = self.model(img)
 
             # Save shapes for resizing to original shape
             batch_shape = []
@@ -87,4 +87,4 @@ class ObjectDetectionPipeline:
         Returns:
             List[Any]: Processed detection results.
         """
-        return ObjectDetectionPipelineOutput(*self._forward())
+        return ObjectDetectionPipelineOutput(*self.predict())

@@ -12,7 +12,7 @@ from conftest import ARIS_FILE
 @pytest.fixture
 def mock_yolov5_model():
     mock_model = MagicMock()
-    mock_model.predict.return_value = (
+    mock_model.forward.return_value = (
         torch.rand((1, 6)),
         None,
         None,
@@ -53,7 +53,7 @@ def test_object_detection_pipeline(mock_yolov5_model):
     with patch(
         "yolov5.load", return_value=mock_yolov5_model
     ) as mock_load, patch.object(
-        ObjectDetectionPipeline, "_forward", return_value=mock_forward_return
+        ObjectDetectionPipeline, "predict", return_value=mock_forward_return
     ):
         dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
         model_cfg = YOLOv5ModelConfig(model="dummy/path", conf=0.5, iou=0.45)
