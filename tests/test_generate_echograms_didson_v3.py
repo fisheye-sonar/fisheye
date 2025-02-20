@@ -29,8 +29,6 @@ def test_generate_echogram_gif_from_small_aris_filter():
         filepath=DDF_FILE,
         return_unwarped=False,
         return_echogram=True,
-        echogram_filter_kernel=7,
-        echogram_filter_tol=0.15,
     )
 
     generate_echogram_gif_from_aris(
@@ -38,6 +36,8 @@ def test_generate_echogram_gif_from_small_aris_filter():
         save_filename="",
         echogram_pop=True,
         return_unwarped=False,
+        echogram_filter_kernel=7,
+        echogram_filter_tol=0.15,
     )
 
 
@@ -61,8 +61,6 @@ def test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered():
         filepath=DDF_FILE,
         return_unwarped=False,
         return_echogram=True,
-        echogram_filter_kernel=7,
-        echogram_filter_tol=0.15,
     )
 
     generate_echogram_gif_from_aris(
@@ -71,6 +69,8 @@ def test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered():
         echogram_pop=False,
         return_unwarped=False,
         resize_mode="scale",
+        echogram_filter_kernel=7,
+        echogram_filter_tol=0.15,
     )
 
 
@@ -79,8 +79,6 @@ def test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered_pad():
         filepath=DDF_FILE,
         return_unwarped=False,
         return_echogram=True,
-        echogram_filter_kernel=7,
-        echogram_filter_tol=0.15,
     )
 
     generate_echogram_gif_from_aris(
@@ -89,6 +87,8 @@ def test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered_pad():
         echogram_pop=False,
         return_unwarped=False,
         resize_mode="pad",
+        echogram_filter_kernel=7,
+        echogram_filter_tol=0.15,
     )
 
 

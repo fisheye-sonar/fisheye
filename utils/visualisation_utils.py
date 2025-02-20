@@ -31,12 +31,9 @@ def make_vid_from_np_stack(output_filename, image_stack, frame_rate=12, norm=Fal
 
     num_frames, height, width, channels = image_stack.shape
 
-    # Ensure images are in uint8 format
-    # if image_stack.dtype != np.uint8:
     image_stack = (scale_factor * image_stack).astype(np.uint8)
 
     # Define the codec and create VideoWriter object
-    # fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # 'mp4v' for MP4
     if "mp4" in output_filename:
         fourcc = cv2.VideoWriter_fourcc(*"avc1")
 
@@ -44,11 +41,6 @@ def make_vid_from_np_stack(output_filename, image_stack, frame_rate=12, norm=Fal
         fourcc = cv2.VideoWriter_fourcc(*"X264")
 
     out = cv2.VideoWriter(output_filename, fourcc, frame_rate, (width, height))
-
-    # for _ in range(fps * duration):
-    #     frame = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
-
-    #     # Convert RGB (NumPy default) to BGR (OpenCV default)
 
     for frame in image_stack:
         frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -59,6 +51,12 @@ def make_vid_from_np_stack(output_filename, image_stack, frame_rate=12, norm=Fal
 
 def make_gif_from_np_stack(fn, frames, frame_rate=25, norm=False):
     """
+    Save a stack of numpy images to an MP4 video file.
+
+    :param frames: NumPy array of shape (num_frames, height, width, channels).
+    :param fn: Name of the output gif file.
+    :param frame_rate: Frames per second of the output video.
+
     WARNING:RARE COLOURS ARE REMOVED IN THE COLOUR QUANTIZATION
     """
     if isinstance(frames, list):
@@ -90,6 +88,8 @@ def generate_echogram_gif_from_aris(
     return_unwarped,
     resize_mode="pad",
     return_list=False,
+    echogram_filter_kernel=0,
+    echogram_filter_tol=0.15,
 ):
 
     vis = generate_echogram_vis_from_aris(
@@ -98,6 +98,8 @@ def generate_echogram_gif_from_aris(
         return_unwarped,
         resize_mode,
         return_list,
+        echogram_filter_kernel=echogram_filter_kernel,
+        echogram_filter_tol=echogram_filter_tol,
     )
 
     if save_filename:
@@ -112,6 +114,8 @@ def generate_echogram_vis_from_aris(
     resize_mode="scale",
     return_list=False,
     colour_image_edges=True,
+    echogram_filter_kernel=0,
+    echogram_filter_tol=0.15,
 ):
     dataloader, dataset = create_aris_dataloader(config)
 
@@ -131,8 +135,8 @@ def generate_echogram_vis_from_aris(
     coloured_echogram = make_echogram_image(
         echograms.astype("float"),
         echogram_pop=echogram_pop,
-        filter_kernel=config.echogram_filter_kernel,
-        filter_tol=config.echogram_filter_tol,
+        filter_kernel=echogram_filter_kernel,
+        filter_tol=echogram_filter_tol,
     )
     coloured_echogram = coloured_echogram[: frames_vis.shape[0]]
 
