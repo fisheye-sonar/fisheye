@@ -296,6 +296,15 @@ class DIDSON:
                 info["numbeams"] * info["samplesperchannel"]
             )
 
+            if info["proportion_warp"] > 0.01:
+                warnings.warn(
+                    f'{info["proportion_warp"]*100:.2f}% of sensor readings are not being used'
+                )
+            if unwarped_shape[0] < ydim:
+                warnings.warn(
+                    f"The warped image is shorter than the unwarped image {ydim} compared to {unwarped_shape[0]}"
+                )
+
     def __lens_distortion(self, nbeams, theta):
         """Removes Lens distortion determined by empirical work at the barge.
 
@@ -319,10 +328,14 @@ class DIDSON:
             96: [1.012, [0.0030, -0.0055, 2.6829, 48.04]],
             381: [4.05, [0.0030, -0.0055, 2.6829, 48.04]],
         }[nbeams]
-
-        return np.rint(
+        beamnum = np.rint(
             factor * (a[0] * theta**3 + a[1] * theta**2 + a[2] * theta + a[3]) + 1
-        ).astype(np.uint32)
+        )
+        beamnum = np.clip(
+            beamnum, 0, np.iinfo(np.uint32).max
+        )  # MAH 2025-02-14 12:16:51 issue #31: this is required to silence a warning for the negative values in beam_num being cast to 0. This line mimics the previous behaviour (clipping the negative values) because they are floats. If they were ints this would take the 2s compliment
+        beamnum = beamnum.astype(np.uint32)
+        return beamnum
 
     def __mapscan(self):
         """Calculate warp mapping from raw to scale images.
@@ -379,9 +392,11 @@ class DIDSON:
             y = rmax - (iy - 1) / gamma  # convert from pixels to meters
             r = np.sqrt(y**2 + x**2)  # convert to polar cooridinates
             theta = radtodeg * np.arctan2(x, y)  # theta is in degrees
-            binnum = np.rint((r - rmin) * c1 + 1.5).astype(
-                np.uint32
-            )  # the rangebin number
+            binnum = np.rint((r - rmin) * c1 + 1.5)  # the rangebin number
+            binnum = np.clip(
+                binnum, 0, np.iinfo(np.uint32).max
+            )  # MAH 2025-02-14 12:16:51 issue #31: this is required to silence a warning for the negative values in beam_num being cast to 0. This line mimics the previous behaviour (clipping the negative values) because they are floats. If they were ints this would take the 2s compliment
+            binnum = binnum.astype(np.uint32)  # the rangebin number
             beamnum = self.__lens_distortion(
                 nbeams, theta
             )  # remove lens distortion using empirical formula
