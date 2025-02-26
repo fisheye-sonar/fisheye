@@ -51,8 +51,8 @@ def make_echogram_image(echograms, echogram_pop=False, filter_kernel=0, filter_t
     output_image = output_image.transpose(1, 0, 2)
 
     # make it a video
-    output_image = np.stack([output_image] * output_image.shape[1])
     output_image = (output_image * 253).astype(np.uint8)
+    output_image = np.stack([output_image] * output_image.shape[1])
 
     # add the vertical white line
     for i in range(output_image.shape[0]):
