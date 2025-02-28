@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 
-from fisheye.dataclasses import YOLODatasetConfig
+from fisheye.configs import YOLODatasetConfig, ObjectDetectionConfig
 from fisheye.models.yolov5 import YOLOv5ObjectDetectionModel, YOLOv5ModelConfig
 from fisheye.pipelines import ObjectDetectionPipeline
 from conftest import ARIS_FILE
@@ -26,13 +26,11 @@ def test_loading_yolov5(mock_yolov5_model):
     """Mock model and confirm configs from YOLOv5ModelConfig are correctly loaded."""
     with patch("yolov5.load", return_value=mock_yolov5_model) as mock_load:
         # Changing a couple default configs to make sure
-        config = YOLOv5ModelConfig(model="dummy/path", conf=0.5, iou=0.45)
+        config = YOLOv5ModelConfig(weights="dummy/path")
         detector = YOLOv5ObjectDetectionModel(config)
 
         # Assertions to verify correct behavior - ensure yolov5.load was called
         mock_load.assert_called_once_with("dummy/path", "cpu")
-        assert detector.model.conf == 0.5
-        assert detector.model.iou == 0.45
         assert detector.model.agnostic == config.agnostic
         assert detector.model.multi_label == config.multi_label
         assert detector.model.classes == config.classes
@@ -56,8 +54,10 @@ def test_object_detection_pipeline(mock_yolov5_model):
         ObjectDetectionPipeline, "_forward", return_value=mock_forward_return
     ):
         dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
-        model_cfg = YOLOv5ModelConfig(model="dummy/path", conf=0.5, iou=0.45)
-        output = ObjectDetectionPipeline(model_cfg, dataset_cfg).run()
+        model_cfg = YOLOv5ModelConfig(weights="dummy/path")
+        config = ObjectDetectionConfig(model=model_cfg)
+
+        output = ObjectDetectionPipeline(config, dataset_cfg).run()
 
         # Assertions to verify behavior
         mock_load.assert_called_once_with("dummy/path", "cpu")

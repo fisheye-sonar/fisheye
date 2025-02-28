@@ -1,7 +1,10 @@
-from fisheye.dataclasses import (
+from functools import partial
+from typing import Dict, Any, Optional
+
+from fisheye.configs import (
     YOLODatasetConfig,
-    YOLOv5ModelConfig,
     ObjectDetectionPipelineOutput,
+    ObjectDetectionConfig,
 )
 from fisheye.dataloaders.yolo import create_yolo_dataloader
 from fisheye.models.yolov5 import YOLOv5ObjectDetectionModel
@@ -15,24 +18,52 @@ class ObjectDetectionPipeline:
 
     def __init__(
         self,
-        pipeline_cfg: YOLOv5ModelConfig = YOLOv5ModelConfig(),
-        dataset_cfg: YOLODatasetConfig = YOLODatasetConfig(),
+        config: ObjectDetectionConfig = ObjectDetectionConfig(),
+        dataset_config: Optional[YOLODatasetConfig] = None,
+        postprocessing_params: Dict[str, Any] = None,
+        *args,
+        **kwargs,
     ):
-        self.device = pipeline_cfg.device
-        if not pipeline_cfg.model:
+        model = config.model
+        self.device = model.device
+
+        if not model:
             raise ValueError("A model must be specified in the pipeline configuration.")
 
         self.model = (
-            YOLOv5ObjectDetectionModel(pipeline_cfg)
-            if isinstance(pipeline_cfg.model, str)
-            else (pipeline_cfg.model)
+            YOLOv5ObjectDetectionModel(model)
+            if isinstance(model.weights, str)
+            else model.weights
         )
 
-        self.dataloader, self.dataset = create_yolo_dataloader(dataset_cfg)
+        if dataset_config is None:
+            dataset_config = YOLODatasetConfig(*args, **kwargs)
+
+        self.dataloader, self.dataset = create_yolo_dataloader(dataset_config)
+        self.postprocessing_params = self._sanitize_postprocessing_params(
+            postprocessing_params
+        )
+
+    def _sanitize_postprocessing_params(self, postprocessing):
+        """Converts postprocessing dict into a list of callable functions with parameters."""
+        if not postprocessing:
+            return postprocessing
+
+        configured_steps = []
+        for step, params in postprocessing.items():
+            if params:
+                configured_steps.append(partial(step, **params))  # Bind parameters
+            else:
+                configured_steps.append(step)
+
+        return configured_steps
 
     def __call__(self, *args, **kwargs):
         """Executes the detection pipeline."""
-        return self.run()
+        output = self.run()
+        processed_output = self.postprocess(output)
+
+        return processed_output
 
     def preprocess(self, image):
         image = image.to(self.device, non_blocking=True)
@@ -43,16 +74,23 @@ class ObjectDetectionPipeline:
 
         return image
 
-    # def postprocess(self, model_outputs):
-    #     """Process model outputs."""
-    #
-    #     processed_outputs = [
-    #         {"detections": output, "shape": shape}
-    #         for output, shape in zip(model_outputs, image_shapes)
-    #     ]
-    #     return processed_outputs
+    def postprocess(self, output: ObjectDetectionPipelineOutput):
+        """Process model output sequentially."""
 
-    def _forward(self):
+        processed_output = output
+        if self.postprocessing_params:
+            for step in self.postprocessing_params:
+                step_params = {
+                    k: v for k, v in output.__dict__.items() if k in step.keywords
+                }
+                if "image_pixel_width" not in step_params and hasattr(output, "width"):
+                    step_params["image_pixel_width"] = output.width
+
+                processed_output = step(processed_output, **step_params)
+
+        return processed_output
+
+    def _forward(self, *args, **kwargs):
         """Performs inference.
 
         Returns:
@@ -81,10 +119,10 @@ class ObjectDetectionPipeline:
 
         return inference, image_shapes, width, height
 
-    def run(self):
+    def run(self, *args, **kwargs):
         """Executes the detection pipeline end-to-end.
 
         Returns:
             List[Any]: Processed detection results.
         """
-        return ObjectDetectionPipelineOutput(*self._forward())
+        return ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))

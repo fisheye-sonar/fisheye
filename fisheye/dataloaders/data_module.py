@@ -4,7 +4,7 @@ from pathlib import Path
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
-from fisheye.dataclasses import ARISDatasetConfig
+from fisheye.configs import ARISDatasetConfig
 from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
 

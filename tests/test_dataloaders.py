@@ -12,7 +12,7 @@ from fisheye.dataloaders.didson.pyDIDSON import DIDSON
 from conftest import ARIS_FILE, CORRUPTED_FILE
 from fisheye.dataloaders.yolo import create_yolo_dataloader
 
-from fisheye.dataclasses import ARISDatasetConfig, YOLODatasetConfig
+from fisheye.configs import ARISDatasetConfig, YOLODatasetConfig
 
 
 def test_creating_aris_dataloader_factory_func(beam_widths_path):
