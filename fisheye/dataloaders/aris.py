@@ -2,7 +2,7 @@ import os
 
 import torch
 
-from fisheye.dataclasses import ARISDatasetConfig
+from fisheye.configs import ARISDatasetConfig
 from fisheye.dataloaders.base import BaseDataset
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
 from fisheye.dataloaders.samplers import OnePerBatchSampler
@@ -45,6 +45,8 @@ class ARISBatchedDataset(BaseDataset):
             self.didson.info["endframe"] or self.didson.info["numframes"],
         )
         config.xdim, config.ydim = self.didson.info["xdim"], self.didson.info["ydim"]
+        config.image_meter_width = config.xdim * self.didson.info["pixel_meter_width"]
+        config.image_meter_height = config.ydim * self.didson.info["pixel_meter_height"]
 
         super().__init__(config)
 

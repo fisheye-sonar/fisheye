@@ -1,8 +1,6 @@
-import pytest
-
 from conftest import DDF_FILE
 
-from fisheye.dataclasses import ARISDatasetConfig
+from fisheye.configs import ARISDatasetConfig
 from utils.visualisation_utils import generate_echogram_gif_from_aris
 
 """

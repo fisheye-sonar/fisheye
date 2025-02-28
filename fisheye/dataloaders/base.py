@@ -5,7 +5,7 @@ import cv2
 from torch.utils.data import Dataset
 from yolov5.utils.general import xyxy2xywh
 
-from fisheye.dataclasses import BaseDatasetConfig
+from fisheye.configs import BaseDatasetConfig
 import warnings
 
 
@@ -34,6 +34,8 @@ class BaseDataset(Dataset):
         self.end_frame = config.end_frame
         self.xdim = config.xdim
         self.ydim = config.ydim
+        self.image_meter_width = config.image_meter_width
+        self.image_meter_height = config.image_meter_height
         self.beam_width_dir = config.beam_width_dir
         self.batch_size = config.batch_size
         self.disable_output = config.disable_output

@@ -1,0 +1,108 @@
+from unittest.mock import MagicMock, patch
+
+import pytest
+import torch
+
+from conftest import ARIS_FILE
+from fisheye.configs import (
+    ObjectDetectionConfig,
+    ObjectDetectionPipelineOutput,
+    YOLODatasetConfig,
+    YOLOv5ModelConfig,
+)
+from fisheye.configs.inference import NMSConfig
+from fisheye.pipelines import ObjectDetectionPipeline
+
+
+@pytest.fixture
+def mock_yolov5_model():
+    mock_model = MagicMock()
+    mock_model.predict.return_value = (
+        torch.rand((1, 6)),
+        None,
+        None,
+        None,
+    )
+
+    return mock_model
+
+
+@pytest.fixture
+def mock_pipeline(mock_yolov5_model):
+    """Fixture for a mocked ObjectDetectionPipeline."""
+    with patch("yolov5.load", return_value=mock_yolov5_model) as mock_load:
+        model_cfg = YOLOv5ModelConfig(weights="dummy/path")
+        config = ObjectDetectionConfig(model=model_cfg)
+        pipeline = ObjectDetectionPipeline(
+            config=config, dataset_config=YOLODatasetConfig(filepath=ARIS_FILE)
+        )
+
+    pipeline.dataloader = MagicMock()
+    pipeline.dataset = MagicMock()
+    pipeline.run = MagicMock(
+        return_value=ObjectDetectionPipelineOutput(
+            pred_bboxes=[torch.rand((1, 6))],
+            image_shape=[[1, 2, 3]],
+            width=640,
+            height=480,
+        )
+    )
+
+    return pipeline
+
+
+def test_initialization(mock_pipeline):
+    """Test pipeline initialization."""
+    assert isinstance(mock_pipeline, ObjectDetectionPipeline)
+    assert mock_pipeline.model is not None
+    assert mock_pipeline.device == "cpu"
+    assert isinstance(mock_pipeline.dataloader, MagicMock)
+
+
+def test_sanitize_postprocessing_params(mock_pipeline):
+    """Test sanitizing of postprocessing parameters."""
+
+    postprocessing_params = None
+    sanitized_steps = mock_pipeline._sanitize_postprocessing_params(
+        postprocessing_params
+    )
+    assert len(sanitized_steps) == 0
+    assert not callable(sanitized_steps)
+
+    postprocessing_params = {"run_nms": {"nms_config": NMSConfig()}}
+    sanitized_steps = mock_pipeline._sanitize_postprocessing_params(
+        postprocessing_params
+    )
+    assert len(sanitized_steps) == 1
+    assert callable(sanitized_steps[0])
+
+
+def test_preprocess(mock_pipeline):
+    """Test image preprocessing."""
+    mock_image = torch.rand((1, 3, 640, 640))  # Mock image tensor
+    preprocessed_image = mock_pipeline.preprocess(mock_image)
+
+    assert preprocessed_image.device == torch.device("cpu")
+    assert preprocessed_image.shape == (1, 3, 640, 640)
+    assert (preprocessed_image <= 1.0).all()  # Ensure the image is normalized
+
+
+def test_run(mock_pipeline):
+    """Test running the full pipeline (inference + postprocessing)."""
+    mock_pipeline.run = MagicMock(
+        return_value=ObjectDetectionPipelineOutput(
+            pred_bboxes=[torch.rand((1, 6, 6))],
+            image_shape=[[(640, 640), (640, 640)]],
+            width=640,
+            height=640,
+        )
+    )
+
+    output = mock_pipeline.run()
+
+    assert isinstance(output, ObjectDetectionPipelineOutput)
+    assert isinstance(output.pred_bboxes, list)
+    assert output.pred_bboxes[0].shape == (1, 6, 6)
+    assert isinstance(output.image_shape, list)
+    assert output.width == 640
+    assert output.height == 640

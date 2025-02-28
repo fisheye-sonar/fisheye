@@ -12,7 +12,7 @@ from fisheye.dataloaders.didson.pyDIDSON import DIDSON
 from conftest import CORRUPTED_FILE, DDF_FILE, SHORTENED_DDF_FILE
 from fisheye.dataloaders.yolo import create_yolo_dataloader
 
-from fisheye.dataclasses import ARISDatasetConfig, YOLODatasetConfig
+from fisheye.configs import ARISDatasetConfig, YOLODatasetConfig
 
 """
 The same as test_dataloaders but now running on a didson version 3 file

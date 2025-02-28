@@ -6,7 +6,7 @@ import torch
 from yolov5.utils.augmentations import letterbox
 from yolov5.utils.general import xyxy2xywh
 
-from fisheye.dataclasses import YOLODatasetConfig
+from fisheye.configs import YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset
 from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
