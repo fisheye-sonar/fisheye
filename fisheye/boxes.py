@@ -155,6 +155,9 @@ def run_nms(
                     iou=nms_config.iou,
                     max_length=nms_config.fish_size.max_length,
                     max_det=nms_config.max_det,
+                    max_nms=nms_config.max_nms,
+                    redundant=nms_config.redundant,
+                    merge=nms_config.merge,
                 )
 
             outputs.append(output)

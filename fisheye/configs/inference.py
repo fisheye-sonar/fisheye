@@ -20,11 +20,12 @@ class FishSizeConfig:
 class NMSConfig:
     """Non-Maximum Suppression (NMS) configuration."""
 
-    iou: float = 0.25
-    # low_conf: float = 0.1
-    # high_conf: float = 0.3
-    conf: float = 0.1
-    max_det: int = 300
+    iou: float = 0.25  # NMS iou score
+    conf: float = 0.1  # NMS confidence score
+    max_det: int = 300  # Maximum number of detections
+    max_nms: int = 30000  # Maximum number of boxes into torchvision.ops.nms()
+    redundant: bool = True  # Require redundant detections
+    merge: bool = False  # Use merge-NMS
     fish_size: FishSizeConfig = FishSizeConfig()
 
 

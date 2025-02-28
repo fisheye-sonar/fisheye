@@ -15,6 +15,8 @@ class BaseDatasetConfig:
     batch_size: int = 32
     xdim: int = 0
     ydim: int = 0
+    image_meter_width: int = 0
+    image_meter_height: int = 0
     rank: int = -1
     world_size: int = 1
     workers: int = 0
