@@ -490,16 +490,29 @@ class DIDSON:
                 0,
             )
 
-            return np.array(
-                [
-                    np.frombuffer(
-                        fid.read(framesize + frameheadersize)[:framesize],
-                        dtype=np.uint8,
+            frames = []
+            frame_count = 0
+            while end_frame == 0 or frame_count < (end_frame - start_frame):
+                frame_data = fid.read(framesize + frameheadersize)
+
+                if not frame_data:
+                    warnings.warn(
+                        f"Warning: No more frame data to read at index {frame_count}. Exiting loop."
                     )
-                    for _ in range(end_frame - start_frame)
-                ],
-                dtype=np.uint8,
-            )
+                    break
+
+                frame = np.frombuffer(frame_data[:framesize], dtype=np.uint8)
+                if frame.shape[0] != framesize:
+                    warnings.warn(
+                        f"Warning: Invalid frame size detected (expected {framesize}, got {frame.shape[0]})."
+                        f" Exiting loop."
+                    )
+                    break
+
+                frames.append(np.frombuffer(frame_data[:framesize], dtype=np.uint8))
+                frame_count += 1
+
+            return np.array(frames, dtype=np.uint8)
 
     def load_raw_data(self, file=None, start_frame=-1, end_frame=-1):
         """
@@ -524,7 +537,7 @@ class DIDSON:
             return data
 
     def load_frames(
-        self, file=None, start_frame=-1, end_frame=-1, return_unwarped=False
+        self, file=None, start_frame=0, end_frame=-1, return_unwarped=False
     ):
         """Load and warp DIDSON frames into images.
 

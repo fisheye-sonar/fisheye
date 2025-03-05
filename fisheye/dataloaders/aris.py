@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import torch
 
@@ -33,17 +34,24 @@ class ARISBatchedDataset(BaseDataset):
         except Exception as e:
             raise RuntimeError(f"Could not load {config.filepath}: {e}")
 
-        if config.start_frame is None:
-            config.start_frame = self.didson.info["startframe"]
-        if config.end_frame is None:
-            config.end_frame = (
-                self.didson.info["endframe"] or self.didson.info["numframes"]
-            )
-
-        config.end_frame = min(
-            config.end_frame,
-            self.didson.info["endframe"] or self.didson.info["numframes"],
+        end_frame = self.didson.info["numframes"] or self.didson.info["endframe"]
+        config.end_frame = (
+            min(config.end_frame, end_frame) if config.end_frame else end_frame
         )
+
+        # If end frame is still 0, something ain't right in the header file. However, there most likely is
+        # still data that can be unpacked so load all frames any way. Yes, this is not efficient, but it's for an edge
+        # case that happens often enough and is also out of our control
+        if config.dev_load_all_frames and config.end_frame <= 0:
+            warnings.warn(
+                "End frame is 0, likely due to a corrupted or incomplete header file. "
+                "Even if you provided a valid end_frame, it was overwritten because the original end_frame is smaller. "
+                "Falling back to loading all frames, which may be inefficient."
+            )
+            frames, _ = self.didson.load_frames()
+            config.end_frame = len(frames) + config.start_frame
+            warnings.warn(f"New end frame idx is {config.end_frame}.")
+
         config.xdim, config.ydim = self.didson.info["xdim"], self.didson.info["ydim"]
         config.image_meter_width = config.xdim * self.didson.info["pixel_meter_width"]
         config.image_meter_height = config.ydim * self.didson.info["pixel_meter_height"]
@@ -67,6 +75,14 @@ def create_aris_dataloader(config: ARISDatasetConfig):
     # this is a no-op for a single-gpu machine
     with torch_distributed_zero_first(config.rank):
         dataset = ARISBatchedDataset(config)
+
+    if len(dataset) == 0:
+        warnings.warn(
+            "Warning: Dataset contains no valid frames or has incorrect start and end frame indexes, "
+            "preventing frame extraction."
+        )
+        return None, None
+
     batch_size = min(config.batch_size, len(dataset))
     nw = min(
         [
