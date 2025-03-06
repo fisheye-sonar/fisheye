@@ -3,8 +3,7 @@ from conftest import DDF_FILE
 from fisheye.configs import ARISDatasetConfig
 from utils.visualisation_utils import generate_echogram_gif_from_aris
 
-"""
-Same as test_generate_echograms but using didson version 3 file type"""
+"""Same as test_generate_echograms but using didson version 3 file type"""
 
 
 def test_generate_echogram_gif_from_small_aris():
