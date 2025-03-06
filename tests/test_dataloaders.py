@@ -144,6 +144,12 @@ def test_loading_selected_frames_aris_dataloader_factory_func():
     # end_frame is exclusive in DIDSON
     assert len(dataset) == 1
 
+    config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # end_frame is exclusive in DIDSON
+    assert len(dataset) == 2
+
 
 def test_loading_bad_end_frame_aris_dataloader_factory_func():
     """Test ARIS factory function does not load frames from an outside range."""
@@ -175,6 +181,13 @@ def test_loading_selected_frames_aris_dataloader_lightning():
 
     # end_frame is exclusive in DIDSON
     assert len(data_module.dataset) == 1
+
+    config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
+    data_module = ARISDataModule(ARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # end_frame is exclusive in DIDSON
+    assert len(data_module.dataset) == 2
 
 
 def test_loading_bad_end_frame_aris_dataloader_lightning():
@@ -208,6 +221,11 @@ def test_loading_selected_frames_yolo_dataloader_factory_func():
     # end_frame is exclusive in DIDSON
     assert len(dataset) == 1
 
+    config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
+    dataloader, dataset = create_yolo_dataloader(config)
+
+    assert len(dataset) == 2
+
 
 def test_loading_bad_end_frame_yolo_dataloader_factory_func():
     """Test YOLO factory function does not load frames from an outside range."""
@@ -237,6 +255,11 @@ def test_loading_selected_frames_yolo_dataloader_lightning():
     data_module = ARISDataModule(YOLOARISBatchedDataset, config)
     data_module.setup(stage="test")
     assert len(data_module.dataset) == 1
+
+    config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
+    data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+    data_module.setup(stage="test")
+    assert len(data_module.dataset) == 2
 
 
 def test_loading_bad_end_frame_yolo_dataloader_lightning():

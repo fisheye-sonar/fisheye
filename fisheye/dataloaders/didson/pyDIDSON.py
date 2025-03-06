@@ -46,8 +46,15 @@ class DIDSON:
         """
         if hasattr(file, "read"):
             file_ctx = contextlib.nullcontext(file)
+            filename = getattr(file, "name", None)
+            filename = os.path.abspath(filename)
         else:
+            file = Path(file).expanduser().resolve()
             file_ctx = open(file, "rb")
+            filename = str(file)
+
+        if filename:
+            filename = os.path.abspath(filename)
 
         with file_ctx as fid:
             assert fid.read(3) == b"DDF"
@@ -98,6 +105,24 @@ class DIDSON:
                     "fileheadersize": fileheadersize,
                     "frameheaderformat": frameheaderformat,
                     "frameheadersize": frameheadersize,
+                }
+            )
+
+            # Recommended to ignore frame count and calculate it yourself
+            # https://github.com/SoundMetrics/aris-file-sdk/blob/master/docs/understanding-aris-data.md
+            framesize = info["samplesperchannel"] * info["numbeams"]
+            numframes = int(
+                np.floor(
+                    (os.path.getsize(filename) - info["fileheadersize"])
+                    / (info["frameheadersize"] + framesize)
+                )
+            )
+
+            info.update(
+                {
+                    "numframes": numframes,
+                    "framesize": framesize,
+                    "filename": filename,
                 }
             )
 
@@ -286,11 +311,6 @@ class DIDSON:
             if info["endframe"] > 65535:
                 info["endframe"] = 0
 
-            try:
-                info["filename"] = os.path.abspath(file_ctx.name)
-            except AttributeError:
-                info["filename"] = None
-
             # Record the proportion of measurements that are present in the warp (increases as xdim increases)
             info["proportion_warp"] = len(np.unique(read_i)) / (
                 info["numbeams"] * info["samplesperchannel"]
@@ -457,7 +477,7 @@ class DIDSON:
             file_ctx = open(file, "rb")
 
         with file_ctx as fid:
-            framesize = self.info["samplesperchannel"] * self.info["numbeams"]
+            framesize = self.info["framesize"]
             frameheadersize = self.info["frameheadersize"]
 
             fid.seek(
@@ -504,7 +524,8 @@ class DIDSON:
                 frame = np.frombuffer(frame_data[:framesize], dtype=np.uint8)
                 if frame.shape[0] != framesize:
                     warnings.warn(
-                        f"Warning: Invalid frame size detected (expected {framesize}, got {frame.shape[0]})."
+                        f"Warning: Invalid frame size detected after unpacking frame data (expected {framesize}, got"
+                        f" {frame.shape[0]})."
                         f" Exiting loop."
                     )
                     break

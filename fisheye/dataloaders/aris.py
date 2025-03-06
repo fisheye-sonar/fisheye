@@ -34,7 +34,7 @@ class ARISBatchedDataset(BaseDataset):
         except Exception as e:
             raise RuntimeError(f"Could not load {config.filepath}: {e}")
 
-        end_frame = self.didson.info["numframes"] or self.didson.info["endframe"]
+        end_frame = self.didson.info["numframes"] + config.start_frame
         config.end_frame = (
             min(config.end_frame, end_frame) if config.end_frame else end_frame
         )
