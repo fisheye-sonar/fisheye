@@ -9,7 +9,7 @@ from fisheye.dataloaders import (
 )
 from fisheye.dataloaders.data_module import ARISDataModule
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
-from conftest import ARIS_FILE, CORRUPTED_FILE
+from conftest import ARIS_FILE, CORRUPTED_FILE, INVALID_FRAME_INDICES
 from fisheye.dataloaders.yolo import create_yolo_dataloader
 
 from fisheye.configs import ARISDatasetConfig, YOLODatasetConfig
@@ -283,3 +283,13 @@ def test_corrupted_aris():
     with pytest.raises(RuntimeError) as exc_info:
         config = ARISDatasetConfig(filepath=CORRUPTED_FILE)
         create_aris_dataloader(config)
+
+
+def test_reset_start_end_frames_when_exceeding_total_frames():
+    """Test start and end frames reset if they are larger than the total number of frames in the file."""
+    # Start frame in header is 100 and end frame is 110
+    config = ARISDatasetConfig(filepath=INVALID_FRAME_INDICES)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # originally 10 frames in file, but subtract 1 for optical flow
+    assert len(dataset) == 9

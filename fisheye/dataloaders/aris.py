@@ -39,6 +39,22 @@ class ARISBatchedDataset(BaseDataset):
             min(config.end_frame, end_frame) if config.end_frame else end_frame
         )
 
+        # We are possibly looking at a shorted clip where the start and end frame indexes are larger than the number
+        # of frames in the file.
+        if (
+            config.start_frame > self.didson.info["numframes"]
+            and config.end_frame > self.didson.info["numframes"]
+        ):
+            # Reset the start and end frames
+            config.start_frame = 0
+            config.end_frame = self.didson.info["numframes"]
+            warnings.warn(
+                f"Warning: The specified start and end frame indexes ({config.start_frame}, {config.end_frame}) "
+                f"exceed the total number of frames in the file ({self.didson.info['numframes']}). "
+                f"Likely processing a shortened, modified clip. Resetting start_frame to 0 and end_frame to "
+                f"{self.didson.info['numframes']}."
+            )
+
         # If end frame is still 0, something ain't right in the header file. However, there most likely is
         # still data that can be unpacked so load all frames any way. Yes, this is not efficient, but it's for an edge
         # case that happens often enough and is also out of our control
