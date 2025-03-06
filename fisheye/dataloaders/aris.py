@@ -39,7 +39,7 @@ class ARISBatchedDataset(BaseDataset):
             min(config.end_frame, end_frame) if config.end_frame else end_frame
         )
 
-        # We are possibly looking at a shorted clip where the start and end frame indexes are larger than the number
+        # We are possibly looking at a shortened clip where the start and end frame indexes are larger than the number
         # of frames in the file.
         if (
             config.start_frame > self.didson.info["numframes"]
