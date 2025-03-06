@@ -20,7 +20,6 @@ class ARISBatchedDataset(BaseDataset):
         """
         :param filepath (str): Path to an ARIS file.
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
-        :param annotations_file (str): Path to annotations file.
         :param batch_size (int): Batch size. Defaults to 32.
         :param num_frames_bg_subtract: Number of frames to subtract from the background. Defaults to 1000.
         :param disable_output (bool): Whether to disable output. Defaults to False.
@@ -85,7 +84,7 @@ class ARISBatchedDataset(BaseDataset):
 
 def create_aris_dataloader(config: ARISDatasetConfig):
     """
-    Get a PyTorch Dataset and DataLoader for ARIS files with (optional) associated fisheye-formatted labels.
+    Get a PyTorch Dataset and DataLoader for ARIS files.
     """
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     # this is a no-op for a single-gpu machine

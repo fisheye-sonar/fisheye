@@ -22,7 +22,6 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         """
         :param filepath (str): Path to an ARIS file.
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
-        :param annotations_file (str): Path to annotations file.
         :param stride (int): Stride size for YOLOv5 inference. Defaults to 64.
         :param pad (float): Pad size for YOLOv5 inference. Defaults to 0.5.
         :param img_size (int): Image size for YOLOv5 inference. Defaults to 896.
@@ -127,7 +126,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
 
 def create_yolo_dataloader(config: YOLODatasetConfig):
     """
-    Get a PyTorch Dataset and DataLoader for ARIS files with (optional) associated fisheye-formatted labels.
+    Get a PyTorch Dataset and DataLoader for ARIS files.
     """
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     # this is a no-op for a single-gpu machine
