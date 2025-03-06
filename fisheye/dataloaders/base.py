@@ -20,7 +20,6 @@ class BaseDataset(Dataset):
         :param xdim (int): X dimension.
         :param ydim (int): Y dimension.
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
-        :param annotations_file (str): Path to annotations file.
         :param batch_size (int): Batch size. Defaults to 32.
         :param num_frames_bg_subtract: Number of frames to subtract from the background image. Defaults to 1000.
         :param disable_output (bool): Whether to disable output. Defaults to False.
@@ -46,11 +45,6 @@ class BaseDataset(Dataset):
         self.extracted_echograms = []
         self.return_unwarped = config.return_unwarped
         self.return_echogram = config.return_echogram
-
-        if self.return_unwarped and config.annotations_file is not None:
-            warnings.warn(
-                "Labels from the annotations file will be ignored when return_unwarped is True."
-            )
 
         self._init_bg_frame()
 
