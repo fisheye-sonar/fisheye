@@ -2,7 +2,7 @@ import fisheye.dataloaders.didson.pyARIS as pyARIS
 import struct
 
 
-def crop_clip(aris_path, out_fp, num_frames, verbose=True):
+def crop_clip_by_frames(aris_path, out_fp, num_frames, verbose=True):
     """
     Crop and save an aris file based on the first *num_frames* frames. This will create a new ARIS file where the
     startframe, endframe and numframes in the file header are updated to the new aris file data.
@@ -65,4 +65,4 @@ def crop_clip(aris_path, out_fp, num_frames, verbose=True):
         )
 
 
-crop_clip(aris_path="", out_fp="", num_frames=10)
+crop_clip_by_frames(aris_path="", out_fp="", num_frames=10)
