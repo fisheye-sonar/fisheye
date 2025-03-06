@@ -1,12 +1,8 @@
-import json
-
-import numpy as np
 import cv2
+import numpy as np
 from torch.utils.data import Dataset
-from yolov5.utils.general import xyxy2xywh
 
 from fisheye.configs import BaseDatasetConfig
-import warnings
 
 
 class BaseDataset(Dataset):
@@ -22,7 +18,6 @@ class BaseDataset(Dataset):
         :param xdim (int): X dimension.
         :param ydim (int): Y dimension.
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
-        :param annotations_file (str): Path to annotations file.
         :param batch_size (int): Batch size. Defaults to 32.
         :param num_frames_bg_subtract: Number of frames to subtract from the background image. Defaults to 1000.
         :param disable_output (bool): Whether to disable output. Defaults to False.
@@ -49,48 +44,7 @@ class BaseDataset(Dataset):
         self.return_unwarped = config.return_unwarped
         self.return_echogram = config.return_echogram
 
-        if self.return_unwarped and config.annotations_file is not None:
-            warnings.warn(
-                "Labels from the annotations file will be ignored when return_unwarped is True."
-            )
-
-        self._initialize_labels(config.annotations_file)
         self._init_bg_frame()
-
-    def _initialize_labels(self, annotations_file):
-        """Load labels from a fisheye-formatted JSON file."""
-        if annotations_file is None:
-            self.labels = None
-        else:
-            self._load_labels(annotations_file)
-
-    def _load_labels(self, fisheye_json):
-        """Load labels from a fisheye-formatted json file into self.labels in normalized xywh format."""
-        js = json.load(open(fisheye_json, "r"))
-        labels = []
-
-        for frame in js["frames"]:
-            l = []
-            for fish in frame["fish"]:
-                x, y, w, h = xyxy2xywh(fish["bbox"])
-                cx = x + w / 2.0
-                cy = y + h / 2.0
-                # Each row is `class x_center y_center width height` format. (Normalized)
-                l.append([0, cx, cy, w, h])
-
-            l = np.array(l, dtype=np.float32)
-            if len(l) == 0:
-                l = np.zeros((0, 5), dtype=np.float32)
-
-            labels.append(l)
-
-        if self.return_unwarped:
-            # labels are ignored when returning unwarped frames as they are defined in a different axis system
-            self.labels = None
-        else:
-            self.labels = labels
-        self.start_frame = js["start_frame"]
-        self.end_frame = js["end_frame"]
 
     def _init_bg_frame(self):
         """Initialize background frame for subtraction."""
@@ -144,7 +98,7 @@ class BaseDataset(Dataset):
     def __getitem__(self, idx: int):
         """Retrieve a batch of frames and labels."""
         final_idx = min(idx + self.batch_size, len(self))
-        frame_labels = self.labels[idx:final_idx] if self.labels else None
+        frame_labels = None
 
         if idx + 1 < len(self.extracted_frames):
             return self._postprocess(
@@ -184,11 +138,8 @@ class BaseDataset(Dataset):
 
             if self.cache_bg_frames:
                 self.extracted_frames.extend(frame_images)
-                if frame_labels is not None:
-                    self.frame_labels.extend(frame_labels)
-                else:
-                    self.frame_labels = None
-                    self.extracted_unwarped_frames.extend(unwarped_frames)
+                self.frame_labels = None
+                self.extracted_unwarped_frames.extend(unwarped_frames)
                 self.extracted_echograms.extend(echogram)
 
         # MAH 2025-02-07 16:48:40 I think this is likely the best solution, it means indexes will be consistent and if needed we can add more things to the list when required

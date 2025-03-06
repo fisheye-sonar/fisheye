@@ -10,7 +10,6 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 class BaseDatasetConfig:
     """Base dataset configuration."""
 
-    annotations_file: str = None
     beam_width_dir: Path = BEAM_WIDTH_DIR
     batch_size: int = 32
     xdim: int = 0
