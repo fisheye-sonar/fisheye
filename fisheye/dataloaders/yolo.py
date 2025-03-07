@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import cv2
 import numpy as np
@@ -131,6 +132,13 @@ def create_yolo_dataloader(config: YOLODatasetConfig):
     # this is a no-op for a single-gpu machine
     with torch_distributed_zero_first(config.rank):
         dataset = YOLOARISBatchedDataset(config)
+
+    if len(dataset) == 0:
+        warnings.warn(
+            "Warning: Dataset contains no valid frames or has incorrect start and end frame indexes, "
+            "preventing frame extraction."
+        )
+        return None, None
 
     batch_size = min(config.batch_size, len(dataset))
     nw = min(

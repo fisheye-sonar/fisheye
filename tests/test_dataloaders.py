@@ -9,7 +9,7 @@ from fisheye.dataloaders import (
 )
 from fisheye.dataloaders.data_module import ARISDataModule
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
-from conftest import ARIS_FILE, CORRUPTED_FILE
+from conftest import ARIS_FILE, CORRUPTED_FILE, INVALID_FRAME_INDICES
 from fisheye.dataloaders.yolo import create_yolo_dataloader
 
 from fisheye.configs import ARISDatasetConfig, YOLODatasetConfig
@@ -144,6 +144,12 @@ def test_loading_selected_frames_aris_dataloader_factory_func():
     # end_frame is exclusive in DIDSON
     assert len(dataset) == 1
 
+    config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # end_frame is exclusive in DIDSON
+    assert len(dataset) == 2
+
 
 def test_loading_bad_end_frame_aris_dataloader_factory_func():
     """Test ARIS factory function does not load frames from an outside range."""
@@ -175,6 +181,13 @@ def test_loading_selected_frames_aris_dataloader_lightning():
 
     # end_frame is exclusive in DIDSON
     assert len(data_module.dataset) == 1
+
+    config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
+    data_module = ARISDataModule(ARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # end_frame is exclusive in DIDSON
+    assert len(data_module.dataset) == 2
 
 
 def test_loading_bad_end_frame_aris_dataloader_lightning():
@@ -208,6 +221,11 @@ def test_loading_selected_frames_yolo_dataloader_factory_func():
     # end_frame is exclusive in DIDSON
     assert len(dataset) == 1
 
+    config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
+    dataloader, dataset = create_yolo_dataloader(config)
+
+    assert len(dataset) == 2
+
 
 def test_loading_bad_end_frame_yolo_dataloader_factory_func():
     """Test YOLO factory function does not load frames from an outside range."""
@@ -238,6 +256,11 @@ def test_loading_selected_frames_yolo_dataloader_lightning():
     data_module.setup(stage="test")
     assert len(data_module.dataset) == 1
 
+    config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
+    data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+    data_module.setup(stage="test")
+    assert len(data_module.dataset) == 2
+
 
 def test_loading_bad_end_frame_yolo_dataloader_lightning():
     """Test ARIS DataModule does not load frames from an outside range for YOLO Datasets."""
@@ -260,3 +283,13 @@ def test_corrupted_aris():
     with pytest.raises(RuntimeError) as exc_info:
         config = ARISDatasetConfig(filepath=CORRUPTED_FILE)
         create_aris_dataloader(config)
+
+
+def test_reset_start_end_frames_when_exceeding_total_frames():
+    """Test start and end frames reset if they are larger than the total number of frames in the file."""
+    # Start frame in header is 100 and end frame is 110
+    config = ARISDatasetConfig(filepath=INVALID_FRAME_INDICES)
+    dataloader, dataset = create_aris_dataloader(config)
+
+    # originally 10 frames in file, but subtract 1 for optical flow
+    assert len(dataset) == 9

@@ -119,7 +119,7 @@ def test_aris_loading_frames(beam_widths_path):
     didson = DIDSON(DDF_FILE, beam_widths_path)
     frames, unwarped_frames = didson.load_frames()
     assert isinstance(frames, np.ndarray)
-    assert frames.shape == (133, 486, 300)  # Num of frames, ydim, xdim
+    assert frames.shape == (134, 486, 300)  # Num of frames, ydim, xdim
     assert frames.dtype == np.uint8
 
 
@@ -128,7 +128,7 @@ def test_aris_loading_unwarped_frames(beam_widths_path):
     didson = DIDSON(DDF_FILE, beam_widths_path)
     frames, unwarped_frames = didson.load_frames(return_unwarped=True)
     assert isinstance(unwarped_frames, np.ndarray)
-    assert unwarped_frames.shape == (133, 512, 96)  # Num of frames, ydim, xdim
+    assert unwarped_frames.shape == (134, 512, 96)  # Num of frames, ydim, xdim
     assert unwarped_frames.dtype == np.uint8
 
 
@@ -137,12 +137,17 @@ def test_loading_selected_frames_aris_dataloader_factory_func():
     config = ARISDatasetConfig(filepath=DDF_FILE)
     dataloader, dataset = create_aris_dataloader(config)
     # originally 4 frames in file, but subtract 1 for optical flow
-    assert len(dataset) == 132
+    assert len(dataset) == 133
 
     config = ARISDatasetConfig(filepath=DDF_FILE, start_frame=0, end_frame=2)
     dataloader, dataset = create_aris_dataloader(config)
     # end_frame is exclusive in DIDSON
     assert len(dataset) == 1
+
+    config = ARISDatasetConfig(filepath=DDF_FILE, start_frame=120, end_frame=135)
+    dataloader, dataset = create_aris_dataloader(config)
+    # end_frame is exclusive in DIDSON
+    assert len(dataset) == 14
 
 
 def test_loading_bad_end_frame_aris_dataloader_factory_func():
@@ -151,7 +156,7 @@ def test_loading_bad_end_frame_aris_dataloader_factory_func():
     dataloader, dataset = create_aris_dataloader(config)
 
     # originally 4 frames in file, but subtract 1 for optical flow
-    assert len(dataset) == 132
+    assert len(dataset) == 133
 
     config = ARISDatasetConfig(filepath=DDF_FILE, start_frame=0, end_frame=200)
     dataloader, dataset = create_aris_dataloader(config)
@@ -167,7 +172,7 @@ def test_loading_selected_frames_aris_dataloader_lightning():
     data_module.setup(stage="test")
 
     # originally 4 frames in file, but subtract 1 for optical flow
-    assert len(data_module.dataset) == 132
+    assert len(data_module.dataset) == 133
 
     config = ARISDatasetConfig(filepath=DDF_FILE, start_frame=0, end_frame=2)
     data_module = ARISDataModule(ARISBatchedDataset, config)
@@ -175,6 +180,13 @@ def test_loading_selected_frames_aris_dataloader_lightning():
 
     # end_frame is exclusive in DIDSON
     assert len(data_module.dataset) == 1
+
+    config = ARISDatasetConfig(filepath=DDF_FILE, start_frame=120, end_frame=135)
+    data_module = ARISDataModule(ARISBatchedDataset, config)
+    data_module.setup(stage="test")
+
+    # end_frame is exclusive in DIDSON
+    assert len(data_module.dataset) == 14
 
 
 def test_loading_bad_end_frame_aris_dataloader_lightning():
@@ -184,7 +196,7 @@ def test_loading_bad_end_frame_aris_dataloader_lightning():
     data_module.setup(stage="test")
 
     # originally 4 frames in file, but subtract 1 for optical flow
-    assert len(data_module.dataset) == 132
+    assert len(data_module.dataset) == 133
 
     config = ARISDatasetConfig(filepath=DDF_FILE, start_frame=0, end_frame=200)
     data_module = ARISDataModule(ARISBatchedDataset, config)
@@ -200,13 +212,19 @@ def test_loading_selected_frames_yolo_dataloader_factory_func():
     dataloader, dataset = create_yolo_dataloader(config)
 
     # originally 4 frames in file, but subtract 1 for optical flow
-    assert len(dataset) == 132
+    assert len(dataset) == 133
 
     config = YOLODatasetConfig(filepath=DDF_FILE, start_frame=0, end_frame=2)
     dataloader, dataset = create_yolo_dataloader(config)
 
     # end_frame is exclusive in DIDSON
     assert len(dataset) == 1
+
+    config = YOLODatasetConfig(filepath=DDF_FILE, start_frame=120, end_frame=135)
+    dataloader, dataset = create_yolo_dataloader(config)
+
+    # end_frame is exclusive in DIDSON
+    assert len(dataset) == 14
 
 
 def test_loading_bad_end_frame_yolo_dataloader_factory_func():
@@ -215,7 +233,7 @@ def test_loading_bad_end_frame_yolo_dataloader_factory_func():
     dataloader, dataset = create_yolo_dataloader(config)
 
     # originally 4 frames in file, but subtract 1 for optical flow
-    assert len(dataset) == 132
+    assert len(dataset) == 133
 
     config = YOLODatasetConfig(filepath=DDF_FILE, start_frame=0, end_frame=200)
     dataloader, dataset = create_yolo_dataloader(config)
@@ -231,12 +249,17 @@ def test_loading_selected_frames_yolo_dataloader_lightning():
     data_module.setup(stage="test")
 
     # originally 4 frames in file, but subtract 1 for optical flow
-    assert len(data_module.dataset) == 132
+    assert len(data_module.dataset) == 133
 
     config = YOLODatasetConfig(filepath=DDF_FILE, start_frame=0, end_frame=2)
     data_module = ARISDataModule(YOLOARISBatchedDataset, config)
     data_module.setup(stage="test")
     assert len(data_module.dataset) == 1
+
+    config = YOLODatasetConfig(filepath=DDF_FILE, start_frame=120, end_frame=135)
+    data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+    data_module.setup(stage="test")
+    assert len(data_module.dataset) == 14
 
 
 def test_loading_bad_end_frame_yolo_dataloader_lightning():
@@ -246,7 +269,7 @@ def test_loading_bad_end_frame_yolo_dataloader_lightning():
     data_module.setup(stage="test")
 
     # originally 4 frames in file, but subtract 1 for optical flow
-    assert len(data_module.dataset) == 132
+    assert len(data_module.dataset) == 133
 
     config = YOLODatasetConfig(filepath=DDF_FILE, start_frame=0, end_frame=200)
     data_module = ARISDataModule(YOLOARISBatchedDataset, config)

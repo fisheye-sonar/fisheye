@@ -3,10 +3,15 @@ from pathlib import Path
 
 import pytest
 
-ARIS_FILE = os.path.join(os.path.dirname(__file__), "sample.aris")
-DDF_FILE = os.path.join(os.path.dirname(__file__), "sample.ddf")
-CORRUPTED_FILE = os.path.join(os.path.dirname(__file__), "corrupted.aris")
-SHORTENED_DDF_FILE = os.path.join(os.path.dirname(__file__), "shortened_clip.ddf")
+ARIS_FILE = os.path.join(os.path.dirname(__file__), "data", "sample.aris")
+DDF_FILE = os.path.join(os.path.dirname(__file__), "data", "sample.ddf")
+CORRUPTED_FILE = os.path.join(os.path.dirname(__file__), "data", "corrupted.aris")
+SHORTENED_DDF_FILE = os.path.join(
+    os.path.dirname(__file__), "data", "shortened_clip.ddf"
+)
+INVALID_FRAME_INDICES = os.path.join(
+    os.path.dirname(__file__), "data", "invalid_frame_indices.aris"
+)
 
 
 @pytest.fixture(scope="session")
