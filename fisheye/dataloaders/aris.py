@@ -33,39 +33,7 @@ class ARISBatchedDataset(BaseDataset):
         except Exception as e:
             raise RuntimeError(f"Could not load {config.filepath}: {e}")
 
-        end_frame = self.didson.info["numframes"] + config.start_frame
-        config.end_frame = (
-            min(config.end_frame, end_frame) if config.end_frame else end_frame
-        )
-
-        # We are possibly looking at a shortened clip where the start and end frame indexes are larger than the number
-        # of frames in the file.
-        if (
-            config.start_frame > self.didson.info["numframes"]
-            and config.end_frame > self.didson.info["numframes"]
-        ):
-            # Reset the start and end frames
-            config.start_frame = 0
-            config.end_frame = self.didson.info["numframes"]
-            warnings.warn(
-                f"Warning: The specified start and end frame indexes ({config.start_frame}, {config.end_frame}) "
-                f"exceed the total number of frames in the file ({self.didson.info['numframes']}). "
-                f"Likely processing a shortened, modified clip. Resetting start_frame to 0 and end_frame to "
-                f"{self.didson.info['numframes']}."
-            )
-
-        # If end frame is still 0, something ain't right in the header file. However, there most likely is
-        # still data that can be unpacked so load all frames any way. Yes, this is not efficient, but it's for an edge
-        # case that happens often enough and is also out of our control
-        if config.dev_load_all_frames and config.end_frame <= 0:
-            warnings.warn(
-                "End frame is 0, likely due to a corrupted or incomplete header file. "
-                "Even if you provided a valid end_frame, it was overwritten because the original end_frame is smaller. "
-                "Falling back to loading all frames, which may be inefficient."
-            )
-            frames, _ = self.didson.load_frames()
-            config.end_frame = len(frames) + config.start_frame
-            warnings.warn(f"New end frame idx is {config.end_frame}.")
+        config.start_frame, config.end_frame = self._validate_frame_range(config=config)
 
         config.xdim, config.ydim = self.didson.info["xdim"], self.didson.info["ydim"]
         config.image_meter_width = config.xdim * self.didson.info["pixel_meter_width"]
@@ -80,6 +48,39 @@ class ARISBatchedDataset(BaseDataset):
             end_frame=end_frame,
             return_unwarped=return_unwarped,
         )
+
+    def _validate_frame_range(self, config):
+        """Validate the start and end frame IDs."""
+        end_frame = self.didson.info["numframes"]
+
+        config.end_frame = (
+            min(config.end_frame, end_frame) if config.end_frame else end_frame
+        )
+
+        if config.end_frame <= 0:
+            # If end frame is 0 or -1, something ain't right in the header file. However, there most likely is still
+            # data that can be unpacked so load all of the frames.
+            config.end_frame = end_frame
+            config.start_frame, config.end_frame = self._validate_frame_range(
+                config=config
+            )
+
+        # We are possibly looking at a shortened clip where the start and end frame indexes are larger than the number
+        # of frames in the file.
+        if config.start_frame > end_frame:
+            warnings.warn(
+                "End frame is 0 or -1, likely due to a corrupted or incomplete header file. "
+                "Even if you provided a valid end_frame, it was overwritten because the original end_frame is smaller. "
+                "Falling back to loading all frames, which may be inefficient."
+            )
+            # Reset the start and end frames
+            config.start_frame = 0
+            config.end_frame = end_frame
+            warnings.warn(
+                f"Resetting start_frame to 0 and end_frame to {config.end_frame}."
+            )
+
+        return config.start_frame, config.end_frame
 
 
 def create_aris_dataloader(config: ARISDatasetConfig):

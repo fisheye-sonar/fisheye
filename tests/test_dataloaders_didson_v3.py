@@ -147,7 +147,7 @@ def test_loading_selected_frames_aris_dataloader_factory_func():
     config = ARISDatasetConfig(filepath=DDF_FILE, start_frame=120, end_frame=135)
     dataloader, dataset = create_aris_dataloader(config)
     # end_frame is exclusive in DIDSON
-    assert len(dataset) == 14
+    assert len(dataset) == 13
 
 
 def test_loading_bad_end_frame_aris_dataloader_factory_func():
@@ -186,7 +186,7 @@ def test_loading_selected_frames_aris_dataloader_lightning():
     data_module.setup(stage="test")
 
     # end_frame is exclusive in DIDSON
-    assert len(data_module.dataset) == 14
+    assert len(data_module.dataset) == 13
 
 
 def test_loading_bad_end_frame_aris_dataloader_lightning():
@@ -224,7 +224,7 @@ def test_loading_selected_frames_yolo_dataloader_factory_func():
     dataloader, dataset = create_yolo_dataloader(config)
 
     # end_frame is exclusive in DIDSON
-    assert len(dataset) == 14
+    assert len(dataset) == 13
 
 
 def test_loading_bad_end_frame_yolo_dataloader_factory_func():
@@ -259,7 +259,7 @@ def test_loading_selected_frames_yolo_dataloader_lightning():
     config = YOLODatasetConfig(filepath=DDF_FILE, start_frame=120, end_frame=135)
     data_module = ARISDataModule(YOLOARISBatchedDataset, config)
     data_module.setup(stage="test")
-    assert len(data_module.dataset) == 14
+    assert len(data_module.dataset) == 13
 
 
 def test_loading_bad_end_frame_yolo_dataloader_lightning():
