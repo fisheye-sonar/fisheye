@@ -5,6 +5,8 @@ from scipy.ndimage import zoom
 
 from fisheye.dataloaders.aris import create_aris_dataloader
 from utils.generate_echograms import make_echogram_image, zero_pad_to_match_one_dim
+import sys
+from torch.profiler import ProfilerActivity, profile, record_function
 
 
 def make_vid_from_np_stack(output_filename, image_stack, frame_rate=12, norm=False):
@@ -117,21 +119,24 @@ def generate_echogram_vis_from_aris(
     echogram_filter_kernel=0,
     echogram_filter_tol=0.15,
 ):
-    dataloader, dataset = create_aris_dataloader(config)
+    with profile(
+        activities=[ProfilerActivity.CPU], profile_memory=True, record_shapes=True
+    ) as prof:
+        print(f"HI")
+        dataloader, dataset = create_aris_dataloader(config)
 
-    echograms = []
-    frames_vis = []
-    for i, batch in enumerate(dataloader):
-        frames, echogram = (
-            batch[0],
-            batch[3],
-        )
-        if frames.shape[0] != 0:
-            frames_vis.append(frames)
-            echograms.append(echogram)
-    echograms = np.concatenate(echograms, axis=0)
-    frames_vis = np.concatenate(frames_vis, axis=0)
-
+        echograms = []
+        frames_vis = []
+        for i, batch in enumerate(dataloader):
+            frames, echogram = (
+                batch[0],
+                batch[3],
+            )
+            if frames.shape[0] != 0:
+                frames_vis.append(frames)
+                echograms.append(echogram)
+        echograms = np.concatenate(echograms, axis=0)
+        frames_vis = np.concatenate(frames_vis, axis=0)
     coloured_echogram = make_echogram_image(
         echograms.astype("float"),
         echogram_pop=echogram_pop,
@@ -141,15 +146,15 @@ def generate_echogram_vis_from_aris(
     coloured_echogram = coloured_echogram[: frames_vis.shape[0]]
 
     scale_factor = frames_vis.shape[1] / coloured_echogram.shape[1]
-
     # if its within 5% dont modify the pixels, just crop, this is because the scaling
     if coloured_echogram.shape[1] < frames_vis.shape[1]:
         # pad
-        coloured_echogram = np.repeat(
-            coloured_echogram,
-            int(frames_vis.shape[1] / coloured_echogram.shape[1]),
-            axis=1,
-        )
+        if int(frames_vis.shape[1] / coloured_echogram.shape[1]) >1:
+            coloured_echogram = np.repeat(
+                coloured_echogram,
+                int(frames_vis.shape[1] / coloured_echogram.shape[1]),
+                axis=1,
+            )
 
         coloured_echogram = zero_pad_to_match_one_dim(
             coloured_echogram, frames_vis.shape, dim=1, centered=True, const_value=125
@@ -181,7 +186,7 @@ def generate_echogram_vis_from_aris(
             coloured_echogram = zero_pad_to_match_one_dim(
                 coloured_echogram, frames_vis.shape, dim=1, const_value=125
             )
-
+            print("THIS probably shouldnt be done we should crop the echogram to the correct size")
             frames_vis = zero_pad_to_match_one_dim(
                 frames_vis,
                 coloured_echogram.shape,
@@ -193,26 +198,27 @@ def generate_echogram_vis_from_aris(
         frames_vis.shape[1] == coloured_echogram.shape[1]
     ), f"The echogram and the normal frame should be the same height {frames_vis.shape[1]=} != {coloured_echogram.shape[1]=}"
     frames_vis = np.stack([frames_vis[:, :, :, 0]] * 3, axis=-1)
-    if colour_image_edges:
-        frames_vis_mask = np.max(frames_vis, axis=0)
-        frames_vis_mask = np.where(frames_vis_mask > 0, 0, 1).astype(np.uint8)
-        frames_vis_mask_col = frames_vis_mask.copy()
-        frames_vis_mask_col[
-            -int(frames_vis_mask_col.shape[0] / 2) :,
-            :10,
-            0,
-        ] *= 150
-        frames_vis_mask_col[
-            -int(frames_vis_mask_col.shape[0] / 2) :,
-            -10:,
-            2,
-        ] *= 150
-        frames_vis_mask_col[
-            -int(frames_vis_mask_col.shape[0] / 2) :,
-            -10:,
-            1,
-        ] *= 50
-        frames_vis = frames_vis + frames_vis_mask_col
+    # if colour_image_edges:
+    #     frames_vis_mask = np.max(frames_vis, axis=0)
+    #     frames_vis_mask = np.where(frames_vis_mask > 0, 0, 1).astype(np.uint8)
+    #     frames_vis_mask_col = frames_vis_mask.copy()
+    #     frames_vis_mask_col[
+    #         -int(frames_vis_mask_col.shape[0] / 2) :,
+    #         :10,
+    #         0,
+    #     ] *= 150
+    #     frames_vis_mask_col[
+    #         -int(frames_vis_mask_col.shape[0] / 2) :,
+    #         -10:,
+    #         2,
+    #     ] *= 150
+    #     frames_vis_mask_col[
+    #         -int(frames_vis_mask_col.shape[0] / 2) :,
+    #         -10:,
+    #         1,
+    #     ] *= 50
+    #     frames_vis = frames_vis + frames_vis_mask_col
+
     if coloured_echogram.shape[2] < frames_vis.shape[2]:
         coloured_echogram = np.repeat(
             coloured_echogram,

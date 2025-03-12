@@ -33,7 +33,8 @@ class ARISBatchedDataset(BaseDataset):
         except Exception as e:
             raise RuntimeError(f"Could not load {config.filepath}: {e}")
 
-        end_frame = self.didson.info["numframes"] + config.start_frame
+        #end_frame = self.didson.info["numframes"] + config.start_frame
+        end_frame = self.didson.info["numframes"]
         config.end_frame = (
             min(config.end_frame, end_frame) if config.end_frame else end_frame
         )
@@ -64,7 +65,8 @@ class ARISBatchedDataset(BaseDataset):
                 "Falling back to loading all frames, which may be inefficient."
             )
             frames, _ = self.didson.load_frames()
-            config.end_frame = len(frames) + config.start_frame
+            #config.end_frame = min(len(frames) + config.start_frame, len(frames))
+            config.end_frame = len(frames)
             warnings.warn(f"New end frame idx is {config.end_frame}.")
 
         config.xdim, config.ydim = self.didson.info["xdim"], self.didson.info["ydim"]
@@ -99,13 +101,14 @@ def create_aris_dataloader(config: ARISDatasetConfig):
         return None, None
 
     batch_size = min(config.batch_size, len(dataset))
-    nw = min(
-        [
-            os.cpu_count() // config.world_size,
-            batch_size if batch_size > 1 else 0,
-            config.workers,
-        ]
-    )  # number of workers
+    nw = 24
+    # min(
+    #     [
+    #         os.cpu_count() // config.world_size,
+    #         batch_size if batch_size > 1 else 0,
+    #         config.workers,
+    #     ]
+    # )  # number of workers
 
     if not config.disable_output:
         print("Dataset size", len(dataset))

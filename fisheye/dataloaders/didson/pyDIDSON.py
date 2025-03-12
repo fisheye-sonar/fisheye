@@ -57,7 +57,7 @@ class DIDSON:
             filename = os.path.abspath(filename)
 
         with file_ctx as fid:
-            assert fid.read(3) == b"DDF"
+            assert fid.read(3) == b"DDF", print(f"first 3 bytes not DDF {id.read(3)}")
 
             version_id = fid.read(1)[0]
 

@@ -113,6 +113,8 @@ def zero_pad_to_match_one_dim(array, target_shape, dim, centered=True, const_val
     Returns:
         np.ndarray: The zero-padded array with the target shape in the specified dimension.
     """
+    if target_shape[dim] < array.shape[dim]:
+        return array
     pad_width = [(0, 0)] * array.ndim
     pad_ammount = max(0, target_shape[dim] - array.shape[dim])
     if centered:
