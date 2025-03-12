@@ -75,9 +75,9 @@ class ARISBatchedDataset(BaseDataset):
             )
             # Reset the start and end frames
             config.start_frame = 0
-            config.end_frame = self.didson.info["numframes"]
+            config.end_frame = end_frame
             warnings.warn(
-                f"Resetting start_frame to 0 and end_frame to {self.didson.info['numframes']}."
+                f"Resetting start_frame to 0 and end_frame to {config.end_frame}."
             )
 
         return config.start_frame, config.end_frame
