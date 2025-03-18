@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torchvision
 from tqdm import tqdm
@@ -5,6 +6,65 @@ from yolov5.utils.general import xywh2xyxy
 from yolov5.utils.metrics import box_iou
 
 from fisheye.configs.inference import NMSConfig
+
+
+def iou_batch(bb_test, bb_gt):
+    """
+    Computes IOU between two bounding boxes in [x1, y1, x2, y2] format.
+
+    Note: This implementation is adapted from [SORT](https://github.com/abewley/sort).
+    """
+    bb_gt = np.expand_dims(bb_gt, 0)
+    bb_test = np.expand_dims(bb_test, 1)
+
+    xx1 = np.maximum(bb_test[..., 0], bb_gt[..., 0])
+    yy1 = np.maximum(bb_test[..., 1], bb_gt[..., 1])
+    xx2 = np.minimum(bb_test[..., 2], bb_gt[..., 2])
+    yy2 = np.minimum(bb_test[..., 3], bb_gt[..., 3])
+    w = np.maximum(0.0, xx2 - xx1)
+    h = np.maximum(0.0, yy2 - yy1)
+    wh = w * h
+
+    o = wh / (
+        (bb_test[..., 2] - bb_test[..., 0]) * (bb_test[..., 3] - bb_test[..., 1])
+        + (bb_gt[..., 2] - bb_gt[..., 0]) * (bb_gt[..., 3] - bb_gt[..., 1])
+        - wh
+    )
+    return o
+
+
+def convert_bbox_to_z(bbox):
+    """
+    Converts a bounding box [x1, y1, x2, y2] to [x, y, s, r].
+
+    Note: This implementation is adapted from [SORT](https://github.com/abewley/sort).
+    """
+    w = bbox[2] - bbox[0]
+    h = bbox[3] - bbox[1]
+    x = bbox[0] + w / 2.0
+    y = bbox[1] + h / 2.0
+    s = w * h
+    r = w / float(h)
+    return np.array([x, y, s, r]).reshape((4, 1))
+
+
+def convert_x_to_bbox(x, score=None):
+    """
+    Takes a bounding box in the centre form [x,y,s,r] and returns it in the form
+    [x1,y1,x2,y2] where x1,y1 is the top left and x2,y2 is the bottom right
+
+    Note: This implementation is adapted from [SORT](https://github.com/abewley/sort).
+    """
+    w = np.sqrt(x[2] * x[3])
+    h = x[2] / w
+    if score == None:
+        return np.array(
+            [x[0] - w / 2.0, x[1] - h / 2.0, x[0] + w / 2.0, x[1] + h / 2.0]
+        ).reshape((1, 4))
+    else:
+        return np.array(
+            [x[0] - w / 2.0, x[1] - h / 2.0, x[0] + w / 2.0, x[1] + h / 2.0, score]
+        ).reshape((1, 5))
 
 
 def non_max_suppression(

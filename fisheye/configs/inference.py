@@ -4,8 +4,21 @@ from typing import List, Union, TypeVar, Generic
 import torch
 
 from fisheye.configs.models import BaseModelConfig, YOLOv5ModelConfig
+from fisheye.enums import TrackingMethod
 
 T = TypeVar("T", bound=BaseModelConfig)
+
+
+@dataclass
+class TrackerConfig:
+    """Configuration for tracking."""
+
+    type: TrackingMethod
+    max_age: int = 0
+    min_hits: int = 3
+    min_travel: int = 0
+    iou_threshold: float = 0.05
+    reverse: bool = False
 
 
 @dataclass

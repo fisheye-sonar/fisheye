@@ -935,6 +935,21 @@ files = [
 ]
 
 [[package]]
+name = "filterpy"
+version = "1.4.5"
+description = "Kalman filtering and optimal estimation library"
+optional = false
+python-versions = "*"
+files = [
+    {file = "filterpy-1.4.5.zip", hash = "sha256:4f2a4d39e4ea601b9ab42b2db08b5918a9538c168cff1c6895ae26646f3d73b1"},
+]
+
+[package.dependencies]
+matplotlib = "*"
+numpy = "*"
+scipy = "*"
+
+[[package]]
 name = "fire"
 version = "0.7.0"
 description = "A library for automatically generating command line interfaces."
@@ -5099,4 +5114,4 @@ ultralytics = ">=8.0.100"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "b82070a20d305021b4a5b3347a9fce461455ca8bdf8624083c5fe78ffe659550"
+content-hash = "eab5a4ebadf308d85a699701088082e0605a28bed7c06317b37acf3bf608086f"
