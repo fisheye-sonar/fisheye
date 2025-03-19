@@ -3,10 +3,11 @@ from collections import Counter
 from copy import deepcopy
 
 import numpy as np
+from tqdm import tqdm
 
-from .utils import FishMetrics
-from .bytetrack import Associate
-from .sort import Sort
+from fisheye.models.track.utils import FishMetrics
+from fisheye.models.track.bytetrack import ByteTracker
+from fisheye.models.track.sort import Sort
 
 
 class Tracker:
@@ -21,6 +22,7 @@ class Tracker:
             if self.reverse
             else self.json_data["start_frame"]
         )
+
         self.json_data["frames"] = []
 
     def run(self, detections=np.empty((0, 5))):
@@ -52,11 +54,12 @@ class Tracker:
                 key=lambda k: k["fish_id"],
             )
 
-        # create summary 'fish' entry for json data
+        # Create summary 'fish' entry for json data
         json_data["fish"] = []
         for track_id, boxes in tracks.items():
             fish_entry = {}
             fish_entry["id"] = track_id
+
             # TODO (MVH) - why is this hard coded?
             fish_entry["length"] = -1
 
@@ -118,12 +121,14 @@ class Tracker:
                 score = np.sum(np.abs(det[:4] - track[:4]))
                 if score < min_score:
                     min_score, conf = score, det[4]
-        elif isinstance(self.algorithm, Associate):
+
+        elif isinstance(self.algorithm, ByteTracker):
             for det_set in detections:
                 for det in det_set:
                     score = np.sum(np.abs(det[:4] - track[:4]))
                     if score < min_score:
                         min_score, conf = score, det[4]
+
         return conf
 
     def _map_fish_ids(self, json_data):
@@ -138,10 +143,57 @@ class Tracker:
             for i, (fish_id, count) in enumerate(self.fish_ids.items())
             if count >= self.min_hits
         }
+
         tracks = {v: [] for v in fish_id_map.values()}
         for frame in json_data["frames"]:
             for bbox in frame["fish"]:
                 if bbox["fish_id"] in fish_id_map:
                     track_id = fish_id_map[bbox["fish_id"]]
                     tracks[track_id].append((bbox["bbox"], frame["frame_num"]))
+
         return fish_id_map, tracks
+
+
+def run_tracker(
+    low_preds,
+    high_preds,
+    image_meter_width,
+    image_meter_height,
+    tracking_config,
+    reverse=False,
+    gp=None,
+    verbose=True,
+):
+    """Factory method to run tracker."""
+    if gp:
+        gp(0, f"Tracking using {tracking_config}...")
+
+    clip_info = {
+        "start_frame": 0,
+        "end_frame": len(low_preds),
+        "image_meter_width": image_meter_width,
+        "image_meter_height": image_meter_height,
+    }
+
+    tracker = Tracker(clip_info, tracking_config)
+
+    with tqdm(
+        total=len(low_preds), desc="Running tracking", ncols=0, disable=not verbose
+    ) as pbar:
+        for i, key in enumerate(sorted(low_preds.keys(), reverse=reverse)):
+            if gp:
+                gp(i / len(low_preds), pbar.__str__())
+            low_boxes, high_boxes = low_preds[key], high_preds[key]
+            boxes = (
+                (low_boxes, high_boxes)
+                if low_boxes is not None and high_boxes is not None
+                else (np.empty((0, 5)), np.empty((0, 5)))
+            )
+            tracker.run(boxes)
+            pbar.update(1)
+
+    json_data = tracker.finalize(
+        min_length=tracking_config.min_length, min_travel=tracking_config.min_travel
+    )
+
+    return json_data

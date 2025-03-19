@@ -35,7 +35,7 @@ class Sort(BaseTracker):
         Params:
         dets - a numpy array of detections in the format [[x1,y1,x2,y2,score],[x1,y1,x2,y2,score],...]
         Requires: this method must be called once for each frame even with empty detections (use np.empty((0, 5)) for frames without detections).
-        Returns the a similar array, where the last column is the object ID.
+        Returns a similar array, where the last column is the object ID.
 
         NOTE: The number of objects returned may differ from the number of detections provided.
         """
@@ -49,6 +49,7 @@ class Sort(BaseTracker):
             trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
             if np.any(np.isnan(pos)):
                 to_del.append(t)
+
         trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
         for t in reversed(to_del):
             self.trackers.pop(t)
@@ -64,6 +65,7 @@ class Sort(BaseTracker):
         for i in unmatched_dets:
             trk = KalmanBoxTracker(dets[i, :])
             self.trackers.append(trk)
+
         i = len(self.trackers)
         for trk in reversed(self.trackers):
             d = trk.get_state()[0]
@@ -77,6 +79,7 @@ class Sort(BaseTracker):
             # remove dead tracklet
             if trk.time_since_update > self.max_age:
                 self.trackers.pop(i)
+
         if len(ret) > 0:
             return np.concatenate(ret)
 

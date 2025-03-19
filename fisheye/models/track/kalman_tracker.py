@@ -90,12 +90,16 @@ class KalmanBoxTracker(object):
         """
         if (self.kf.x[6] + self.kf.x[2]) <= 0:
             self.kf.x[6] *= 0.0
+
         self.kf.predict()
         self.age += 1
+
         if self.time_since_update > 0:
             self.hit_streak = 0
+
         self.time_since_update += 1
         self.history.append(convert_x_to_bbox(self.kf.x))
+
         return self.history[-1]
 
     def get_state(self):
