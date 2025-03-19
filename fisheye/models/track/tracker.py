@@ -3,11 +3,19 @@ from collections import Counter
 from copy import deepcopy
 
 import numpy as np
+from tqdm import tqdm
 
 from fisheye.configs.inference import TrackerConfig
 from fisheye.enums import TrackingMethod
-from fisheye.models.track.base import TRACKER_CLASSES
+from fisheye.models.track.bytetrack import ByteTracker
+from fisheye.models.track.sort import Sort
 from fisheye.models.track.utils import FishMetrics
+
+# Add any new trackers here
+TRACKER_CLASSES = {
+    TrackingMethod.BYTETRACK: ByteTracker,
+    TrackingMethod.SORT: Sort,
+}
 
 
 class Tracker:
@@ -329,46 +337,46 @@ class Tracker:
 #         return fish_id_map, tracks
 #
 #
-# def run_tracker(
-#     low_preds,
-#     high_preds,
-#     image_meter_width,
-#     image_meter_height,
-#     tracking_config,
-#     reverse=False,
-#     gp=None,
-#     verbose=True,
-# ):
-#     """Factory method to run tracker."""
-#     if gp:
-#         gp(0, f"Tracking using {tracking_config}...")
-#
-#     clip_info = {
-#         "start_frame": 0,
-#         "end_frame": len(low_preds),
-#         "image_meter_width": image_meter_width,
-#         "image_meter_height": image_meter_height,
-#     }
-#
-#     tracker = Tracker(clip_info, tracking_config)
-#
-#     with tqdm(
-#         total=len(low_preds), desc="Running tracking", ncols=0, disable=not verbose
-#     ) as pbar:
-#         for i, key in enumerate(sorted(low_preds.keys(), reverse=reverse)):
-#             if gp:
-#                 gp(i / len(low_preds), pbar.__str__())
-#             low_boxes, high_boxes = low_preds[key], high_preds[key]
-#             boxes = (
-#                 (low_boxes, high_boxes)
-#                 if low_boxes is not None and high_boxes is not None
-#                 else (np.empty((0, 5)), np.empty((0, 5)))
-#             )
-#             tracker.run(boxes)
-#             pbar.update(1)
-#
-#     json_data = tracker.finalize(
-#         min_length=tracking_config.min_length, min_travel=tracking_config.min_travel
-#     )
-#
-#     return json_data
+def run_tracker(
+    low_preds,
+    high_preds,
+    image_meter_width,
+    image_meter_height,
+    tracking_config,
+    reverse=False,
+    gp=None,
+    verbose=True,
+):
+    """Factory method to run tracker."""
+    if gp:
+        gp(0, f"Tracking using {tracking_config}...")
+
+    clip_info = {
+        "start_frame": 0,
+        "end_frame": len(low_preds),
+        "image_meter_width": image_meter_width,
+        "image_meter_height": image_meter_height,
+    }
+
+    tracker = Tracker(clip_info, tracking_config)
+
+    with tqdm(
+        total=len(low_preds), desc="Running tracking", ncols=0, disable=not verbose
+    ) as pbar:
+        for i, key in enumerate(sorted(low_preds.keys(), reverse=reverse)):
+            if gp:
+                gp(i / len(low_preds), pbar.__str__())
+            low_boxes, high_boxes = low_preds[key], high_preds[key]
+            boxes = (
+                (low_boxes, high_boxes)
+                if low_boxes is not None and high_boxes is not None
+                else (np.empty((0, 5)), np.empty((0, 5)))
+            )
+            tracker.run(boxes)
+            pbar.update(1)
+
+    json_data = tracker.finalize(
+        min_length=tracking_config.min_length, min_travel=tracking_config.min_travel
+    )
+
+    return json_data

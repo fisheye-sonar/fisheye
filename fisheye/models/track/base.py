@@ -1,15 +1,6 @@
 from abc import ABC, abstractmethod
 
 from fisheye.enums import TrackingMethod
-from fisheye.models.track.bytetrack import ByteTracker
-from fisheye.models.track.sort import Sort
-
-
-# Add any new trackers here
-TRACKER_CLASSES = {
-    TrackingMethod.BYTETRACK: ByteTracker,
-    TrackingMethod.SORT: Sort,
-}
 
 
 class BaseTracker(ABC):
