@@ -18,12 +18,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 
+from fisheye.enums import TrackingMethod
 from fisheye.models.track.base import BaseTracker
 from fisheye.models.track.kalman_tracker import KalmanBoxTracker
 from fisheye.models.track.utils import associate_detections_to_trackers
 
 
 class Sort(BaseTracker):
+    type = TrackingMethod.SORT
+
     def __init__(self, max_age=1, min_hits=3, iou_threshold=0.3):
         """
         Sets key parameters for SORT

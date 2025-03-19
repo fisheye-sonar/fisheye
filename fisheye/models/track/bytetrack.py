@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 
+from fisheye.enums import TrackingMethod
 from fisheye.models.track.base import BaseTracker
 from fisheye.models.track.kalman_tracker import KalmanBoxTracker
 from fisheye.models.track.utils import associate_detections_to_trackers
@@ -31,6 +32,8 @@ class ByteTracker(BaseTracker):
     detections with existing tracks and then uses unmatched tracks to associate low-confidence detections, reducing
     false negatives and improving long-term tracking stability.
     """
+
+    type = TrackingMethod.BYTETRACK
 
     def __init__(self, max_age=1, min_hits=3, iou_threshold=0.3):
         """

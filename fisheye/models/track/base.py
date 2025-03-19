@@ -1,5 +1,16 @@
 from abc import ABC, abstractmethod
 
+from fisheye.enums import TrackingMethod
+from fisheye.models.track.bytetrack import ByteTracker
+from fisheye.models.track.sort import Sort
+
+
+# Add any new trackers here
+TRACKER_CLASSES = {
+    TrackingMethod.BYTETRACK: ByteTracker,
+    TrackingMethod.SORT: Sort,
+}
+
 
 class BaseTracker(ABC):
     """
@@ -12,6 +23,8 @@ class BaseTracker(ABC):
         min_hits (int): Minimum number of hits required to confirm a track.
         iou_threshold (float): IOU threshold for association.
     """
+
+    type = TrackingMethod.NONE
 
     def __init__(self, max_age=1, min_hits=3, iou_threshold=0.3):
         """

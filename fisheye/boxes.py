@@ -1,11 +1,85 @@
+from functools import partial
+
 import numpy as np
 import torch
 import torchvision
 from tqdm import tqdm
-from yolov5.utils.general import xywh2xyxy
+from yolov5.utils.general import xywh2xyxy, clip_boxes, scale_boxes
 from yolov5.utils.metrics import box_iou
 
 from fisheye.configs.inference import NMSConfig
+
+
+def norm(bbox, w, h):
+    """
+    Normalize a bounding box.
+    Args:
+        bbox: list of length 4. Can be [x,y,w,h] or [x0,y0,x1,y1]
+        w: image width
+        h: image height
+    """
+    bb = bbox.copy()
+    bb[0] /= w
+    bb[1] /= h
+    bb[2] /= w
+    bb[3] /= h
+
+    return bb
+
+
+def normalize_boxes_for_tracking(
+    image_shapes, outputs, width, height, batch_size, gp=None, verbose=True
+):
+    """Normalize boxes for tracking input format - xyxy with confidence score."""
+    original_width = image_shapes[0][0][1][0][1]
+    original_height = image_shapes[0][0][1][0][0]
+
+    if gp:
+        gp(0, "Formatting...")
+    # keep predictions to feed them ordered into the Tracker
+    # TODO: how to deal with large files?
+    predictions = {}
+    with tqdm(
+        total=len(image_shapes) * batch_size,
+        desc="Running formatting",
+        ncols=0,
+        disable=not verbose,
+    ) as pbar:
+        for batch_i, batch in enumerate(outputs):
+
+            if gp:
+                gp(batch_i / len(image_shapes), pbar.__str__())
+
+            batch_shapes = image_shapes[batch_i]
+
+            # Format results
+            for si, pred in enumerate(batch):
+                (image_shape, original_shape) = batch_shapes[si]
+                # Clip boxes to image bounds and resize to input shape
+                clip_boxes(pred, (height, width))
+                box = pred[:, :4].clone()  # xyxy
+                confs = pred[:, 4].clone().tolist()
+                scale_boxes(
+                    image_shape, box, original_shape[0], original_shape[1]
+                )  # to original shape
+
+                # confidence score currently not used by tracker; set to 1.0
+                boxes = None
+                if box.shape[0]:
+                    original_width = original_shape[0][1]
+                    original_height = original_shape[0][0]
+                    do_norm = partial(
+                        norm, w=original_shape[0][1], h=original_shape[0][0]
+                    )
+                    normed = list((map(do_norm, box[:, :4].tolist())))
+                    boxes = np.stack([[*bb, conf] for bb, conf in zip(normed, confs)])
+
+                frame_num = (batch_i, si)
+                predictions[frame_num] = boxes
+
+            pbar.update(1 * batch_size)
+
+    return predictions, original_width, original_height
 
 
 def iou_batch(bb_test, bb_gt):
