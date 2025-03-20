@@ -16,6 +16,7 @@ torch = "^2.6.0"
 opencv-python = "^4.11.0.86"
 lightning = "^2.5.0.post0"
 yolov5 = "^7.0.14"
+filterpy = "^1.4.5"
 
 
 [tool.poetry.group.test.dependencies]
