@@ -19,9 +19,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 
 from fisheye.enums import TrackingMethod
-from fisheye.models.track.base import BaseTracker
-from fisheye.models.track.kalman_tracker import KalmanBoxTracker
-from fisheye.models.track.utils import associate_detections_to_trackers
+from fisheye.track.base import BaseTracker
+from fisheye.track.kalman_tracker import KalmanBoxTracker
+from fisheye.track.utils import associate_detections_to_trackers
 
 
 class Sort(BaseTracker):

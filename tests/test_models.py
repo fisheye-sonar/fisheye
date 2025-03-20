@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from fisheye.configs import YOLODatasetConfig, ObjectDetectionConfig
-from fisheye.models.yolov5 import YOLOv5ObjectDetectionModel, YOLOv5ModelConfig
+from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel, YOLOv5ModelConfig
 from fisheye.pipelines import ObjectDetectionPipeline
 from conftest import ARIS_FILE
 

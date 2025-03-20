@@ -9,7 +9,7 @@ from fisheye.configs import (
 
 from fisheye.boxes import run_nms
 from fisheye.dataloaders.yolo import create_yolo_dataloader
-from fisheye.models.yolov5 import YOLOv5ObjectDetectionModel
+from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
 
 
 class ObjectDetectionPipeline:

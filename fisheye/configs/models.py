@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from fisheye.models.base import BaseModel
+from fisheye.detect.base import BaseModel
 
 
 @dataclass

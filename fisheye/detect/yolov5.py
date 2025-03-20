@@ -3,7 +3,7 @@ import yolov5
 import warnings
 
 from fisheye.configs import YOLOv5ModelConfig
-from fisheye.models.base import BaseModel
+from fisheye.detect.base import BaseModel
 
 
 # Suppress the `torch.cuda.amp.autocast(args...)` warning is deprecated.* raised in yolov5.models.common

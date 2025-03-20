@@ -7,9 +7,9 @@ from tqdm import tqdm
 
 from fisheye.configs.inference import TrackerConfig, FishSizeConfig
 from fisheye.enums import TrackingMethod
-from fisheye.models.track.bytetrack import ByteTracker
-from fisheye.models.track.sort import Sort
-from fisheye.models.track.utils import FishMetrics
+from fisheye.track.bytetrack import ByteTracker
+from fisheye.track.sort import Sort
+from fisheye.track.utils import FishMetrics
 
 # Add any new trackers here
 TRACKER_CLASSES = {
@@ -95,7 +95,10 @@ class Tracker:
             self.frame_id += 1
 
     def finalize(
-        self, output_path=None, min_length=-1.0, min_travel=-1.0
+        self,
+        min_length,
+        min_travel,
+        output_path=None,
     ):  # vert_margin=0.0
         json_data = deepcopy(self.json_data)
 
@@ -107,7 +110,7 @@ class Tracker:
 
         # separate frame boxes into tracks, keyed by mapped IDs
         # each track is a list of tuples ( bbox, frame_num )
-        tracks = {v: [] for _, v in fish_id_map.items()}
+        tracks = {v: [] for v in fish_id_map.values()}
         for frame in json_data["frames"]:
             for bbox in frame["fish"]:
                 # check if valid
@@ -116,7 +119,7 @@ class Tracker:
                     tracks[track_id].append((bbox["bbox"], frame["frame_num"]))
 
         # map IDs and keep frame['fish'] sorted by ID
-        for i, frame in enumerate(json_data["frames"]):
+        for frame in json_data["frames"]:
             new_frame_entries = []
             for frame_entry in frame["fish"]:
                 if frame_entry["fish_id"] in fish_id_map:
