@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 
+from fisheye.configs.inference import TrackerConfig
 from fisheye.enums import TrackingMethod
 from fisheye.track.base import BaseTracker
 from fisheye.track.kalman_tracker import KalmanBoxTracker
@@ -35,7 +36,12 @@ class ByteTracker(BaseTracker):
 
     type = TrackingMethod.BYTETRACK
 
-    def __init__(self, max_age=1, min_hits=3, iou_threshold=0.3):
+    def __init__(
+        self,
+        max_age=TrackerConfig.max_age,
+        min_hits=TrackerConfig.min_hits,
+        iou_threshold=TrackerConfig.iou_threshold,
+    ):
         """
         Sets key parameters for ByteTrack
         """

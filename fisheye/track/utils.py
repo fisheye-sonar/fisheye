@@ -1,11 +1,12 @@
+import json
 from collections import defaultdict, Counter
 from colorsys import hls_to_rgb
 from copy import deepcopy
-import json
+
 import numpy as np
 
-
 from fisheye.boxes import iou_batch
+from fisheye.configs.inference import TrackerConfig
 
 
 def linear_assignment(cost_matrix):
@@ -22,7 +23,9 @@ def linear_assignment(cost_matrix):
         return np.array(list(zip(x, y)))
 
 
-def associate_detections_to_trackers(detections, trackers, iou_threshold=0.3):
+def associate_detections_to_trackers(
+    detections, trackers, iou_threshold=TrackerConfig.iou_threshold
+):
     """
     Assigns detections to tracked object (both represented as bounding boxes)
 

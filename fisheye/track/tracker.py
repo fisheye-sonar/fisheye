@@ -49,7 +49,7 @@ class Tracker:
         tracker_cls = TRACKER_CLASSES.get(algorithm)
 
         if tracker_cls is None:
-            raise ValueError(f"Tracking method {algorithm} is not supported.")
+            raise ValueError(f"Tracking method `{algorithm}` is not supported.")
 
         return tracker_cls(**args)
 
@@ -225,12 +225,14 @@ def run_tracker(
         ):
             if gp:
                 gp(i / len(low_preds), pbar.__str__())
+
             low_boxes, high_boxes = low_preds[key], high_preds[key]
             boxes = (
                 (low_boxes, high_boxes)
                 if low_boxes is not None and high_boxes is not None
                 else (np.empty((0, 5)), np.empty((0, 5)))
             )
+
             tracker.update(boxes)
             pbar.update(1)
 
