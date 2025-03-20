@@ -22,19 +22,19 @@ class Tracker:
     def __init__(
         self,
         clip_info,
-        algorithm: TrackingMethod,
-        args={
-            "max_age": TrackerConfig.max_age,
-            "min_hits": TrackerConfig.min_hits,
-            "iou_threshold": TrackerConfig.iou_threshold,
-        },
-        reverse=TrackerConfig.reverse,
+        config: TrackerConfig,
     ):
-
-        self.algorithm = self._initialize_tracker(algorithm, args)
+        self.algorithm = self._initialize_tracker(
+            config.type,
+            {
+                "max_age": config.max_age,
+                "min_hits": config.min_hits,
+                "iou_threshold": config.iou_threshold,
+            },
+        )
         self.fish_ids = Counter()
-        self.reverse = reverse
-        self.min_hits = args.get("min_hits")
+        self.reverse = config.reverse
+        self.min_hits = config.min_hits
         self.json_data = deepcopy(clip_info)
 
         if self.reverse:
@@ -53,8 +53,8 @@ class Tracker:
 
         return tracker_cls(**args)
 
-    # Boxes should be given in normalized [x1,y1,x2,y2,c]
     def update(self, dets=np.empty((0, 5))):
+        """Updates the tracker with new detections. Boxes should be given in normalized [x1,y1,x2,y2,c]"""
         new_frame_entries = []
         for track in self.algorithm.update(dets):
 
@@ -62,23 +62,16 @@ class Tracker:
             conf = 0
             min_score = 1000000
             if TrackingMethod.SORT == self.algorithm.type:
-                for det in dets:
-                    score = sum(abs(det[0:4] - track[0:4]))
-                    if score < min_score:
-                        min_score = score
-                        conf = det[4]
+                conf, min_score = self.algorithm.match_confidence_to_track(
+                    track, dets, conf, min_score
+                )
 
             elif TrackingMethod.BYTETRACK == self.algorithm.type:
-                for det in dets[0]:
-                    score = sum(abs(det[0:4] - track[0:4]))
-                    if score < min_score:
-                        min_score = score
-                        conf = det[4]
-                for det in dets[1]:
-                    score = sum(abs(det[0:4] - track[0:4]))
-                    if score < min_score:
-                        min_score = score
-                        conf = det[4]
+                # dets[0] = low conf, dets[1] = high conf
+                for det_group in dets:
+                    conf, min_score = self.algorithm.match_confidence_to_track(
+                        track, det_group, conf, min_score
+                    )
 
             # Assign Track
             self.fish_ids[int(track[4])] += 1
@@ -198,7 +191,7 @@ def run_tracker(
     image_meter_width,
     image_meter_height,
     tracking_config,
-    reverse=False,
+    min_length=FishSizeConfig.min_length,
     gp=None,
     verbose=True,
 ):
@@ -214,23 +207,19 @@ def run_tracker(
     }
 
     tracker = Tracker(
-        clip_info,
-        algorithm=tracking_config.type,
-        reverse=tracking_config.reverse,
-        args={
-            "max_age": tracking_config.max_age,
-            "min_hits": tracking_config.min_hits,
-            "iou_threshold": tracking_config.iou_threshold,
-        },
+        clip_info=clip_info,
+        config=tracking_config,
     )
 
     with tqdm(
         total=len(low_preds),
-        desc=f"Running tracking using {tracking_config.type}",
+        desc=f"Running tracker using {tracking_config.type}",
         ncols=0,
         disable=not verbose,
     ) as pbar:
-        for i, key in enumerate(sorted(low_preds.keys(), reverse=reverse)):
+        for i, key in enumerate(
+            sorted(low_preds.keys(), reverse=tracking_config.reverse)
+        ):
             if gp:
                 gp(i / len(low_preds), pbar.__str__())
             low_boxes, high_boxes = low_preds[key], high_preds[key]
@@ -243,7 +232,7 @@ def run_tracker(
             pbar.update(1)
 
     json_data = tracker.finalize(
-        min_length=FishSizeConfig().min_length, min_travel=tracking_config.min_travel
+        min_length=min_length, min_travel=tracking_config.min_travel
     )
 
     return json_data

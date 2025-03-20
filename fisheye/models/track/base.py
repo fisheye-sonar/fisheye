@@ -31,3 +31,15 @@ class BaseTracker(ABC):
     def update(self):
         """Abstract method to update the tracker with new detections."""
         pass
+
+    @staticmethod
+    def match_confidence_to_track(track, dets, conf, min_score):
+        """Match confidence with correct track."""
+
+        for det in dets:
+            score = sum(abs(det[0:4] - track[0:4]))
+            if score < min_score:
+                min_score = score
+                conf = det[4]
+
+        return conf, min_score
