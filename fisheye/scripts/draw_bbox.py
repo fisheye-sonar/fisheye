@@ -42,7 +42,7 @@ def draw_bbox_on_frame(frame, bboxes):
 
     Args:
         frame (numpy array or PIL.Image): Image frame data.
-        bboxes (list): List of bounding box dictionaries with keys 'right', 'top', 'width', and 'height'.
+        bboxes (list): List of bounding box dictionaries with keys 'left', 'top', 'width', and 'height'.
 
     Returns:
         Image: PIL Image with bounding boxes drawn.
@@ -61,7 +61,7 @@ def draw_bbox_on_frame(frame, bboxes):
 
     for bbox in bboxes:
         fish_id = bbox["fish_id"]
-        left_pixel = image_width * bbox["right"]
+        left_pixel = image_width * bbox["left"]
         top_pixel = image_height * bbox["top"]
         right_pixel = left_pixel + (bbox["width"] * image_width)
         bottom_pixel = top_pixel + (bbox["height"] * image_height)
@@ -113,7 +113,7 @@ def process_frames_with_bboxes(df, frames, start_frame_id=0, end_frame_id=None):
         if frame_id in df["frame_id"].values:
             # Get bounding boxes for the frame
             bboxes = df[df["frame_id"] == frame_id][
-                ["right", "top", "width", "height", "fish_id"]
+                ["left", "top", "width", "height", "fish_id"]
             ].to_dict(orient="records")
 
         else:
@@ -127,7 +127,7 @@ def process_frames_with_bboxes(df, frames, start_frame_id=0, end_frame_id=None):
     return modified_frames
 
 
-def make_video(out_file, frames, fps=20, do_bg_subtraction=True, cmap=False):
+def make_video(out_file, frames, fps=20):
     command = [
         "ffmpeg",
         "-y",  # (optional) overwrite output file if it exists
@@ -181,12 +181,23 @@ def make_video(out_file, frames, fps=20, do_bg_subtraction=True, cmap=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--file", type=str, help="ARIS/DIDSON filepath", required=True)
     parser.add_argument(
-        "--mot_dir", type=str, help="Path to MOT txt file(s)", required=True
+        "--file",
+        type=str,
+        help="ARIS/DIDSON filepath",
+        default="/Users/madison/Downloads/2024-11-02_2000_Van_Duzen_River_2000_2020.aris",
     )
     parser.add_argument(
-        "--out_dir", type=str, help="Path to save file(s) to.", required=True
+        "--mot_dir",
+        type=str,
+        help="Path to MOT txt file(s)",
+        default="/Users/madison/Downloads/tmp_2024-11-02_2000_Van_Duzen_River_2000_2020/",
+    )
+    parser.add_argument(
+        "--out_dir",
+        type=str,
+        help="Path to save file(s) to.",
+        default="/Users/madison/Downloads/tmp_2024-11-02_2000_Van_Duzen_River_2000_2020/",
     )
 
     args = parser.parse_args()
@@ -203,7 +214,9 @@ if __name__ == "__main__":
 
     # Filter MOT results to detections for this file
     modified_frames = process_frames_with_bboxes(
-        df[df["file_stem"] == file_stem + ".txt"], frames
+        # df[df["file_stem"] == file_stem + ".txt"], frames
+        df[df["file_stem"] == file_stem],
+        frames,
     )
     print("Creating video...")
     make_video(out_file=f"{args.out_dir}/{file_stem}.mp4", frames=modified_frames)

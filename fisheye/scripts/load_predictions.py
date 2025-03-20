@@ -96,7 +96,7 @@ def load_mot_file(
     ]
     df_detections.columns = column_names
 
-    if non_empty_files:
+    if not non_empty_files:
         print(f"{len(non_empty_files)} empty MOT files found: {non_empty_files}")
 
     return df_detections
