@@ -13,7 +13,7 @@ T = TypeVar("T", bound=BaseModelConfig)
 class TrackerConfig:
     """Configuration for tracking."""
 
-    type: TrackingMethod
+    type: TrackingMethod = TrackingMethod.BYTETRACK
     max_age: int = 0
     min_hits: int = 3
     min_travel: int = 0

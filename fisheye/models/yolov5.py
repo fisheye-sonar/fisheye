@@ -1,8 +1,18 @@
 import torch
 import yolov5
+import warnings
 
 from fisheye.configs import YOLOv5ModelConfig
 from fisheye.models.base import BaseModel
+
+
+# Suppress the `torch.cuda.amp.autocast(args...)` warning is deprecated.* raised in yolov5.models.common
+warnings.filterwarnings(
+    "ignore",
+    message=".*autocast.*",  # Use regex to match part of the message
+    category=FutureWarning,
+    module="yolov5.models.common",
+)
 
 
 class YOLOv5ObjectDetectionModel(BaseModel):
