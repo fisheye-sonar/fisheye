@@ -28,7 +28,7 @@ class Tracker:
             config.type,
             {
                 "max_age": config.max_age,
-                "min_hits": config.min_hits,
+                "min_hits": 0,  # TODO (MVH) - why aren't we being consistent with min_hits?
                 "iou_threshold": config.iou_threshold,
             },
         )

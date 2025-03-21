@@ -17,7 +17,7 @@ class TrackerConfig:
     max_age: int = 20
     min_hits: int = 11
     min_travel: int = 0
-    iou_threshold: float = 0.05
+    iou_threshold: float = 0.01
     reverse: bool = False
 
 
