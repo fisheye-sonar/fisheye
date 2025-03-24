@@ -33,7 +33,7 @@ def test_run_tracker_bytetrack():
         tracking_config,
     )
 
-    assert len(output["frames"]) == len(low_preds) and len(output["frames"]) == len(
+    assert len(output.frames) == len(low_preds) and len(output.frames) == len(
         high_preds
     ), (
         f"Expected {len(high_preds)} frames to be processed, "
@@ -59,9 +59,9 @@ def test_run_tracker_with_empty_predictions():
     )
 
     # Check how many frames were processed
-    assert len(output["frames"]) == len(empty_preds), (
+    assert len(output.frames) == len(empty_preds), (
         f"Expected {len(empty_preds)} frames to be processed, "
-        f"but got {len(output['frames'])}"
+        f"but got {len(output.frames)}"
     )
 
 

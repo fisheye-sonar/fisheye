@@ -5,7 +5,7 @@ from copy import deepcopy
 import numpy as np
 from tqdm import tqdm
 
-from fisheye.configs.inference import TrackerConfig, FishSizeConfig
+from fisheye.configs.inference import TrackerConfig, FishSizeConfig, TrackerOutput
 from fisheye.enums import TrackingMethod
 from fisheye.track.bytetrack import ByteTracker
 from fisheye.track.sort import Sort
@@ -79,8 +79,6 @@ class Tracker:
                 {
                     "fish_id": int(track[4]),
                     "bbox": list(track[:4]),
-                    "visible": 1,
-                    "human_labeled": 0,
                     "conf": conf,
                 }
             )
@@ -130,9 +128,7 @@ class Tracker:
         # create summary 'fish' entry for json data
         json_data["fish"] = []
         for track_id, boxes in tracks.items():
-            fish_entry = {}
-            fish_entry["id"] = track_id
-            fish_entry["length"] = -1
+            fish_entry = {"id": track_id, "length": -1}
 
             start_bbox = boxes[0][0]
             end_bbox = boxes[-1][0]
@@ -147,7 +143,6 @@ class Tracker:
 
             fish_entry["start_frame_index"] = boxes[0][1]
             fish_entry["end_frame_index"] = boxes[-1][1]
-            fish_entry["color"] = FishMetrics.select_color(track_id)
 
             json_data["fish"].append(fish_entry)
 
@@ -240,4 +235,6 @@ def run_tracker(
         min_length=min_length, min_travel=tracking_config.min_travel
     )
 
-    return json_data
+    output = TrackerOutput.dict_to_dataclass(json_data)
+
+    return output
