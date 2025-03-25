@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -11,13 +12,10 @@ class LOICounter(BaseCounter):
 
     def count(self, mot_df: pd.DataFrame, line: float = 0.5):
         """Count fish that cross the center line."""
-        unique_tracks = mot_df["id"].unique()
+        grouped_tracks = mot_df.sort_values(by=["frame"], ascending=True).groupby("id")
         track_counts = defaultdict(lambda: {"left": 0, "right": 0})
 
-        for track in unique_tracks:
-            track_df = mot_df[mot_df["id"] == track]
-            track_df = track_df.sort_values(by="frame", ascending=True)
-
+        for track, track_df in grouped_tracks:
             x_coords = track_df["kp_x"].values
             first_x = x_coords[0]
             last_x = x_coords[-1]
@@ -45,6 +43,15 @@ class LOICounter(BaseCounter):
                         track_counts[track]["left"] += 1
 
         return self._calculate_counts(track_counts)
+
+    # def _calculate_counts(self, track_counts):
+    #     """Calculate net counts for left and right."""
+    #     print(track_counts)
+    #     crossings_df = pd.DataFrame.from_dict(track_counts, orient="index")
+    #     absolute_left_counts = int((crossings_df["left"] > crossings_df["right"]).sum())
+    #     absolute_right_counts = int((crossings_df["left"] <= crossings_df["right"]).sum())
+    #
+    #     return absolute_left_counts, absolute_right_counts
 
     def _calculate_counts(self, track_counts):
         """Calculate net counts for left and right."""
@@ -81,7 +88,7 @@ class Count:
         self.protocol = protocol
         self.counter = CounterFactory.get_counter(protocol)
 
-    def count(self, tracks: dict):
+    def count(self, tracks: List[dict]):
         """Count fish using the selected protocol.
 
         Args:
