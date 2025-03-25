@@ -739,3 +739,20 @@ def no_cross_tracks():
             "conf": 0.9,
         },
     ]
+
+
+@pytest.fixture
+def no_tracks():
+    """Fixture for sample data where there are no tracks."""
+    return [
+        {},
+        {
+            "frame": None,
+            "id": None,
+            "bb_left": None,
+            "bb_top": None,
+            "bb_width": None,
+            "bb_height": None,
+            "conf": None,
+        },
+    ]

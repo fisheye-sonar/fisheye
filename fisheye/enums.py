@@ -11,4 +11,5 @@ class TrackingMethod(str, Enum):
 
 
 class CountingMethod(str, Enum):
+    NONE = "none"
     LOI = "loi"

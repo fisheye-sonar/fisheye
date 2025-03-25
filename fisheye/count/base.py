@@ -2,8 +2,11 @@ from abc import abstractmethod, ABC
 
 import pandas as pd
 
+from fisheye.enums import CountingMethod
+
 
 class BaseCounter(ABC):
+    type = CountingMethod.NONE
     """Abstract base class for counting methods."""
 
     @abstractmethod

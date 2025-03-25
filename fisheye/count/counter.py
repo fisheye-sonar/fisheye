@@ -5,9 +5,11 @@ import numpy as np
 import pandas as pd
 
 from fisheye.count.base import BaseCounter
+from fisheye.enums import CountingMethod
 
 
 class LOICounter(BaseCounter):
+    type = CountingMethod.LOI
     """Count fish by crossing the Line of Interest (LOI)."""
 
     def count(self, mot_df: pd.DataFrame, line: float = 0.5):
@@ -44,16 +46,8 @@ class LOICounter(BaseCounter):
 
         return self._calculate_counts(track_counts)
 
-    # def _calculate_counts(self, track_counts):
-    #     """Calculate net counts for left and right."""
-    #     print(track_counts)
-    #     crossings_df = pd.DataFrame.from_dict(track_counts, orient="index")
-    #     absolute_left_counts = int((crossings_df["left"] > crossings_df["right"]).sum())
-    #     absolute_right_counts = int((crossings_df["left"] <= crossings_df["right"]).sum())
-    #
-    #     return absolute_left_counts, absolute_right_counts
-
-    def _calculate_counts(self, track_counts):
+    @staticmethod
+    def _calculate_counts(track_counts):
         """Calculate net counts for left and right."""
         absolute_left_counts = 0
         absolute_right_counts = 0
@@ -72,9 +66,9 @@ class CounterFactory:
     """Factory to create appropriate counter based on protocol."""
 
     @staticmethod
-    def get_counter(protocol: str = "LOI"):
+    def get_counter(protocol: str = "loi"):
         """Return counter class based on protocol."""
-        if protocol == "LOI":
+        if protocol == CountingMethod.LOI:
             return LOICounter()
         else:
             raise ValueError(f"Protocol '{protocol}' is not supported.")
@@ -92,10 +86,11 @@ class Count:
         """Count fish using the selected protocol.
 
         Args:
-            tracks (dict): MOT tracks data.
+            tracks (dict): Tracks data in MOT format with the following keys: 'frame', 'id', 'bb_left', 'bb_top',
+            'bb_height', 'conf'.
 
         Returns:
-            tuple: (left_count, right_count)
+            tuple: (absolute_left_count, absolute_right_count)
         """
         mot_df = pd.DataFrame(tracks)
         mot_df["kp_x"] = mot_df["bb_left"] + mot_df["bb_width"] / 2
