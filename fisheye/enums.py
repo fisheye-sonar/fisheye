@@ -8,3 +8,8 @@ class TrackingMethod(str, Enum):
     CONF_BOOST = "conf_boost"
     BYTETRACK = "bytetrack"
     SORT = "sort"
+
+
+class CountingMethod(str, Enum):
+    NONE = "none"
+    LOI = "loi"

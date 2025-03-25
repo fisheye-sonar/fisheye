@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Union, TypeVar, Generic
+from typing import List, Union, TypeVar, Generic, Dict
 
 import torch
 
@@ -67,3 +67,60 @@ class InferenceConfig:
     """Inference configuration."""
 
     detection: ObjectDetectionConfig = ObjectDetectionConfig()
+
+
+@dataclass
+class TrackedFish:
+    """Metadata for tracked fish."""
+
+    id: int
+    bbox: List[float]
+    conf: float
+
+
+@dataclass
+class TrackedFrame:
+    """Frame-level metadata."""
+
+    frame_num: int
+    fish: List[TrackedFish] = field(default_factory=list)
+
+
+@dataclass
+class TrackerOutput:
+    """Tracking output."""
+
+    start_frame: int
+    end_frame: int
+    image_meter_width: float
+    image_meter_height: float
+    frames: List[TrackedFrame] = field(default_factory=list)
+    metadata: List[Dict] = field(
+        default_factory=list
+    )  # Holds info like direction, distance travelled, etc.
+
+    @staticmethod
+    def dict_to_dataclass(data: Dict):
+        frames = [
+            TrackedFrame(
+                frame_num=frame["frame_num"],
+                fish=[
+                    TrackedFish(
+                        id=fish["fish_id"],
+                        bbox=fish["bbox"],
+                        conf=fish["conf"],
+                    )
+                    for fish in frame["fish"]
+                ],
+            )
+            for frame in data["frames"]
+        ]
+
+        return TrackerOutput(
+            start_frame=data["start_frame"],
+            end_frame=data["end_frame"],
+            image_meter_width=data["image_meter_width"],
+            image_meter_height=data["image_meter_height"],
+            frames=frames,
+            metadata=data["fish"],
+        )

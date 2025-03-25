@@ -1,6 +1,5 @@
 import json
-from collections import defaultdict, Counter
-from colorsys import hls_to_rgb
+from collections import defaultdict
 from copy import deepcopy
 
 import numpy as np
@@ -126,13 +125,6 @@ class FishMetrics:
         return json_data
 
     @staticmethod
-    def select_color(number):
-        hue = ((number * 137.508 + 60) % 360) / 360
-        return "#{0:02x}{1:02x}{2:02x}".format(
-            *(int(n * 255) for n in hls_to_rgb(hue, 0.5, 0.75))
-        )
-
-    @staticmethod
     def get_direction(start_bbox, end_bbox):
         start_center, end_center = (start_bbox[2] + start_bbox[0]) / 2, (
             end_bbox[2] + end_bbox[0]
@@ -152,8 +144,5 @@ class FishMetrics:
         ) * image_meter_width, (
             (start_bbox[3] + start_bbox[1]) / 2 - (end_bbox[3] + end_bbox[1]) / 2
         ) * image_meter_height
-        return np.sqrt(dx**2 + dy**2)
 
-    @staticmethod
-    def count_directions(json_data):
-        return Counter(fish["direction"] for fish in json_data["fish"])
+        return np.sqrt(dx**2 + dy**2)
