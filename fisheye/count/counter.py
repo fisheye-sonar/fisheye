@@ -13,7 +13,7 @@ class LOICounter(BaseCounter):
     """Count fish by crossing the Line of Interest (LOI)."""
 
     def count(self, mot_df: pd.DataFrame, line: float = 0.5):
-        """Count fish that cross the center line."""
+        """Count fish that cross the LOI. Defaults to using center line."""
         grouped_tracks = mot_df.sort_values(by=["frame"], ascending=True).groupby("id")
         track_counts = defaultdict(lambda: {"left": 0, "right": 0})
 
@@ -62,37 +62,30 @@ class LOICounter(BaseCounter):
         return absolute_left_counts, absolute_right_counts
 
 
-class CounterFactory:
-    """Factory to create appropriate counter based on protocol."""
-
-    @staticmethod
-    def get_counter(protocol: str = "loi"):
-        """Return counter class based on protocol."""
-        if protocol == CountingMethod.LOI:
-            return LOICounter()
-        else:
-            raise ValueError(f"Protocol '{protocol}' is not supported.")
-
-
 class Count:
     """Main class to handle different counting methods."""
 
     def __init__(self, protocol: str = "LOI"):
         """Initialize Count with a specific counting protocol."""
         self.protocol = protocol
-        self.counter = CounterFactory.get_counter(protocol)
+
+        if self.protocol == CountingMethod.LOI:
+            self.counter = LOICounter()
+        else:
+            raise ValueError(f"Protocol '{self.protocol}' is not supported.")
 
     def count(self, tracks: List[dict]):
         """Count fish using the selected protocol.
 
         Args:
-            tracks (dict): Tracks data in MOT format with the following keys: 'frame', 'id', 'bb_left', 'bb_top',
+            tracks (dict): Tracks in MOT format with the following keys: 'frame', 'id', 'bb_left', 'bb_top',
             'bb_height', 'conf'.
 
         Returns:
             tuple: (absolute_left_count, absolute_right_count)
         """
         mot_df = pd.DataFrame(tracks)
+        # Calculate the center point of the bounding box
         mot_df["kp_x"] = mot_df["bb_left"] + mot_df["bb_width"] / 2
         mot_df["kp_y"] = mot_df["bb_top"] + mot_df["bb_height"] / 2
 
