@@ -71,6 +71,8 @@ class InferenceConfig:
 
 @dataclass
 class TrackedFish:
+    """Metadata for tracked fish."""
+
     id: int
     bbox: List[float]
     conf: float
@@ -78,7 +80,7 @@ class TrackedFish:
 
 @dataclass
 class TrackedFrame:
-    """Tracked frame."""
+    """Frame-level metadata."""
 
     frame_num: int
     fish: List[TrackedFish] = field(default_factory=list)
