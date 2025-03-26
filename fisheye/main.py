@@ -2,6 +2,7 @@ import argparse
 from typing import List
 
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
+from fisheye.export import to_csv
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 
 
@@ -32,6 +33,13 @@ if __name__ == "__main__":
         choices=["csv", "text", None],
         help="Export results to 'csv' or 'text' format. Leave empty for no export.",
     )
+
+    parser.add_argument(
+        "--out_path", required=False, type=str, help="Path to save results."
+    )
     args = parser.parse_args()
 
     output = main(args.path, args.weights)
+
+    if args.export == "csv":
+        to_csv(output, args.out_path)
