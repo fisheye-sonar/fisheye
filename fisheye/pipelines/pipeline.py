@@ -16,26 +16,24 @@ class DetectTrackCountPipeline:
 
     def __init__(
         self,
-        dataset_cfg: YOLODatasetConfig,
         detector_cfg: Optional[ObjectDetectionConfig] = None,
         tracker_cfg: Optional[TrackerConfig] = None,
     ):
-        self.dataset_cfg = dataset_cfg
         self.detector_cfg = detector_cfg if detector_cfg else ObjectDetectionConfig()
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
         self.nms_config = NMSConfig()
 
     def _run(self, file: List[str] | str):
-
-        detections = ObjectDetectionPipeline(self.detector_cfg, self.dataset_cfg).run()
+        dataset_cfg = YOLODatasetConfig(filepath=file)
+        detections = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg).run()
 
         #  Get low confidence for ByteTrack
         self.nms_config.conf = 0.1
         low_output = run_nms(
             detections.pred_bboxes,
-            self.dataset_cfg.image_meter_width,
+            dataset_cfg.image_meter_width,
             detections.width,
-            self.dataset_cfg.batch_size,
+            dataset_cfg.batch_size,
             self.nms_config,
         )
 
@@ -43,9 +41,9 @@ class DetectTrackCountPipeline:
         self.nms_config.conf = 0.3
         high_output = run_nms(
             detections.pred_bboxes,
-            self.dataset_cfg.image_meter_width,
+            dataset_cfg.image_meter_width,
             detections.width,
-            self.dataset_cfg.batch_size,
+            dataset_cfg.batch_size,
             self.nms_config,
         )
 
@@ -55,30 +53,28 @@ class DetectTrackCountPipeline:
             low_output,
             detections.width,
             detections.height,
-            batch_size=self.dataset_cfg.batch_size,
+            batch_size=dataset_cfg.batch_size,
         )
         high_preds, og_width, og_height = normalize_boxes_for_tracking(
             detections.image_shape,
             high_output,
             detections.width,
             detections.height,
-            batch_size=self.dataset_cfg.batch_size,
+            batch_size=dataset_cfg.batch_size,
         )
 
         tracker_output = run_tracker(
             low_preds,
             high_preds,
-            self.dataset_cfg.image_meter_width,
-            self.dataset_cfg.image_meter_height,
+            dataset_cfg.image_meter_width,
+            dataset_cfg.image_meter_height,
             self.tracker_cfg,
         )
 
         mot_tracks = tracker_output_to_mot(asdict(tracker_output))
         left_count, right_count = Count().count(mot_tracks)
 
-        print(f"Left: {left_count}, Right: {right_count}")
-
-        return {"tracks": mot_tracks, "counts": (left_count, right_count)}
+        return {"tracks": mot_tracks, "counts": (left_count, right_count), "file": file}
 
     def run(self, file: List[str] | str):
         """Run preprocessing, detection, tracking, and counting on frames.
@@ -95,7 +91,7 @@ class DetectTrackCountPipeline:
         # return {"tracks": tracks, "counts": counts}
 
         def is_valid_path(file_path: str) -> bool:
-            # Check if it's a valid file and ends with '.aris' or '.didson'
+            # Check if it's a valid file and ends with '.aris' or '.ddf'
             return (
                 os.path.exists(file_path)
                 and os.path.isfile(file_path)
@@ -124,16 +120,15 @@ class DetectTrackCountPipeline:
             else:
                 raise ValueError(f"Invalid file or directory path: {file}")
 
-        # If it's a list of files, validate each one
         elif isinstance(file, list):
-            invalid_files = [
-                f for f in file if not (is_valid_path(f) or is_valid_directory(f))
-            ]
+            valid_files = [f for f in file if is_valid_path(f) or is_valid_directory(f)]
 
-            if invalid_files:
-                raise ValueError(f"Invalid file paths: {', '.join(invalid_files)}")
+            if len(valid_files) < len(file):
+                print(
+                    f"Skipping invalid file path(s): {', '.join(set(file) - set(valid_files))}"
+                )
 
-            return [self._run(f) for f in file]
+            return [self._run(f) for f in valid_files]
 
         else:
             raise ValueError(
