@@ -65,7 +65,7 @@ class LOICounter(BaseCounter):
 class Count:
     """Main class to handle different counting methods."""
 
-    def __init__(self, protocol: str = "LOI"):
+    def __init__(self, protocol: str = "loi"):
         """Initialize Count with a specific counting protocol."""
         self.protocol = protocol
 
@@ -85,8 +85,11 @@ class Count:
             tuple: (absolute_left_count, absolute_right_count)
         """
         mot_df = pd.DataFrame(tracks)
-        # Calculate the center point of the bounding box
-        mot_df["kp_x"] = mot_df["bb_left"] + mot_df["bb_width"] / 2
-        mot_df["kp_y"] = mot_df["bb_top"] + mot_df["bb_height"] / 2
+        if not mot_df.empty:
+            # Calculate the center point of the bounding box
+            mot_df["kp_x"] = mot_df["bb_left"] + mot_df["bb_width"] / 2
+            mot_df["kp_y"] = mot_df["bb_top"] + mot_df["bb_height"] / 2
 
-        return self.counter.count(mot_df)
+            return self.counter.count(mot_df)
+        # If no tracks present (empty dataframe) return 0 for both left and right counts
+        return 0, 0
