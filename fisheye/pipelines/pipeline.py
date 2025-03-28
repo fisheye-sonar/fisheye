@@ -76,7 +76,7 @@ class DetectTrackCountPipeline:
 
         return {"tracks": mot_tracks, "counts": (left_count, right_count), "file": file}
 
-    def run(self, file: List[str] | str):
+    def run(self, file: List[str] | str) -> List[dict] | dict:
         """Run preprocessing, detection, tracking, and counting on frames.
 
         Args:
@@ -85,10 +85,6 @@ class DetectTrackCountPipeline:
         Returns:
             dict: Tracking results and counts.
         """
-        # detections = [self.detector.detect(frame) for frame in frames]
-        # tracks = self.tracker.update(detections)
-        # counts = self.counter.count(tracks)
-        # return {"tracks": tracks, "counts": counts}
 
         def is_valid_path(file_path: str) -> bool:
             # Check if it's a valid file and ends with '.aris' or '.ddf'
