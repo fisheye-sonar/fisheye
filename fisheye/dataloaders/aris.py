@@ -54,12 +54,14 @@ class ARISBatchedDataset(BaseDataset):
         end_frame = self.didson.info["numframes"]
 
         config.end_frame = (
-            min(config.end_frame, end_frame) if config.end_frame else end_frame
+            end_frame
+            if not config.end_frame or config.end_frame > end_frame
+            else config.end_frame
         )
 
         if config.end_frame <= 0:
             # If end frame is 0 or -1, something ain't right in the header file. However, there most likely is still
-            # data that can be unpacked so load all of the frames.
+            # data that can be unpacked so load all frames.
             config.end_frame = end_frame
             config.start_frame, config.end_frame = self._validate_frame_range(
                 config=config
@@ -67,7 +69,8 @@ class ARISBatchedDataset(BaseDataset):
 
         # We are possibly looking at a shortened clip where the start and end frame indexes are larger than the number
         # of frames in the file.
-        if config.start_frame > end_frame:
+        # Also want to check if a user specifies an invalid end_frame
+        if config.start_frame > end_frame or config.start_frame > config.end_frame:
             warnings.warn(
                 "End frame is 0 or -1, likely due to a corrupted or incomplete header file. "
                 "Even if you provided a valid end_frame, it was overwritten because the original end_frame is smaller. "
