@@ -3,15 +3,21 @@ import time
 from typing import List
 
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
-from fisheye.export import to_csv
+from fisheye.export import to_csv, get_exporter
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 
 
-def main(path: List[str] | str, weights):
+def main(path: List[str] | str, weights, export_format: str, output_dir: str):
     model_cfg = YOLOv5ModelConfig(weights=weights)
     detection_cfg = ObjectDetectionConfig(model=model_cfg)
 
     results = DetectTrackCountPipeline(detection_cfg).run(path)
+
+    if export_format:
+        export_function = get_exporter(export_format)
+
+        if export_function:
+            export_function(results, output_dir)
 
     return results
 
@@ -28,22 +34,20 @@ if __name__ == "__main__":
         "--weights", required=True, type=str, help="Path to model weights."
     )
     parser.add_argument(
-        "--export",
+        "--export_format",
         required=False,
         type=str,
-        choices=["csv", "text", None],
+        default=None,
+        choices=["csv", None],
         help="Export results to 'csv' or 'text' format. Leave empty for no export.",
     )
 
     parser.add_argument(
-        "--out_path", required=False, type=str, help="Path to save results."
+        "--output_dir", required=False, type=str, help="Path to save results."
     )
     args = parser.parse_args()
     start = time.time()
-    output = main(args.path, args.weights)
+    results = main(args.path, args.weights, args.export_format, args.output_dir)
     end = time.time()
 
     print(f"Total inference time: {end - start:.2f} seconds")
-
-    if args.export == "csv":
-        to_csv(output, args.out_path)

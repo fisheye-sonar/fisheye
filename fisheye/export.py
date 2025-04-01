@@ -1,7 +1,10 @@
 import os
 from datetime import datetime
+from typing import Dict, Callable, Any
 
 import pandas as pd
+
+from fisheye.enums import ExportType
 
 
 def to_csv(data, out_dir):
@@ -14,3 +17,18 @@ def to_csv(data, out_dir):
     df.to_csv(out_file, index=False)
 
     print(f"Exported results to {out_file}")
+
+
+# Add any new export functions here
+EXPORT_FUNCTIONS: Dict[ExportType, Callable[[Any, str], None]] = {
+    ExportType.CSV: to_csv,
+}
+
+
+def get_exporter(export_type: ExportType | str) -> Callable[[Any, str], None]:
+    """Retrieve the appropriate export function."""
+
+    if isinstance(export_type, str):
+        export_type = ExportType(export_type)
+
+    return EXPORT_FUNCTIONS.get(export_type)

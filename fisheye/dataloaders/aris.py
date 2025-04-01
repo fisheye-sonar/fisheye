@@ -18,15 +18,8 @@ class ARISBatchedDataset(BaseDataset):
 
     def __init__(self, config: ARISDatasetConfig):
         """
-        :param filepath (str): Path to an ARIS file.
-        :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
-        :param batch_size (int): Batch size. Defaults to 32.
-        :param num_frames_bg_subtract: Number of frames to subtract from the background. Defaults to 1000.
-        :param disable_output (bool): Whether to disable output. Defaults to False.
-        :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
-        :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
-        :param start_frame (int): Starting frame for ARIS file. Defaults to None.
-        :param end_frame (int): Ending frame for ARIS file. Defaults to None.
+
+        :param config: ARISDatasetConfig
         """
         try:
             self.didson = DIDSON(config.filepath, beam_width_dir=config.beam_width_dir)

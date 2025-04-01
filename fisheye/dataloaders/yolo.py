@@ -20,16 +20,8 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
 
     def __init__(self, config: YOLODatasetConfig):
         """
-        :param filepath (str): Path to an ARIS file.
-        :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
-        :param stride (int): Stride size for YOLOv5 inference. Defaults to 64.
-        :param pad (float): Pad size for YOLOv5 inference. Defaults to 0.5.
-        :param img_size (int): Image size for YOLOv5 inference. Defaults to 896.
-        :param batch_size (int): Batch size. Defaults to 32.
-        :param disable_output (bool): Whether to disable output. Defaults to False.
-        :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
-        :param start_frame (int): Starting frame for ARIS file. Defaults to None.
-        :param end_frame (int): Ending frame for ARIS file. Defaults to None.
+
+        :param config: YOLODatasetConfig
         """
         super().__init__(config)
 
