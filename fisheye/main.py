@@ -1,4 +1,5 @@
 import argparse
+import time
 from typing import List
 
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
@@ -38,8 +39,11 @@ if __name__ == "__main__":
         "--out_path", required=False, type=str, help="Path to save results."
     )
     args = parser.parse_args()
-
+    start = time.time()
     output = main(args.path, args.weights)
+    end = time.time()
+
+    print(f"Total inference time: {end - start:.2f} seconds")
 
     if args.export == "csv":
         to_csv(output, args.out_path)

@@ -23,11 +23,11 @@ class DetectTrackCountPipeline:
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
         self.nms_config = NMSConfig()
 
-    def _run(self, file: List[str] | str):
+    def _run(self, file: str):
         dataset_cfg = YOLODatasetConfig(filepath=file)
         detections = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg).run()
 
-        #  Get low confidence for ByteTrack
+        # Get low confidence for ByteTrack
         self.nms_config.conf = 0.1
         low_output = run_nms(
             detections.pred_bboxes,
