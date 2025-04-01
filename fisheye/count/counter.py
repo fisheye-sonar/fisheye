@@ -16,17 +16,22 @@ class LOICounter(BaseCounter):
         """Count fish that cross the LOI. Defaults to using center line."""
         grouped_tracks = mot_df.sort_values(by=["frame"], ascending=True).groupby("id")
         track_counts = defaultdict(lambda: {"left": 0, "right": 0})
+        crossing_frames = {"left": [], "right": []}
 
         for track, track_df in grouped_tracks:
             x_coords = track_df["kp_x"].values
+            frames = track_df["frame"].values
             first_x = x_coords[0]
             last_x = x_coords[-1]
 
             # Determine initial and final positions
             if last_x <= line < first_x:
                 track_counts[track]["left"] += 1
+                crossing_frames["left"].append((track, frames[-1]))
+
             elif last_x >= line > first_x:
                 track_counts[track]["right"] += 1
+                crossing_frames["right"].append((track, frames[-1]))
 
             # Detect line crossings
             crossings = np.where((x_coords[:-1] - line) * (x_coords[1:] - line) <= 0)[0]
@@ -34,17 +39,22 @@ class LOICounter(BaseCounter):
             if len(crossings) > 0:
                 for i in crossings:
                     x1, x2 = x_coords[i], x_coords[i + 1]
+                    frame_crossed = frames[
+                        i + 1
+                    ]  # TODO (MVH) - do we want it to be frames[i+1] or frames[i]
 
                     if x1 == line and x2 == line:
                         continue
 
                     if x1 < x2 or (x1 == line and x2 > line):
                         track_counts[track]["right"] += 1
+                        crossing_frames["right"].append((track, frame_crossed))
 
                     elif x1 > x2 or (x1 == line and x2 < line):
                         track_counts[track]["left"] += 1
+                        crossing_frames["left"].append((track, frame_crossed))
 
-        return self._calculate_counts(track_counts)
+        return self._calculate_counts(track_counts), crossing_frames
 
     @staticmethod
     def _calculate_counts(track_counts):

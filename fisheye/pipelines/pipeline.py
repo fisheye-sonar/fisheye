@@ -72,9 +72,14 @@ class DetectTrackCountPipeline:
         )
 
         mot_tracks = tracker_output_to_mot(asdict(tracker_output))
-        left_count, right_count = Count().count(mot_tracks)
+        (left_count, right_count), crossing_frames = Count().count(mot_tracks)
 
-        return {"tracks": mot_tracks, "counts": (left_count, right_count), "file": file}
+        return {
+            "tracks": mot_tracks,
+            "counts": (left_count, right_count),
+            "file": file,
+            "crossing_frames": crossing_frames,
+        }
 
     def run(self, file: List[str] | str) -> List[dict] | dict:
         """Run preprocessing, detection, tracking, and counting on frames.

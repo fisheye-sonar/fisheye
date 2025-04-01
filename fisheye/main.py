@@ -3,7 +3,7 @@ import time
 from typing import List
 
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
-from fisheye.export import to_csv, get_exporter
+from fisheye.export import get_exporter
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 
 
