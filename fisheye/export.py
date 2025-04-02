@@ -20,14 +20,30 @@ def to_csv(data, out_dir):
     # Save off all track counts to CSV
     df.to_csv(out_file + ".csv", index=False)
 
-    summary_df = df.groupby(["file_name", "direction"]).size().unstack(fill_value=0)
-    summary_df = summary_df.rename(
-        columns={"left": "abs_left", "right": "abs_right"}
-    ).reset_index()
-    summary_df["net_count"] = abs(summary_df["abs_left"] - summary_df["abs_right"])
+    direction_counts = (
+        df.groupby(["file_name", "fish_id", "direction"]).size().unstack(fill_value=0)
+    )
 
+    # Calculate the absolute left and right counts for each fish_id within each file
+    direction_counts["absolute_left"] = (
+        direction_counts["left"] > direction_counts["right"]
+    ).astype(int)
+    direction_counts["absolute_right"] = (
+        direction_counts["right"] > direction_counts["left"]
+    ).astype(int)
+
+    # Aggregate over fish_id to calculate the total absolute_left and absolute_right per file_name
+    file_counts = direction_counts.groupby("file_name")[
+        ["absolute_left", "absolute_right"]
+    ].sum()
+
+    file_counts["net_count"] = abs(
+        file_counts["absolute_left"] - file_counts["absolute_right"]
+    )
+
+    final_result = file_counts.reset_index()
     # Save off the absolute left counts, absolute right counts, absolute net counts for each ARIS/DDF file to CSV
-    summary_df.to_csv(out_file + "_summary.csv", index=False)
+    final_result.to_csv(out_file + "_summary.csv", index=False)
 
     print(f"Exported results to {out_dir}")
 
