@@ -1,5 +1,6 @@
 import os
 from dataclasses import asdict
+from pathlib import Path
 from typing import Optional, List
 
 from fisheye.boxes import run_nms, normalize_boxes_for_tracking
@@ -74,14 +75,30 @@ class DetectTrackCountPipeline:
         mot_tracks = tracker_output_to_mot(asdict(tracker_output))
         (left_count, right_count), crossing_frames = Count().count(mot_tracks)
 
-        return {
-            "tracks": mot_tracks,
-            "counts": (left_count, right_count),
-            "file": file,
-            "crossing_frames": crossing_frames,
-        }
+        if crossing_frames:
+            formatted_crossings = [
+                {
+                    "fish_id": track,
+                    "direction": "left",
+                    "frame_id": frame,
+                    "file_name": Path(file).name,
+                }
+                for track, frame in crossing_frames["left"]
+            ] + [
+                {
+                    "fish_id": track,
+                    "direction": "right",
+                    "frame_id": frame,
+                    "file_name": Path(file).name,
+                }
+                for track, frame in crossing_frames["right"]
+            ]
+        else:
+            formatted_crossings = []
 
-    def run(self, file: List[str] | str) -> List[dict] | dict:
+        return formatted_crossings
+
+    def run(self, file: List[str] | str) -> List[List[dict]] | List[dict]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
         Args:
