@@ -33,27 +33,6 @@ class LOICounter(BaseCounter):
                 track_counts[track]["right"] += 1
                 crossing_frames["right"].append((track, int(frames[-1])))
 
-            # Detect line crossings
-            crossings = np.where((x_coords[:-1] - line) * (x_coords[1:] - line) <= 0)[0]
-
-            if len(crossings) > 0:
-                for i in crossings:
-                    x1, x2 = x_coords[i], x_coords[i + 1]
-                    frame_crossed = frames[
-                        i + 1
-                    ]  # TODO (MVH) - do we want it to be frames[i+1] or frames[i]
-
-                    if x1 == line and x2 == line:
-                        continue
-
-                    if x1 < x2 or (x1 == line and x2 > line):
-                        track_counts[track]["right"] += 1
-                        crossing_frames["right"].append((track, int(frame_crossed)))
-
-                    elif x1 > x2 or (x1 == line and x2 < line):
-                        track_counts[track]["left"] += 1
-                        crossing_frames["left"].append((track, int(frame_crossed)))
-
         return self._calculate_absolute_counts(track_counts), crossing_frames
 
     @staticmethod
@@ -102,4 +81,4 @@ class Count:
 
             return self.counter.count(mot_df)
         # If no tracks present (empty dataframe) return 0 for both left and right counts
-        return (None, None), None
+        return (0, 0), None
