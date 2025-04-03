@@ -11,5 +11,14 @@ class TrackingMethod(str, Enum):
 
 
 class CountingMethod(str, Enum):
+    """Types of counting algorithms currently supported."""
+
     NONE = "none"
     LOI = "loi"
+
+
+class ExportType(str, Enum):
+    """Types of exports currently supported."""
+
+    NONE = "none"
+    CSV = "csv"
