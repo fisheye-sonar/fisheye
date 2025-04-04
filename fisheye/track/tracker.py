@@ -132,7 +132,6 @@ class Tracker:
 
             start_bbox = boxes[0][0]
             end_bbox = boxes[-1][0]
-            fish_entry["direction"] = FishMetrics.get_direction(start_bbox, end_bbox)
 
             fish_entry["travel_dist"] = FishMetrics.get_travel_distance(
                 start_bbox,
@@ -166,15 +165,6 @@ class Tracker:
                     if fish["fish_id"] not in invalid_ids:
                         new_fish.append(fish)
                 frame["fish"] = new_fish
-
-        if output_path is not None:
-            with open(output_path, "w") as output:
-                json.dump(json_data, output, indent=2)
-
-        return json_data
-
-    def state(self, output_path=None):
-        json_data = deepcopy(self.json_data)
 
         if output_path is not None:
             with open(output_path, "w") as output:
