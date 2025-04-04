@@ -95,9 +95,7 @@ class TrackerOutput:
     image_meter_width: float
     image_meter_height: float
     frames: List[TrackedFrame] = field(default_factory=list)
-    metadata: List[Dict] = field(
-        default_factory=list
-    )  # Holds info like direction, distance travelled, etc.
+    metadata: List[Dict] = field(default_factory=list)
 
     @staticmethod
     def dict_to_dataclass(data: Dict):
