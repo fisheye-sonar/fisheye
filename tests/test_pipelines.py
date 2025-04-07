@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 import torch
 
@@ -11,6 +12,7 @@ from fisheye.configs import (
     YOLOv5ModelConfig,
 )
 from fisheye.configs.inference import NMSConfig
+from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
 from fisheye.pipelines import ObjectDetectionPipeline
 
 
@@ -106,3 +108,71 @@ def test_run(mock_pipeline):
     assert isinstance(output.image_shape, list)
     assert output.width == 640
     assert output.height == 640
+
+
+def test_object_detection_pipeline_run():
+    """Test ObjectDetectionPipeline with a mocked `self.model` (patched _load_model)."""
+
+    # Mock the model to be used in the pipeline
+    mock_model = MagicMock()
+    mock_predict_return = torch.rand((3, 6, 6))
+    mock_model.predict.return_value = mock_predict_return
+
+    # Patch the _load_model method to return the mocked model
+    with patch.object(
+        YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
+    ):
+        dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
+        model_cfg = YOLOv5ModelConfig(weights="dummy/path")
+        config = ObjectDetectionConfig(model=model_cfg)
+
+        pipeline = ObjectDetectionPipeline(config, dataset_cfg)
+        pipeline.model = mock_model
+        output = pipeline.run()
+
+        mock_model.predict.assert_called_once()
+        assert len(output.pred_bboxes) == 1
+        assert isinstance(
+            output.pred_bboxes[0][0], torch.Tensor
+        )  # Check predictions are tensors
+        assert output.pred_bboxes[0].shape == (
+            3,
+            6,
+            6,
+        )  # Check the shape of the predictions
+        assert output.image_shape == [
+            [
+                (
+                    torch.Size([960, 512]),
+                    (
+                        (2686, 1307),
+                        (
+                            (0.33358153387937456, 0.33282325937260904),
+                            (np.float64(38.5), np.float64(32.0)),
+                        ),
+                    ),
+                ),
+                (
+                    torch.Size([960, 512]),
+                    (
+                        (2686, 1307),
+                        (
+                            (0.33358153387937456, 0.33282325937260904),
+                            (np.float64(38.5), np.float64(32.0)),
+                        ),
+                    ),
+                ),
+                (
+                    torch.Size([960, 512]),
+                    (
+                        (2686, 1307),
+                        (
+                            (0.33358153387937456, 0.33282325937260904),
+                            (np.float64(38.5), np.float64(32.0)),
+                        ),
+                    ),
+                ),
+            ]
+        ]
+        assert output.width == 512
+        assert output.height == 960
