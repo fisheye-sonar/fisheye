@@ -61,20 +61,16 @@ def test_initialization(mock_pipeline):
     assert isinstance(mock_pipeline.dataloader, MagicMock)
 
 
-def test_sanitize_postprocessing_params(mock_pipeline):
+def test_building_postprocessing_params(mock_pipeline):
     """Test sanitizing of postprocessing parameters."""
 
     postprocessing_params = None
-    sanitized_steps = mock_pipeline._sanitize_postprocessing_params(
-        postprocessing_params
-    )
+    sanitized_steps = mock_pipeline._build_postprocessing_params(postprocessing_params)
     assert len(sanitized_steps) == 0
     assert not callable(sanitized_steps)
 
     postprocessing_params = {"run_nms": {"nms_config": NMSConfig()}}
-    sanitized_steps = mock_pipeline._sanitize_postprocessing_params(
-        postprocessing_params
-    )
+    sanitized_steps = mock_pipeline._build_postprocessing_params(postprocessing_params)
     assert len(sanitized_steps) == 1
     assert callable(sanitized_steps[0])
 

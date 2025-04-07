@@ -12,6 +12,12 @@ from fisheye.dataloaders.yolo import create_yolo_dataloader
 from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
 
 
+# Add more postprocessing steps in this registry
+POSTPROCESSING_REGISTRY = {
+    "run_nms": run_nms,
+}
+
+
 class ObjectDetectionPipeline:
     """Detection pipeline class
 
@@ -42,38 +48,41 @@ class ObjectDetectionPipeline:
             dataset_config = YOLODatasetConfig(*args, **kwargs)
 
         self.dataloader, self.dataset = create_yolo_dataloader(dataset_config)
-        self.postprocessing_steps = self._sanitize_postprocessing_params(
-            postprocessing_params
+        self.postprocessing_steps = (
+            self._build_postprocessing_params(postprocessing_params)
+            if postprocessing_params
+            else postprocessing_params
         )
 
-    def _sanitize_postprocessing_params(self, postprocessing_params):
+    def _build_postprocessing_params(self, postprocessing_params):
         """Sanitizes postprocessing parameters to format them correctly."""
         if not postprocessing_params:
             return []
         postprocessing_steps = []
 
         for step_name, params in postprocessing_params.items():
-            if isinstance(params, list):  # Case where multiple NMS calls are expected
-                for step_params in params:
-                    postprocessing_steps.append(
-                        partial(globals()[step_name], **step_params)
-                    )
-            elif isinstance(params, dict):  # Standard case with one set of params
+            processor = POSTPROCESSING_REGISTRY.get(step_name)
+            if not processor:
+                raise ValueError(f"Unknown postprocessing step: {step_name}")
+
+            if isinstance(params, list):
+                for p in params:
+                    postprocessing_steps.append(partial(processor, **p))
+
+            elif isinstance(params, dict):
                 if not any(
                     step.func == globals()[step_name] for step in postprocessing_steps
                 ):
                     postprocessing_steps.append(partial(globals()[step_name], **params))
+
             else:
-                postprocessing_steps.append(globals()[step_name])
+                postprocessing_steps.append(partial(processor, **params))
 
         return postprocessing_steps
 
     def __call__(self, *args, **kwargs):
         """Executes the detection pipeline."""
-        output = self.run()
-        processed_output = self.postprocess(output)
-
-        return processed_output
+        return self.run(*args, **kwargs)
 
     def preprocess(self, image):
         image = image.to(self.device, non_blocking=True)
@@ -153,4 +162,6 @@ class ObjectDetectionPipeline:
         Returns:
             List[Any]: Processed detection results.
         """
-        return ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))
+        output = ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))
+
+        return output if not self.postprocessing_steps else self.postprocess(output)
