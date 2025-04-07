@@ -62,7 +62,7 @@ def test_initialization(mock_pipeline):
 
 
 def test_building_postprocessing_params(mock_pipeline):
-    """Test sanitizing of postprocessing parameters."""
+    """Test building postprocessing parameters."""
 
     postprocessing_params = None
     sanitized_steps = mock_pipeline._build_postprocessing_params(postprocessing_params)
@@ -73,6 +73,20 @@ def test_building_postprocessing_params(mock_pipeline):
     sanitized_steps = mock_pipeline._build_postprocessing_params(postprocessing_params)
     assert len(sanitized_steps) == 1
     assert callable(sanitized_steps[0])
+
+    postprocessing_params = {
+        "run_nms": [
+            {"nms_config": NMSConfig(conf=0.1)},
+            {"nms_config": NMSConfig(conf=0.3)},
+        ]
+    }
+    sanitized_steps = mock_pipeline._build_postprocessing_params(postprocessing_params)
+    assert len(sanitized_steps) == 2
+    print(sanitized_steps)
+    assert callable(sanitized_steps[0])
+    assert sanitized_steps[0].keywords["nms_config"].conf == 0.1
+    assert callable(sanitized_steps[1])
+    assert sanitized_steps[1].keywords["nms_config"].conf == 0.3
 
 
 def test_preprocess(mock_pipeline):
@@ -106,7 +120,7 @@ def test_run(mock_pipeline):
     assert output.height == 640
 
 
-def test_object_detection_pipeline_run():
+def test_object_detection_pipeline():
     """Test ObjectDetectionPipeline with a mocked `self.model` (patched _load_model)."""
 
     # Mock the model to be used in the pipeline
@@ -124,7 +138,7 @@ def test_object_detection_pipeline_run():
 
         pipeline = ObjectDetectionPipeline(config, dataset_cfg)
         pipeline.model = mock_model
-        output = pipeline.run()
+        output = pipeline()
 
         mock_model.predict.assert_called_once()
         assert len(output.pred_bboxes) == 1
@@ -172,3 +186,25 @@ def test_object_detection_pipeline_run():
         ]
         assert output.width == 512
         assert output.height == 960
+
+
+def test_object_detection_pipeline_postprocessing_invalid_params(mock_pipeline):
+    """Test sending invalid postprocessing parameters"""
+
+    # Mock the model to be used in the pipeline
+    mock_model = MagicMock()
+    mock_predict_return = torch.rand((3, 6, 6))
+    mock_model.predict.return_value = mock_predict_return
+
+    # Patch the _load_model method to return the mocked model
+    with patch.object(
+        YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
+    ):
+        dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
+        model_cfg = YOLOv5ModelConfig(weights="dummy/path")
+        config = ObjectDetectionConfig(model=model_cfg)
+        processing_params = {"some_func_name": "some_func"}
+        with pytest.raises(
+            ValueError, match="Unknown postprocessing step: some_func_name"
+        ):
+            ObjectDetectionPipeline(config, dataset_cfg, processing_params)
