@@ -21,9 +21,9 @@ class BaseModel:
         super().__init__()
         self._get_model_instance(model_path, device)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, x, *args, **kwargs):
         """Use model instance to make predictions."""
-        return self.predict(*args, **kwargs)
+        return self.predict(x, *args, **kwargs)
 
     def _get_model_instance(self, model_path, device):
         """Sets up the model instance."""

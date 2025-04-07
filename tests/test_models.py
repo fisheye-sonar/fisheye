@@ -38,6 +38,38 @@ def test_loading_yolov5(mock_yolov5_model):
         assert detector.model.amp == config.amp
 
 
+def test_yolov5_predict():
+    """Test making predictions using the YOLOv5 model directly with mocked output."""
+
+    mock_model = MagicMock()
+
+    # mock the `__call__` method of the mock model to return a torch tensor
+    mock_model.return_value = torch.rand((1, 6))
+    dummy_input = torch.rand((1, 3, 640, 640))
+    config = YOLOv5ModelConfig(weights="dummy/path")
+
+    with patch.object(
+        YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
+    ):
+        # Instantiate the detector using the patched _load_model method
+        detector = YOLOv5ObjectDetectionModel(config)
+        detector.model = mock_model
+
+        predictions = detector(dummy_input)
+
+        # Assertions
+        mock_model.assert_called_once_with(
+            dummy_input
+        )  # Check if the model was called correctly
+        assert isinstance(
+            predictions, torch.Tensor
+        ), f"Expected torch.Tensor but got {type(predictions)}"
+        assert predictions.shape == (
+            1,
+            6,
+        ), f"Expected shape (1, 6) but got {predictions.shape}"
+
+
 def test_object_detection_pipeline(mock_yolov5_model):
     """Test ObjectDetectionPipeline with a mocked YOLOv5 model and `_forward` method."""
     # Mock the `_forward` method to return dummy data

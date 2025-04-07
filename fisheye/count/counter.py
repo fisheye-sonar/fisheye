@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import List
 
-import numpy as np
 import pandas as pd
 
 from fisheye.count.base import BaseCounter
