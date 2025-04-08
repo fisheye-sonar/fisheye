@@ -86,29 +86,22 @@ class TestARISDataloader:
         assert unwarped_frames.dtype == np.uint8
         assert np.any(frames != 0)
 
-    def test_loading_bad_start_frame(self):
+    @pytest.mark.parametrize(
+        "start_frame, end_frame, expected_length",
+        [
+            (0, 4, 3),  # Good!
+            (6, 4, 3),  # Bad range: start > end
+            (0, 6, 3),  # end_frame out of range
+            (6, 5, 3),  # start_frame > file length
+        ],
+    )
+    def test_loading_bad_frame_ranges(self, start_frame, end_frame, expected_length):
         """Test ARIS factory function does not load frames from an outside range."""
-
-        config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=6, end_frame=4)
+        config = ARISDatasetConfig(
+            filepath=ARIS_FILE, start_frame=start_frame, end_frame=end_frame
+        )
         dataloader, dataset = create_aris_dataloader(config)
-
-        # Defaults to using end frame from file header if end_frame specified is larger and doesn't exist
-        assert dataset.start_frame == 0
-        assert len(dataset) == 3
-
-    def test_loading_bad_end_frame(self):
-        """Test ARIS factory function does not load frames from an outside range."""
-        config = ARISDatasetConfig(filepath=ARIS_FILE)
-        dataloader, dataset = create_aris_dataloader(config)
-
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(dataset) == 3
-
-        config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=0, end_frame=6)
-        dataloader, dataset = create_aris_dataloader(config)
-
-        # Defaults to using end frame from file header if end_frame specified is larger and doesn't exist
-        assert len(dataset) == 3
+        assert len(dataset) == expected_length
 
 
 class TestYOLODataloader:
@@ -153,34 +146,22 @@ class TestYOLODataloader:
 
         assert len(dataset) == 2
 
-    def test_loading_bad_start_frame(self):
+    @pytest.mark.parametrize(
+        "start_frame, end_frame, expected_length",
+        [
+            (0, 4, 3),  # Good!
+            (6, 4, 3),  # Bad range: start > end
+            (0, 6, 3),  # end_frame out of range
+            (6, 5, 3),  # start_frame > file length
+        ],
+    )
+    def test_loading_bad_frame_ranges(self, start_frame, end_frame, expected_length):
         """Test YOLO factory function does not load frames from an outside range."""
-        config = YOLODatasetConfig(filepath=ARIS_FILE)
+        config = YOLODatasetConfig(
+            filepath=ARIS_FILE, start_frame=start_frame, end_frame=end_frame
+        )
         dataloader, dataset = create_yolo_dataloader(config)
-
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(dataset) == 3
-
-        config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=6, end_frame=4)
-        dataloader, dataset = create_yolo_dataloader(config)
-
-        assert dataset.start_frame == 0
-        # end_frame is exclusive in DIDSON
-        assert len(dataset) == 3
-
-    def test_loading_bad_end_frame(self):
-        """Test YOLO factory function does not load frames from an outside range."""
-        config = YOLODatasetConfig(filepath=ARIS_FILE)
-        dataloader, dataset = create_yolo_dataloader(config)
-
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(dataset) == 3
-
-        config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=0, end_frame=6)
-        dataloader, dataset = create_yolo_dataloader(config)
-
-        # end_frame is exclusive in DIDSON
-        assert len(dataset) == 3
+        assert len(dataset) == expected_length
 
 
 class TestARISLightningDataloader:
@@ -227,37 +208,24 @@ class TestARISLightningDataloader:
         # end_frame is exclusive in DIDSON
         assert len(data_module.dataset) == 2
 
-    def test_loading_bad_start_frame(self):
+    @pytest.mark.parametrize(
+        "start_frame, end_frame, expected_length",
+        [
+            (0, 4, 3),  # Good!
+            (6, 4, 3),  # Bad range: start > end
+            (0, 6, 3),  # end_frame out of range
+            (6, 5, 3),  # start_frame > file length
+        ],
+    )
+    def test_loading_bad_frame_ranges(self, start_frame, end_frame, expected_length):
         """Test ARIS DataModule does not load frames from an outside range for ARIS Datasets."""
-        config = ARISDatasetConfig(filepath=ARIS_FILE)
+        config = ARISDatasetConfig(
+            filepath=ARIS_FILE, start_frame=start_frame, end_frame=end_frame
+        )
         data_module = ARISDataModule(ARISBatchedDataset, config)
         data_module.setup(stage="test")
 
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(data_module.dataset) == 3
-
-        config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=0, end_frame=6)
-        data_module = ARISDataModule(ARISBatchedDataset, config)
-        data_module.setup(stage="test")
-
-        # Defaults to using end frame - 1 from file header if end_frame specified is larger and doesn't exist
-        assert len(data_module.dataset) == 3
-
-    def test_loading_bad_end_frame(self):
-        """Test ARIS DataModule does not load frames from an outside range for ARIS Datasets."""
-        config = ARISDatasetConfig(filepath=ARIS_FILE)
-        data_module = ARISDataModule(ARISBatchedDataset, config)
-        data_module.setup(stage="test")
-
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(data_module.dataset) == 3
-
-        config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=6, end_frame=5)
-        data_module = ARISDataModule(ARISBatchedDataset, config)
-        data_module.setup(stage="test")
-
-        # Defaults to using end frame - 1 from file header if end_frame specified is larger and doesn't exist
-        assert len(data_module.dataset) == 3
+        assert len(data_module.dataset) == expected_length
 
 
 class TestYOLOLightningDataloader:
@@ -296,35 +264,24 @@ class TestYOLOLightningDataloader:
         data_module.setup(stage="test")
         assert len(data_module.dataset) == 2
 
-    def test_loading_bad_start_frame(self):
-        """Test ARIS DataModule does not load frames from an outside range for YOLO Datasets."""
-        config = YOLODatasetConfig(filepath=ARIS_FILE)
+    @pytest.mark.parametrize(
+        "start_frame, end_frame, expected_length",
+        [
+            (0, 4, 3),  # Good!
+            (6, 4, 3),  # Bad range: start > end
+            (0, 6, 3),  # end_frame out of range
+            (6, 5, 3),  # start_frame > file length
+        ],
+    )
+    def test_loading_bad_frame_ranges(self, start_frame, end_frame, expected_length):
+        """Test ARIS DataModule does not load frames from an outside range for ARIS Datasets."""
+        config = YOLODatasetConfig(
+            filepath=ARIS_FILE, start_frame=start_frame, end_frame=end_frame
+        )
         data_module = ARISDataModule(YOLOARISBatchedDataset, config)
         data_module.setup(stage="test")
 
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(data_module.dataset) == 3
-
-        config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=6, end_frame=4)
-        data_module = ARISDataModule(YOLOARISBatchedDataset, config)
-        data_module.setup(stage="test")
-        # Defaults to using end frame from file header if end_frame specified is larger and doesn't exist
-        assert len(data_module.dataset) == 3
-
-    def test_loading_bad_end_frame(self):
-        """Test ARIS DataModule does not load frames from an outside range for YOLO Datasets."""
-        config = YOLODatasetConfig(filepath=ARIS_FILE)
-        data_module = ARISDataModule(YOLOARISBatchedDataset, config)
-        data_module.setup(stage="test")
-
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(data_module.dataset) == 3
-
-        config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=0, end_frame=6)
-        data_module = ARISDataModule(YOLOARISBatchedDataset, config)
-        data_module.setup(stage="test")
-        # Defaults to using end frame from file header if end_frame specified is larger and doesn't exist
-        assert len(data_module.dataset) == 3
+        assert len(data_module.dataset) == expected_length
 
 
 def test_loading_unwarped_frames_from_didson(beam_widths_path):
