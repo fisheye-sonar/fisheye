@@ -44,9 +44,6 @@ class ObjectDetectionPipeline:
             else model.weights
         )
 
-        if dataset_config is None:
-            dataset_config = YOLODatasetConfig(*args, **kwargs)
-
         self.dataloader, self.dataset = create_yolo_dataloader(dataset_config)
         self.postprocessing_steps = (
             self._build_postprocessing_params(postprocessing_params)
@@ -67,14 +64,11 @@ class ObjectDetectionPipeline:
 
             if isinstance(params, list):
                 for p in params:
-                    postprocessing_steps.append(partial(processor, nms_config=p))
-
-            elif isinstance(params, dict):
-                for p in params:
-                    postprocessing_steps.append(partial(processor, nms_config=[p]))
+                    if p:
+                        postprocessing_steps.append(partial(processor, nms_config=p))
 
             else:
-                postprocessing_steps.append(partial(processor, **params))
+                postprocessing_steps.append(partial(processor, nms_config=params))
 
         return postprocessing_steps
 
