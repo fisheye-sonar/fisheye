@@ -12,6 +12,12 @@ from fisheye.dataloaders.yolo import create_yolo_dataloader
 from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
 
 
+# Add postprocessing methods to this registry
+POSTPROCESSING_REGISTRY = {
+    "nms": run_nms,
+}
+
+
 class ObjectDetectionPipeline:
     """Detection pipeline class
 
@@ -38,42 +44,37 @@ class ObjectDetectionPipeline:
             else model.weights
         )
 
-        if dataset_config is None:
-            dataset_config = YOLODatasetConfig(*args, **kwargs)
-
         self.dataloader, self.dataset = create_yolo_dataloader(dataset_config)
-        self.postprocessing_steps = self._sanitize_postprocessing_params(
-            postprocessing_params
+        self.postprocessing_steps = (
+            self._build_postprocessing_params(postprocessing_params)
+            if postprocessing_params
+            else postprocessing_params
         )
 
-    def _sanitize_postprocessing_params(self, postprocessing_params):
+    def _build_postprocessing_params(self, postprocessing_params):
         """Sanitizes postprocessing parameters to format them correctly."""
         if not postprocessing_params:
             return []
         postprocessing_steps = []
 
         for step_name, params in postprocessing_params.items():
-            if isinstance(params, list):  # Case where multiple NMS calls are expected
-                for step_params in params:
-                    postprocessing_steps.append(
-                        partial(globals()[step_name], **step_params)
-                    )
-            elif isinstance(params, dict):  # Standard case with one set of params
-                if not any(
-                    step.func == globals()[step_name] for step in postprocessing_steps
-                ):
-                    postprocessing_steps.append(partial(globals()[step_name], **params))
+            processor = POSTPROCESSING_REGISTRY.get(step_name)
+            if not processor:
+                raise ValueError(f"Unknown postprocessing step: {step_name}")
+
+            if isinstance(params, list):
+                for p in params:
+                    if p:
+                        postprocessing_steps.append(partial(processor, nms_config=p))
+
             else:
-                postprocessing_steps.append(globals()[step_name])
+                postprocessing_steps.append(partial(processor, nms_config=params))
 
         return postprocessing_steps
 
     def __call__(self, *args, **kwargs):
         """Executes the detection pipeline."""
-        output = self.run()
-        processed_output = self.postprocess(output)
-
-        return processed_output
+        return self.run(*args, **kwargs)
 
     def preprocess(self, image):
         image = image.to(self.device, non_blocking=True)
@@ -84,37 +85,18 @@ class ObjectDetectionPipeline:
 
         return image
 
-    def postprocess(self, output, save_sequentially=False):
-        """Process model output using configured postprocessing steps.
+    def postprocess(self, output):
+        """Process model output using configured postprocessing steps."""
 
-        output: ObjectDetectionPipelineOutput
-        save_sequentially (bool): Save postprocessing output sequentially or separately.
-        """
+        processed_output = []
+        for step in self.postprocessing_steps:
+            step.keywords["pred_bboxes"] = output.pred_bboxes
+            step.keywords["image_meter_width"] = self.dataset.image_meter_width
+            step.keywords["image_pixel_width"] = output.width
+            step.keywords["batch_size"] = self.dataset.batch_size
 
-        processed_output = output
-
-        if save_sequentially:
-            # Apply each step sequentially and modify the output progressively
-            for step in self.postprocessing_steps:
-                step.keywords["pred_bboxes"] = processed_output.pred_bboxes
-                step.keywords["image_meter_width"] = self.dataset.image_meter_width
-                step.keywords["image_pixel_width"] = processed_output.width
-                step.keywords["batch_size"] = self.dataset.batch_size
-
-                # Apply the step and update the processed_output
-                processed_output = step(**step.keywords)
-
-        else:
-            # Save results separately
-            processed_output = []
-            for step in self.postprocessing_steps:
-                step.keywords["pred_bboxes"] = output.pred_bboxes
-                step.keywords["image_meter_width"] = self.dataset.image_meter_width
-                step.keywords["image_pixel_width"] = output.width
-                step.keywords["batch_size"] = self.dataset.batch_size
-
-                # Append the result of each step to the list
-                processed_output.append(step(**step.keywords))
+            # Append the result of each step to the list
+            processed_output.append(step(**step.keywords))
 
         return processed_output if processed_output else output
 
@@ -153,4 +135,6 @@ class ObjectDetectionPipeline:
         Returns:
             List[Any]: Processed detection results.
         """
-        return ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))
+        output = ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))
+
+        return output if not self.postprocessing_steps else self.postprocess(output)

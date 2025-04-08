@@ -63,13 +63,6 @@ class ObjectDetectionPipelineOutput:
 
 
 @dataclass
-class InferenceConfig:
-    """Inference configuration."""
-
-    detection: ObjectDetectionConfig = ObjectDetectionConfig()
-
-
-@dataclass
 class TrackedFish:
     """Metadata for tracked fish."""
 
