@@ -12,9 +12,9 @@ from fisheye.dataloaders.yolo import create_yolo_dataloader
 from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
 
 
-# Add more postprocessing steps in this registry
+# Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
-    "run_nms": run_nms,
+    "nms": run_nms,
 }
 
 
@@ -67,13 +67,11 @@ class ObjectDetectionPipeline:
 
             if isinstance(params, list):
                 for p in params:
-                    postprocessing_steps.append(partial(processor, **p))
+                    postprocessing_steps.append(partial(processor, nms_config=p))
 
             elif isinstance(params, dict):
-                if not any(
-                    step.func == globals()[step_name] for step in postprocessing_steps
-                ):
-                    postprocessing_steps.append(partial(globals()[step_name], **params))
+                for p in params:
+                    postprocessing_steps.append(partial(processor, nms_config=[p]))
 
             else:
                 postprocessing_steps.append(partial(processor, **params))
@@ -93,37 +91,18 @@ class ObjectDetectionPipeline:
 
         return image
 
-    def postprocess(self, output, save_sequentially=False):
-        """Process model output using configured postprocessing steps.
+    def postprocess(self, output):
+        """Process model output using configured postprocessing steps."""
 
-        output: ObjectDetectionPipelineOutput
-        save_sequentially (bool): Save postprocessing output sequentially or separately.
-        """
+        processed_output = []
+        for step in self.postprocessing_steps:
+            step.keywords["pred_bboxes"] = output.pred_bboxes
+            step.keywords["image_meter_width"] = self.dataset.image_meter_width
+            step.keywords["image_pixel_width"] = output.width
+            step.keywords["batch_size"] = self.dataset.batch_size
 
-        processed_output = output
-
-        if save_sequentially:
-            # Apply each step sequentially and modify the output progressively
-            for step in self.postprocessing_steps:
-                step.keywords["pred_bboxes"] = processed_output.pred_bboxes
-                step.keywords["image_meter_width"] = self.dataset.image_meter_width
-                step.keywords["image_pixel_width"] = processed_output.width
-                step.keywords["batch_size"] = self.dataset.batch_size
-
-                # Apply the step and update the processed_output
-                processed_output = step(**step.keywords)
-
-        else:
-            # Save results separately
-            processed_output = []
-            for step in self.postprocessing_steps:
-                step.keywords["pred_bboxes"] = output.pred_bboxes
-                step.keywords["image_meter_width"] = self.dataset.image_meter_width
-                step.keywords["image_pixel_width"] = output.width
-                step.keywords["batch_size"] = self.dataset.batch_size
-
-                # Append the result of each step to the list
-                processed_output.append(step(**step.keywords))
+            # Append the result of each step to the list
+            processed_output.append(step(**step.keywords))
 
         return processed_output if processed_output else output
 

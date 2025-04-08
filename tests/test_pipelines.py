@@ -69,17 +69,12 @@ def test_building_postprocessing_params(mock_pipeline):
     assert len(sanitized_steps) == 0
     assert not callable(sanitized_steps)
 
-    postprocessing_params = {"run_nms": {"nms_config": NMSConfig()}}
+    postprocessing_params = {"nms": {"nms_config": NMSConfig()}}
     sanitized_steps = mock_pipeline._build_postprocessing_params(postprocessing_params)
     assert len(sanitized_steps) == 1
     assert callable(sanitized_steps[0])
 
-    postprocessing_params = {
-        "run_nms": [
-            {"nms_config": NMSConfig(conf=0.1)},
-            {"nms_config": NMSConfig(conf=0.3)},
-        ]
-    }
+    postprocessing_params = {"nms": [NMSConfig(conf=0.1), NMSConfig(conf=0.3)]}
     sanitized_steps = mock_pipeline._build_postprocessing_params(postprocessing_params)
     assert len(sanitized_steps) == 2
     print(sanitized_steps)
@@ -87,6 +82,32 @@ def test_building_postprocessing_params(mock_pipeline):
     assert sanitized_steps[0].keywords["nms_config"].conf == 0.1
     assert callable(sanitized_steps[1])
     assert sanitized_steps[1].keywords["nms_config"].conf == 0.3
+
+
+def test_object_detection_pipeline_w_postprocessing_params(mock_pipeline):
+    """Test enabling postprocessing parameters."""
+
+    postprocessing_params = {"nms": [NMSConfig(conf=0.1), NMSConfig(conf=0.3)]}
+
+    # Mock the model to be used in the pipeline
+    mock_model = MagicMock()
+    mock_predict_return = torch.rand((3, 6, 6))
+    mock_model.predict.return_value = mock_predict_return
+
+    # Patch the _load_model method to return the mocked model
+    with patch.object(
+        YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
+    ):
+        dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
+        model_cfg = YOLOv5ModelConfig(weights="dummy/path")
+        config = ObjectDetectionConfig(model=model_cfg)
+
+        pipeline = ObjectDetectionPipeline(config, dataset_cfg, postprocessing_params)
+        pipeline.model = mock_model
+        output = pipeline()
+
+        mock_model.predict.assert_called_once()
+        assert len(output) == 2
 
 
 def test_preprocess(mock_pipeline):
