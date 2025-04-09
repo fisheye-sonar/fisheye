@@ -7,6 +7,7 @@ from fisheye.boxes import run_nms, normalize_boxes_for_tracking
 from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
+from fisheye.error_handling import safe_execution
 from fisheye.format import tracker_output_to_mot
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
@@ -98,6 +99,7 @@ class DetectTrackCountPipeline:
 
         return formatted_crossings
 
+    @safe_execution(default_return=[])
     def run(self, file: List[str] | str) -> List[List[dict]] | List[dict]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
