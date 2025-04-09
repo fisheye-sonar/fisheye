@@ -22,7 +22,7 @@ height. This means we are losing resolution in the warp."""
 class TestARISDataloader:
     """Test the factory function of the ARIS dataloader"""
 
-    # Test with batch sizes smaller and larger than the number of frames
+    # Test with different batch sizes
     @pytest.mark.parametrize("batch_size", [2, 32])
     def test_running_dataloader(self, batch_size):
         config = ARISDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
