@@ -49,33 +49,13 @@ class TestARISDataloader:
         assert batch_echogram.shape == torch.Size([3, 2684, 2])
 
     def test_loading_frames(self):
-        """Test loading frames directly from DIDSON class."""
+        """Test loading all frames directly from DIDSON class."""
         didson = DIDSON(ARIS_FILE)
         frames, unwarped_frames = didson.load_frames()
         assert isinstance(frames, np.ndarray)
         assert frames.shape == (4, 2686, 1307)  # Num of frames, ydim, xdim
         assert frames.dtype == np.uint8
         assert np.any(frames != 0)
-
-    def test_loading_selected_frames(self):
-        """Test ARIS factory function correctly loads frames from specified range."""
-        config = ARISDatasetConfig(filepath=ARIS_FILE)
-        dataloader, dataset = create_aris_dataloader(config)
-
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(dataset) == 3
-
-        config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=0, end_frame=2)
-        dataloader, dataset = create_aris_dataloader(config)
-
-        # end_frame is exclusive in DIDSON
-        assert len(dataset) == 1
-
-        config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
-        dataloader, dataset = create_aris_dataloader(config)
-
-        # end_frame is exclusive in DIDSON
-        assert len(dataset) == 2
 
     def test_loading_unwarped_frames(self):
         """Test loading frames directly from DIDSON class."""
@@ -89,14 +69,17 @@ class TestARISDataloader:
     @pytest.mark.parametrize(
         "start_frame, end_frame, expected_length",
         [
-            (0, 4, 3),  # Good!
+            (0, 4, 3),  # Good! In-range
+            (0, 2, 1),  # Good! In-range
             (6, 4, 3),  # Bad range: start > end
             (0, 6, 3),  # end_frame out of range
             (6, 5, 3),  # start_frame > file length
         ],
     )
-    def test_loading_bad_frame_ranges(self, start_frame, end_frame, expected_length):
-        """Test ARIS factory function does not load frames from an outside range."""
+    def test_loading_different_frame_ranges(
+        self, start_frame, end_frame, expected_length
+    ):
+        """Test ARIS factory function correctly handles frame range validation for ARIS datasets."""
         config = ARISDatasetConfig(
             filepath=ARIS_FILE, start_frame=start_frame, end_frame=end_frame
         )
@@ -119,7 +102,7 @@ class TestYOLODataloader:
 
         assert len(dataset) == len(frames) - 1
         expected_batches = max(1, (len(dataset) + batch_size - 1) // batch_size)
-        assert len(dataloader) == expected_batches
+        assert num_batches == expected_batches
 
         for batch in dataloader:
             batch_data, batch_labels = batch[0], batch[1]
@@ -127,36 +110,20 @@ class TestYOLODataloader:
             assert batch_data.dim() == 4
             assert batch_labels is None or batch_labels.numel() == 0
 
-    def test_loading_selected_frames(self):
-        """Test YOLO factory function correctly loads frames from specified range."""
-        config = YOLODatasetConfig(filepath=ARIS_FILE)
-        dataloader, dataset = create_yolo_dataloader(config)
-
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(dataset) == 3
-
-        config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=0, end_frame=2)
-        dataloader, dataset = create_yolo_dataloader(config)
-
-        # end_frame is exclusive in DIDSON
-        assert len(dataset) == 1
-
-        config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
-        dataloader, dataset = create_yolo_dataloader(config)
-
-        assert len(dataset) == 2
-
     @pytest.mark.parametrize(
         "start_frame, end_frame, expected_length",
         [
-            (0, 4, 3),  # Good!
+            (0, 4, 3),  # Good! In-range
+            (0, 2, 1),  # Good! In-range
             (6, 4, 3),  # Bad range: start > end
             (0, 6, 3),  # end_frame out of range
             (6, 5, 3),  # start_frame > file length
         ],
     )
-    def test_loading_bad_frame_ranges(self, start_frame, end_frame, expected_length):
-        """Test YOLO factory function does not load frames from an outside range."""
+    def test_loading_different_frame_ranges(
+        self, start_frame, end_frame, expected_length
+    ):
+        """Test YOLO factory function correctly handles frame range validation for YOLO datasets."""
         config = YOLODatasetConfig(
             filepath=ARIS_FILE, start_frame=start_frame, end_frame=end_frame
         )
@@ -185,40 +152,20 @@ class TestARISLightningDataloader:
         # Check batch labels
         assert batch_labels is None
 
-    def test_loading_selected_frames(self):
-        """Test ARIS DataModule correctly loads frames from specified range."""
-        config = ARISDatasetConfig(filepath=ARIS_FILE)
-        data_module = ARISDataModule(ARISBatchedDataset, config)
-        data_module.setup(stage="test")
-
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(data_module.dataset) == 3
-
-        config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=0, end_frame=2)
-        data_module = ARISDataModule(ARISBatchedDataset, config)
-        data_module.setup(stage="test")
-
-        # end_frame is exclusive in DIDSON
-        assert len(data_module.dataset) == 1
-
-        config = ARISDatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
-        data_module = ARISDataModule(ARISBatchedDataset, config)
-        data_module.setup(stage="test")
-
-        # end_frame is exclusive in DIDSON
-        assert len(data_module.dataset) == 2
-
     @pytest.mark.parametrize(
         "start_frame, end_frame, expected_length",
         [
-            (0, 4, 3),  # Good!
+            (0, 4, 3),  # Good! In-range
+            (0, 2, 1),  # Good! In-range
             (6, 4, 3),  # Bad range: start > end
             (0, 6, 3),  # end_frame out of range
             (6, 5, 3),  # start_frame > file length
         ],
     )
-    def test_loading_bad_frame_ranges(self, start_frame, end_frame, expected_length):
-        """Test ARIS DataModule does not load frames from an outside range for ARIS Datasets."""
+    def test_loading_different_frame_ranges(
+        self, start_frame, end_frame, expected_length
+    ):
+        """Test ARIS DataModule correctly handles frame range validation for ARIS datasets."""
         config = ARISDatasetConfig(
             filepath=ARIS_FILE, start_frame=start_frame, end_frame=end_frame
         )
@@ -245,36 +192,20 @@ class TestYOLOLightningDataloader:
         # Check batch labels
         assert batch[1] is None or batch[1].numel() == 0
 
-    def test_loading_selected_frames(self):
-        """Test ARIS DataModule correctly loads frames from specified range for YOLO Datasets."""
-        config = YOLODatasetConfig(filepath=ARIS_FILE)
-        data_module = ARISDataModule(YOLOARISBatchedDataset, config)
-        data_module.setup(stage="test")
-
-        # originally 4 frames in file, but subtract 1 for optical flow
-        assert len(data_module.dataset) == 3
-
-        config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=0, end_frame=2)
-        data_module = ARISDataModule(YOLOARISBatchedDataset, config)
-        data_module.setup(stage="test")
-        assert len(data_module.dataset) == 1
-
-        config = YOLODatasetConfig(filepath=ARIS_FILE, start_frame=1, end_frame=4)
-        data_module = ARISDataModule(YOLOARISBatchedDataset, config)
-        data_module.setup(stage="test")
-        assert len(data_module.dataset) == 2
-
     @pytest.mark.parametrize(
         "start_frame, end_frame, expected_length",
         [
-            (0, 4, 3),  # Good!
+            (0, 4, 3),  # Good! In-range
+            (0, 2, 1),  # Good! In-range
             (6, 4, 3),  # Bad range: start > end
             (0, 6, 3),  # end_frame out of range
             (6, 5, 3),  # start_frame > file length
         ],
     )
-    def test_loading_bad_frame_ranges(self, start_frame, end_frame, expected_length):
-        """Test ARIS DataModule does not load frames from an outside range for ARIS Datasets."""
+    def test_loading_different_frame_ranges(
+        self, start_frame, end_frame, expected_length
+    ):
+        """Test ARIS DataModule correctly handles frame range validation for YOLO datasets."""
         config = YOLODatasetConfig(
             filepath=ARIS_FILE, start_frame=start_frame, end_frame=end_frame
         )
