@@ -15,7 +15,12 @@ def to_csv(data, out_dir):
     2. A summary CSV with net counts per ARIS/DDF file.
     """
     out_file = os.path.join(out_dir, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-    flattened_data = [item for sublist in data for item in sublist]
+    flattened_data = [item for sublist in data if sublist for item in sublist]
+    if not flattened_data:
+        raise ValueError(
+            f"No counts were found in the provided data. Nothing to export."
+        )
+
     df = pd.DataFrame(flattened_data)
     # Save off all track counts to CSV
     df.to_csv(out_file + ".csv", index=False)

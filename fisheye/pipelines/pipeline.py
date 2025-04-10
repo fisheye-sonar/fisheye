@@ -7,6 +7,7 @@ from fisheye.boxes import run_nms, normalize_boxes_for_tracking
 from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
+from fisheye.generic import safe_execution
 from fisheye.format import tracker_output_to_mot
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
@@ -24,7 +25,8 @@ class DetectTrackCountPipeline:
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
         self.nms_config = NMSConfig()
 
-    def _run(self, file: str):
+    @safe_execution(default_return=[])
+    def _run(self, file: str) -> List:
         dataset_cfg = YOLODatasetConfig(filepath=file)
         detections = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg).run()
 
