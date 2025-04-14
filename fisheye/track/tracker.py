@@ -8,7 +8,6 @@ from tqdm import tqdm
 
 from fisheye.configs.inference import TrackerConfig, FishSizeConfig, TrackerOutput
 from fisheye.enums import TrackingMethod
-from fisheye.logging import log_progress
 from fisheye.track.bytetrack import ByteTracker
 from fisheye.track.sort import Sort
 from fisheye.track.utils import FishMetrics
@@ -227,7 +226,6 @@ def run_tracker(
 
             tracker.update(boxes)
             pbar.update(1)
-            log_progress(logger, i, len(low_preds), prefix="Tracker progress | ")
 
     json_data = tracker.finalize(
         min_length=min_length, min_travel=tracking_config.min_travel
