@@ -19,7 +19,6 @@ class BaseDatasetConfig:
     rank: int = -1
     world_size: int = 1
     workers: int = 0
-    disable_output: bool = False
     cache_bg_frames: bool = False
     do_bg_subtract: bool = True
     start_frame: int = 0  # Default to first frame (zero-indexed)

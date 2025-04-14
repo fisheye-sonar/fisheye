@@ -1,16 +1,23 @@
 import argparse
+import logging
 import time
 from typing import List
 
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
 from fisheye.export import get_exporter
+from fisheye.logging import setup_logging
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
+
+
+setup_logging(modules=["dataloaders", "pipelines", "track", "count", "export"])
+
+logger = logging.getLogger(__name__)
 
 
 def main(path: List[str] | str, weights, export_format: str, output_dir: str):
     model_cfg = YOLOv5ModelConfig(weights=weights)
     detection_cfg = ObjectDetectionConfig(model=model_cfg)
-
+    logger.info("Pipeline started 🚀")
     results = DetectTrackCountPipeline(detection_cfg).run(path)
 
     if export_format:
@@ -50,4 +57,4 @@ if __name__ == "__main__":
     results = main(args.path, args.weights, args.export_format, args.output_dir)
     end = time.time()
 
-    print(f"Total inference time: {end - start:.2f} seconds")
+    logger.info(f"Total inference time: {end - start:.2f} seconds")
