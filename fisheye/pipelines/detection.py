@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Dict, Any, Optional
 
+import logging
 from fisheye.configs import (
     YOLODatasetConfig,
     ObjectDetectionPipelineOutput,
@@ -10,12 +11,14 @@ from fisheye.configs import (
 from fisheye.boxes import run_nms
 from fisheye.dataloaders.yolo import create_yolo_dataloader
 from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
-
+from fisheye.logging import log_progress
 
 # Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
     "nms": run_nms,
 }
+
+logger = logging.getLogger(__name__)
 
 
 class ObjectDetectionPipeline:
@@ -42,6 +45,9 @@ class ObjectDetectionPipeline:
             YOLOv5ObjectDetectionModel(model)
             if isinstance(model.weights, str)
             else model.weights
+        )
+        logger.info(
+            f"Initialized model: {type(self.model).__name__} on device {self.device}"
         )
 
         self.dataloader, self.dataset = create_yolo_dataloader(dataset_config)
@@ -127,6 +133,10 @@ class ObjectDetectionPipeline:
             image_shapes.append(batch_shape)
             inference.append(inf_out)
 
+            log_progress(
+                logger, batch_idx, len(self.dataloader), prefix="Detector progress | "
+            )
+
         return inference, image_shapes, width, height
 
     def run(self, *args, **kwargs):
@@ -135,6 +145,7 @@ class ObjectDetectionPipeline:
         Returns:
             List[Any]: Processed detection results.
         """
+        logger.info("Running object detection pipeline...")
         output = ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))
 
         return output if not self.postprocessing_steps else self.postprocess(output)

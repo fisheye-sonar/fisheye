@@ -1,4 +1,5 @@
 import json
+import logging
 from collections import Counter
 from copy import deepcopy
 
@@ -10,6 +11,10 @@ from fisheye.enums import TrackingMethod
 from fisheye.track.bytetrack import ByteTracker
 from fisheye.track.sort import Sort
 from fisheye.track.utils import FishMetrics
+
+logger = logging.getLogger(__name__)
+
+logger.info("Tracking module initialized.")
 
 # Add any new trackers here
 TRACKER_CLASSES = {
@@ -184,6 +189,7 @@ def run_tracker(
     verbose=True,
 ):
     """Factory method to run tracker."""
+    logger.info(f"Running tracker using {tracking_config.type}...")
     if gp:
         gp(0, f"Tracking using {tracking_config}...")
 

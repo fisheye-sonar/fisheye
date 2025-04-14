@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 from typing import Dict, Callable, Any
@@ -5,6 +6,9 @@ from typing import Dict, Callable, Any
 import pandas as pd
 
 from fisheye.enums import ExportType
+
+
+logger = logging.getLogger(__name__)
 
 
 def to_csv(data, out_dir):
@@ -50,7 +54,7 @@ def to_csv(data, out_dir):
     # Save off the absolute left counts, absolute right counts, absolute net counts for each ARIS/DDF file to CSV
     final_result.to_csv(out_file + "_summary.csv", index=False)
 
-    print(f"Exported results to {out_dir}")
+    logger.info(f"Exported results to {out_dir}")
 
 
 # Add any new export functions here

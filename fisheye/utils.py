@@ -14,9 +14,6 @@ def torch_distributed_zero_first(rank):
 
 def yolo_collate_fn(batch):
     """See ScaledYOLOv4.utils.datasets.collate_fn"""
-    if not len(batch):
-        print("help!")
-        print(batch)
 
     img, label, shapes = zip(*batch)  # transposed
     for i, l in enumerate(label):

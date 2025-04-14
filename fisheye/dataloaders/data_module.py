@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -10,6 +11,9 @@ from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
 
 BASE = Path(__file__).parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
+
+
+logger = logging.getLogger(__name__)
 
 
 class ARISDataModule(pl.LightningDataModule):
@@ -27,7 +31,6 @@ class ARISDataModule(pl.LightningDataModule):
             num_workers (int): Number of workers for data loading.
             world_size (int): Number of distributed processes.
             rank (int): Rank of the current process in distributed training.
-            disable_output (bool): Whether to disable console output.
         """
         super().__init__()
         self.dataset_cls = dataset_cls
@@ -36,7 +39,6 @@ class ARISDataModule(pl.LightningDataModule):
         self.num_workers = dataset_config.workers
         self.world_size = dataset_config.world_size
         self.rank = dataset_config.rank
-        self.disable_output = dataset_config.disable_output
         self.dataset = None
         self.dataloader = None
 
@@ -55,9 +57,9 @@ class ARISDataModule(pl.LightningDataModule):
             ]
         )
 
-        if not self.disable_output:
-            print(f"Dataset size: {len(self.dataset)}")
-            print(f"Num workers: {self.num_workers}")
+        logger.info(
+            f"Dataset size: {len(self.dataset)}, Number of workers: {self.num_workers}"
+        )
 
     def get_dataloader(self):
         """Returns a DataLoader with the correct collate function."""

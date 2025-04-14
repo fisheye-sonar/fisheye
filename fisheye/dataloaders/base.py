@@ -20,7 +20,6 @@ class BaseDataset(Dataset):
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
         :param batch_size (int): Batch size. Defaults to 32.
         :param num_frames_bg_subtract: Number of frames to subtract from the background image. Defaults to 1000.
-        :param disable_output (bool): Whether to disable output. Defaults to False.
         :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
         :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
         """
@@ -33,7 +32,6 @@ class BaseDataset(Dataset):
         self.image_meter_height = config.image_meter_height
         self.beam_width_dir = config.beam_width_dir
         self.batch_size = config.batch_size
-        self.disable_output = config.disable_output
         self.cache_bg_frames = config.cache_bg_frames
         self.num_frames_bg_subtract = config.num_frames_bg_subtract
         self.do_bg_subtract = config.do_bg_subtract

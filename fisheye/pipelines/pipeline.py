@@ -1,3 +1,4 @@
+import logging
 import os
 from dataclasses import asdict
 from pathlib import Path
@@ -11,6 +12,9 @@ from fisheye.generic import safe_execution
 from fisheye.format import tracker_output_to_mot
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
+
+
+logger = logging.getLogger(__name__)
 
 
 class DetectTrackCountPipeline:
@@ -27,6 +31,7 @@ class DetectTrackCountPipeline:
 
     @safe_execution(default_return=[])
     def _run(self, file: str) -> List:
+        logging.info(f"Currently processing {file}")
         dataset_cfg = YOLODatasetConfig(filepath=file)
         detections = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg).run()
 
@@ -144,7 +149,7 @@ class DetectTrackCountPipeline:
             valid_files = [f for f in file if is_valid_path(f) or is_valid_directory(f)]
 
             if len(valid_files) < len(file):
-                print(
+                logger.info(
                     f"Skipping invalid file path(s): {', '.join(set(file) - set(valid_files))}"
                 )
 

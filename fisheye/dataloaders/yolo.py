@@ -1,3 +1,4 @@
+import logging
 import os
 import warnings
 
@@ -11,6 +12,9 @@ from fisheye.configs import YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset
 from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
+
+
+logger = logging.getLogger(__name__)
 
 
 class YOLOARISBatchedDataset(ARISBatchedDataset):
@@ -123,6 +127,7 @@ def create_yolo_dataloader(config: YOLODatasetConfig):
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     # this is a no-op for a single-gpu machine
     with torch_distributed_zero_first(config.rank):
+        logger.info(f"Initializing dataloader using {type(config).__name__}")
         dataset = YOLOARISBatchedDataset(config)
 
     if len(dataset) == 0:
@@ -141,10 +146,9 @@ def create_yolo_dataloader(config: YOLODatasetConfig):
         ]
     )  # number of workers
 
-    if not config.disable_output:
-        print("Dataset size", len(dataset))
-        print("Dataset shape", dataset.shape)
-        print("Num workers", nw)
+    logger.info(
+        f"Dataset size: {len(dataset)}, Dataset shape: {dataset.shape}, Number of workers: {nw}"
+    )
 
     dataloader = torch.utils.data.dataloader.DataLoader(
         dataset,

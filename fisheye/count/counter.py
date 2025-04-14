@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from typing import List
 
@@ -5,6 +6,8 @@ import pandas as pd
 
 from fisheye.count.base import BaseCounter
 from fisheye.enums import CountingMethod
+
+logger = logging.getLogger(__name__)
 
 
 class LOICounter(BaseCounter):
@@ -72,12 +75,17 @@ class Count:
         Returns:
             tuple: (absolute_left_count, absolute_right_count)
         """
+        logger.info(f"Counting tracks using {self.protocol}.")
         mot_df = pd.DataFrame(tracks)
         if not mot_df.empty:
             # Calculate the center point of the bounding box
             mot_df["kp_x"] = mot_df["bb_left"] + mot_df["bb_width"] / 2
             mot_df["kp_y"] = mot_df["bb_top"] + mot_df["bb_height"] / 2
 
+            logger.info(f"Completed counting tracks using {self.protocol}.")
+
             return self.counter.count(mot_df)
+
+        logger.info(f"No tracks present.")
         # If no tracks present (empty dataframe) return 0 for both left and right counts
         return (0, 0), None
