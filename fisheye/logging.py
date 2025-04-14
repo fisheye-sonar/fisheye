@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 
-def log_progress(logger, current: int, total: int, prefix: str = "", every: int = 5):
+def log_progress(logger, current: int, total: int, prefix: str = "", every: int = 10):
     """
     Logs percentage progress using a given logger.
 
@@ -32,6 +32,7 @@ def setup_logging(
     max_bytes: int = 10 * 1024 * 1024,  # 10MB
     backup_count: int = 5,
     modules: list[str] = None,
+    file_logging: bool = False,
 ) -> None:
     """
     Configure logging across modules.
@@ -42,8 +43,8 @@ def setup_logging(
         max_bytes: Max size of each log file before rotation.
         backup_count: Number of rotated log files to keep.
         modules: Optional list of module names to configure separately.
+        file_logging: Enable or disable logging to local file(s).
     """
-    Path(base_log_dir).mkdir(parents=True, exist_ok=True)
 
     formatter = logging.Formatter(
         fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -57,7 +58,8 @@ def setup_logging(
     root_logger.setLevel(level)
     root_logger.addHandler(console_handler)
 
-    if modules:
+    if file_logging and modules:
+        Path(base_log_dir).mkdir(parents=True, exist_ok=True)
         for module in modules:
             logger = logging.getLogger(f"fisheye.{module}")
             log_path = os.path.join(base_log_dir, f"{module}.log")

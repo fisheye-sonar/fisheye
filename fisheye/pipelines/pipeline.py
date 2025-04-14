@@ -31,6 +31,7 @@ class DetectTrackCountPipeline:
 
     @safe_execution(default_return=[])
     def _run(self, file: str) -> List:
+        logging.info(f"Currently processing {file}")
         dataset_cfg = YOLODatasetConfig(filepath=file)
         detections = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg).run()
 
