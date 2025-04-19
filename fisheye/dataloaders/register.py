@@ -21,3 +21,22 @@ class DataloaderRegistry:
 # Manually register when creating new dataloaders
 DataloaderRegistry.register("aris", ARISBatchedDataset)
 DataloaderRegistry.register("yolo", YOLOARISBatchedDataset)
+
+
+_DATASET_REGISTRY = {}
+
+
+def register_dataset(config_type):
+    def wrapper(dataset_cls):
+        _DATASET_REGISTRY[config_type] = dataset_cls
+        return dataset_cls
+
+    return wrapper
+
+
+def get_dataset_for_config(config):
+    config_type = type(config)
+    if config_type not in _DATASET_REGISTRY:
+        raise ValueError(f"No dataset registered for config type: {config_type}")
+    dataset_cls = _DATASET_REGISTRY[config_type]
+    return dataset_cls(config)

@@ -5,9 +5,9 @@ from pathlib import Path
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
-from fisheye.configs import ARISDatasetConfig
+from fisheye.configs import BaseDatasetConfig
 from fisheye.dataloaders.samplers import OnePerBatchSampler
-from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
+from fisheye.common import torch_distributed_zero_first, yolo_collate_fn
 
 BASE = Path(__file__).parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
@@ -22,7 +22,7 @@ class ARISDataModule(pl.LightningDataModule):
     A PyTorch Lightning DataModule for ARIS data.
     """
 
-    def __init__(self, dataset_cls, dataset_config: ARISDatasetConfig):
+    def __init__(self, dataset_cls, dataset_config: BaseDatasetConfig):
         """
         Args:
             dataset_cls (Dataset): The dataset class to be used (e.g., ARISBatchedDataset, YOLOBatchedDataset)

@@ -5,7 +5,7 @@ from typing import List
 
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
 from fisheye.export import get_exporter
-from fisheye.logging import setup_logging
+from fisheye.common.logging import setup_logging
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 
 
@@ -45,8 +45,8 @@ if __name__ == "__main__":
         required=False,
         type=str,
         default=None,
-        choices=["csv", None],
-        help="Export results to 'csv' or 'text' format. Leave empty for no export.",
+        choices=["csv", "txt", None],
+        help="Export results to 'csv' or 'txt' format. Leave empty for no export.",
     )
 
     parser.add_argument(

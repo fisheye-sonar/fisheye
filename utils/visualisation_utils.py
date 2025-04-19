@@ -3,7 +3,7 @@ from PIL import Image
 import cv2
 from scipy.ndimage import zoom
 
-from fisheye.dataloaders.aris import create_aris_dataloader
+from fisheye.dataloaders import create_dataloader
 from utils.generate_echograms import make_echogram_image, zero_pad_to_match_one_dim
 
 
@@ -117,7 +117,7 @@ def generate_echogram_vis_from_aris(
     echogram_filter_kernel=0,
     echogram_filter_tol=0.15,
 ):
-    dataloader, dataset = create_aris_dataloader(config)
+    dataloader, dataset = create_dataloader(config)
 
     echograms = []
     frames_vis = []

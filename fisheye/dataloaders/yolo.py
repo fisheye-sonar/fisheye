@@ -1,6 +1,4 @@
 import logging
-import os
-import warnings
 
 import cv2
 import numpy as np
@@ -10,9 +8,6 @@ from yolov5.utils.general import xyxy2xywh
 
 from fisheye.configs import YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset
-from fisheye.dataloaders.samplers import OnePerBatchSampler
-from fisheye.utils import torch_distributed_zero_first, yolo_collate_fn
-
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +27,12 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         self.stride = config.stride
         self.pad = config.pad
         self.img_size = config.img_size
-        self.original_shape = (self.ydim, self.xdim)
+        self.original_shape = (self.metadata.ydim, self.metadata.xdim)
         self.shape = self._compute_resized_shape()
 
     def _compute_resized_shape(self):
         """Computes the shape for resizing images based on aspect ratio."""
-        aspect_ratio = self.ydim / self.xdim
+        aspect_ratio = self.original_shape[0] / self.original_shape[1]
         shape = [1, 1 / aspect_ratio] if aspect_ratio > 1 else [aspect_ratio, 1]
         return (
             np.ceil(np.array(shape) * self.img_size / self.stride + self.pad).astype(
@@ -118,44 +113,3 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             return labels_out
 
         return torch.zeros((0, 6))
-
-
-def create_yolo_dataloader(config: YOLODatasetConfig):
-    """
-    Get a PyTorch Dataset and DataLoader for ARIS files.
-    """
-    # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
-    # this is a no-op for a single-gpu machine
-    with torch_distributed_zero_first(config.rank):
-        logger.info(f"Initializing dataloader using {type(config).__name__}")
-        dataset = YOLOARISBatchedDataset(config)
-
-    if len(dataset) == 0:
-        warnings.warn(
-            "Warning: Dataset contains no valid frames or has incorrect start and end frame indexes, "
-            "preventing frame extraction."
-        )
-        return None, None
-
-    batch_size = min(config.batch_size, len(dataset))
-    nw = min(
-        [
-            os.cpu_count() // config.world_size,
-            batch_size if batch_size > 1 else 0,
-            config.workers,
-        ]
-    )  # number of workers
-
-    logger.info(
-        f"Dataset size: {len(dataset)}, Dataset shape: {dataset.shape}, Number of workers: {nw}"
-    )
-
-    dataloader = torch.utils.data.dataloader.DataLoader(
-        dataset,
-        batch_size=None,
-        sampler=OnePerBatchSampler(data_source=dataset, batch_size=batch_size),
-        num_workers=nw,
-        pin_memory=True,
-        collate_fn=yolo_collate_fn,
-    )
-    return dataloader, dataset

@@ -15,8 +15,6 @@ class BaseDataset(Dataset):
         """
         :param start_frame (int): Index of the start frame.
         :param end_frame (int): Index of the end frame.
-        :param xdim (int): X dimension.
-        :param ydim (int): Y dimension.
         :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
         :param batch_size (int): Batch size. Defaults to 32.
         :param num_frames_bg_subtract: Number of frames to subtract from the background image. Defaults to 1000.
@@ -26,10 +24,10 @@ class BaseDataset(Dataset):
 
         self.start_frame = config.start_frame
         self.end_frame = config.end_frame
-        self.xdim = config.xdim
-        self.ydim = config.ydim
-        self.image_meter_width = config.image_meter_width
-        self.image_meter_height = config.image_meter_height
+        # self.xdim = config.xdim
+        # self.ydim = config.ydim
+        # self.image_meter_width = config.image_meter_width
+        # self.image_meter_height = config.image_meter_height
         self.beam_width_dir = config.beam_width_dir
         self.batch_size = config.batch_size
         self.cache_bg_frames = config.cache_bg_frames

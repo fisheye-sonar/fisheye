@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from typing import List
 
+import numpy as np
 import pandas as pd
 
 from fisheye.count.base import BaseCounter
@@ -26,14 +27,27 @@ class LOICounter(BaseCounter):
             first_x = x_coords[0]
             last_x = x_coords[-1]
 
+            # Find the index of the point closest to the line
+            distances = np.abs(x_coords - line)
+            closest_idx = np.argmin(distances)
+
+            bb_left = track_df["bb_left"].values[closest_idx]
+            bb_top = track_df["bb_top"].values[closest_idx]
+            bb_width = track_df["bb_width"].values[closest_idx]
+            bb_height = track_df["bb_height"].values[closest_idx]
+            closest_frame = (
+                int(frames[closest_idx]) - 1
+            )  # Subtract 1 since it was for MOT format
+            bbox = [bb_left, bb_top, bb_width, bb_height]
+
             # Determine initial and final positions
             if last_x <= line < first_x:
                 track_counts[track]["left"] += 1
-                crossing_frames["left"].append((track, int(frames[-1])))
+                crossing_frames["left"].append((track, closest_frame, bbox))
 
             elif last_x >= line > first_x:
                 track_counts[track]["right"] += 1
-                crossing_frames["right"].append((track, int(frames[-1])))
+                crossing_frames["right"].append((track, closest_frame, bbox))
 
         return self._calculate_absolute_counts(track_counts), crossing_frames
 

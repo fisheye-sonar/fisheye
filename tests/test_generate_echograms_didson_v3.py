@@ -1,13 +1,13 @@
 from conftest import DDF_FILE
 
-from fisheye.configs import ARISDatasetConfig
+from fisheye.configs import BaseDatasetConfig
 from utils.visualisation_utils import generate_echogram_gif_from_aris
 
 """Same as test_generate_echograms but using didson version 3 file type"""
 
 
 def test_generate_echogram_gif_from_small_aris():
-    config = ARISDatasetConfig(
+    config = BaseDatasetConfig(
         filepath=DDF_FILE,
         return_unwarped=False,
         return_echogram=True,
@@ -22,7 +22,7 @@ def test_generate_echogram_gif_from_small_aris():
 
 
 def test_generate_echogram_gif_from_small_aris_filter():
-    config = ARISDatasetConfig(
+    config = BaseDatasetConfig(
         filepath=DDF_FILE,
         return_unwarped=False,
         return_echogram=True,
@@ -39,7 +39,7 @@ def test_generate_echogram_gif_from_small_aris_filter():
 
 
 def test_generate_echogram_gif_from_small_aris_no_echo_pop():
-    config = ARISDatasetConfig(
+    config = BaseDatasetConfig(
         filepath=DDF_FILE,
         return_unwarped=False,
         return_echogram=True,
@@ -54,7 +54,7 @@ def test_generate_echogram_gif_from_small_aris_no_echo_pop():
 
 
 def test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered():
-    config = ARISDatasetConfig(
+    config = BaseDatasetConfig(
         filepath=DDF_FILE,
         return_unwarped=False,
         return_echogram=True,
@@ -72,7 +72,7 @@ def test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered():
 
 
 def test_generate_echogram_gif_from_small_aris_no_echo_pop_filtered_pad():
-    config = ARISDatasetConfig(
+    config = BaseDatasetConfig(
         filepath=DDF_FILE,
         return_unwarped=False,
         return_echogram=True,
