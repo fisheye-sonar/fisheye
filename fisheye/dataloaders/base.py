@@ -24,10 +24,6 @@ class BaseDataset(Dataset):
 
         self.start_frame = config.start_frame
         self.end_frame = config.end_frame
-        # self.xdim = config.xdim
-        # self.ydim = config.ydim
-        # self.image_meter_width = config.image_meter_width
-        # self.image_meter_height = config.image_meter_height
         self.beam_width_dir = config.beam_width_dir
         self.batch_size = config.batch_size
         self.cache_bg_frames = config.cache_bg_frames
