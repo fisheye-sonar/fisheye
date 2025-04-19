@@ -22,3 +22,4 @@ class ExportType(str, Enum):
 
     NONE = "none"
     CSV = "csv"
+    TXT = "txt"

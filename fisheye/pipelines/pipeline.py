@@ -8,7 +8,7 @@ from fisheye.boxes import run_nms, normalize_boxes_for_tracking
 from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
-from fisheye.generic import safe_execution
+from fisheye.common.generic import safe_execution
 from fisheye.format import tracker_output_to_mot
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
@@ -33,13 +33,16 @@ class DetectTrackCountPipeline:
     def _run(self, file: str) -> List:
         logging.info(f"Currently processing {file}")
         dataset_cfg = YOLODatasetConfig(filepath=file)
-        detections = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg).run()
+        detector = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg)
+        detections = detector()
+
+        metadata = detector.metadata
 
         # Get low confidence for ByteTrack
         self.nms_config.conf = 0.1
         low_output = run_nms(
             detections.pred_bboxes,
-            dataset_cfg.image_meter_width,
+            metadata.image_meter_width,
             detections.width,
             dataset_cfg.batch_size,
             self.nms_config,
@@ -49,7 +52,7 @@ class DetectTrackCountPipeline:
         self.nms_config.conf = 0.3
         high_output = run_nms(
             detections.pred_bboxes,
-            dataset_cfg.image_meter_width,
+            metadata.image_meter_width,
             detections.width,
             dataset_cfg.batch_size,
             self.nms_config,
@@ -74,8 +77,8 @@ class DetectTrackCountPipeline:
         tracker_output = run_tracker(
             low_preds,
             high_preds,
-            dataset_cfg.image_meter_width,
-            dataset_cfg.image_meter_height,
+            metadata.image_meter_width,
+            metadata.image_meter_height,
             self.tracker_cfg,
         )
 
@@ -89,19 +92,24 @@ class DetectTrackCountPipeline:
                     "direction": "left",
                     "frame_id": frame,
                     "file_name": Path(file).name,
+                    "bbox": bbox,
+                    "metadata": metadata,
                 }
-                for track, frame in crossing_frames["left"]
+                for track, frame, bbox in crossing_frames["left"]
             ] + [
                 {
                     "fish_id": track,
                     "direction": "right",
                     "frame_id": frame,
                     "file_name": Path(file).name,
+                    "bbox": bbox,
+                    "metadata": metadata,
                 }
-                for track, frame in crossing_frames["right"]
+                for track, frame, bbox in crossing_frames["right"]
             ]
         else:
             formatted_crossings = []
+            logger.info(f"No crossing frames detected for {file}")
 
         return formatted_crossings
 

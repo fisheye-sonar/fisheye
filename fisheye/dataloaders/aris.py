@@ -1,14 +1,10 @@
 import logging
-import os
 import warnings
 
-import torch
-
-from fisheye.configs import ARISDatasetConfig
+from fisheye.configs import BaseDatasetConfig
+from fisheye.configs.datasets import ARISMetadata
 from fisheye.dataloaders.base import BaseDataset
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
-from fisheye.dataloaders.samplers import OnePerBatchSampler
-from fisheye.utils import torch_distributed_zero_first
 
 logger = logging.getLogger(__name__)
 
@@ -19,23 +15,38 @@ class ARISBatchedDataset(BaseDataset):
     A Dataset class for loading an ARIS file, loading the frames, and applying background subtraction.
     """
 
-    def __init__(self, config: ARISDatasetConfig):
-        """
-
-        :param config: ARISDatasetConfig
-        """
+    def __init__(self, config: BaseDatasetConfig):
         try:
             self.didson = DIDSON(config.filepath, beam_width_dir=config.beam_width_dir)
         except Exception as e:
             raise RuntimeError(f"Could not load {config.filepath}: {e}")
 
         config.start_frame, config.end_frame = self._validate_frame_range(config=config)
-
-        config.xdim, config.ydim = self.didson.info["xdim"], self.didson.info["ydim"]
-        config.image_meter_width = config.xdim * self.didson.info["pixel_meter_width"]
-        config.image_meter_height = config.ydim * self.didson.info["pixel_meter_height"]
+        self.metadata = self._extract_metadata()
 
         super().__init__(config)
+
+    def _extract_metadata(self) -> ARISMetadata:
+        info = self.didson.info
+        return ARISMetadata(
+            xdim=info.get("xdim", 0),
+            ydim=info.get("ydim", 0),
+            image_meter_width=info["xdim"] * info["pixel_meter_width"],
+            image_meter_height=info["ydim"] * info["pixel_meter_height"],
+            pixel_meter_size=info.get("pixel_meter_width", 0),
+            x_meter_start=info.get("x_meter_start", 0),
+            x_meter_stop=info.get("x_meter_stop", 0),
+            y_meter_start=info.get("y_meter_start", 0),
+            y_meter_stop=info.get("y_meter_stop", 0),
+            sampleperiod=info.get("sampleperiod", 0),
+            soundspeed=info.get("soundspeed", 0),
+            windowstart=info.get("windowstart", 0),
+            samplesperbeam=info.get("samplesperbeam", 0),
+            BeamCount=info.get("BeamCount", 0),
+            thesystemtype=info.get("thesystemtype", 0),
+            largelens=info.get("largelens", 0),
+            numframes=info.get("numframes", 0),
+        )
 
     def load_frames(self, start_frame, end_frame, return_unwarped=False):
         """Load ARIS frames."""
@@ -81,41 +92,3 @@ class ARISBatchedDataset(BaseDataset):
             )
 
         return config.start_frame, config.end_frame
-
-
-def create_aris_dataloader(config: ARISDatasetConfig):
-    """
-    Get a PyTorch Dataset and DataLoader for ARIS files.
-    """
-    # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
-    # this is a no-op for a single-gpu machine
-    with torch_distributed_zero_first(config.rank):
-        logger.info(f"Initializing dataloader using {type(config).__name__}")
-        dataset = ARISBatchedDataset(config)
-
-    if len(dataset) == 0:
-        warnings.warn(
-            "Warning: Dataset contains no valid frames or has incorrect start and end frame indexes, "
-            "preventing frame extraction."
-        )
-        return None, None
-
-    batch_size = min(config.batch_size, len(dataset))
-    nw = min(
-        [
-            os.cpu_count() // config.world_size,
-            batch_size if batch_size > 1 else 0,
-            config.workers,
-        ]
-    )  # number of workers
-
-    logger.info(f"Dataset size: {len(dataset)}, Number of workers: {nw}")
-
-    dataloader = torch.utils.data.dataloader.DataLoader(
-        dataset,
-        batch_size=None,
-        sampler=OnePerBatchSampler(data_source=dataset, batch_size=batch_size),
-        num_workers=nw,
-        pin_memory=True,
-    )
-    return dataloader, dataset

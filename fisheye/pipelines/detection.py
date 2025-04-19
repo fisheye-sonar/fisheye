@@ -9,9 +9,9 @@ from fisheye.configs import (
 )
 
 from fisheye.boxes import run_nms
-from fisheye.dataloaders.yolo import create_yolo_dataloader
+from fisheye.dataloaders import create_dataloader
 from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
-from fisheye.logging import log_progress
+from fisheye.common.logging import log_progress
 
 # Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
@@ -50,7 +50,8 @@ class ObjectDetectionPipeline:
             f"Initialized model: {type(self.model).__name__} on device {self.device}"
         )
 
-        self.dataloader, self.dataset = create_yolo_dataloader(dataset_config)
+        self.dataloader, self.dataset = create_dataloader(dataset_config)
+        self.metadata = self.dataset.metadata
         self.postprocessing_steps = (
             self._build_postprocessing_params(postprocessing_params)
             if postprocessing_params
@@ -97,7 +98,7 @@ class ObjectDetectionPipeline:
         processed_output = []
         for step in self.postprocessing_steps:
             step.keywords["pred_bboxes"] = output.pred_bboxes
-            step.keywords["image_meter_width"] = self.dataset.image_meter_width
+            step.keywords["image_meter_width"] = self.metadata.image_meter_width
             step.keywords["image_pixel_width"] = output.width
             step.keywords["batch_size"] = self.dataset.batch_size
 

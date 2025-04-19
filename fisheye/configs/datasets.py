@@ -11,11 +11,8 @@ class BaseDatasetConfig:
     """Base dataset configuration."""
 
     beam_width_dir: Path = BEAM_WIDTH_DIR
+    filepath: str = ""
     batch_size: int = 32
-    xdim: int = 0
-    ydim: int = 0
-    image_meter_width: int = 0
-    image_meter_height: int = 0
     rank: int = -1
     world_size: int = 1
     workers: int = 0
@@ -32,16 +29,33 @@ class BaseDatasetConfig:
 
 
 @dataclass
-class ARISDatasetConfig(BaseDatasetConfig):
-    """ARIS dataset configuration."""
+class ARISMetadata:
+    """Metadata extracted from the ARIS file header.
 
-    filepath: str = ""
-    image_meter_width = None
-    image_meter_height = None
+    Using the same variable names from DIDSON.
+    """
+
+    xdim: int
+    ydim: int
+    image_meter_width: int
+    image_meter_height: int
+    pixel_meter_size: float
+    x_meter_start: float
+    x_meter_stop: float
+    y_meter_start: float
+    y_meter_stop: float
+    sampleperiod: float
+    soundspeed: float
+    windowstart: float
+    samplesperbeam: float
+    BeamCount: int
+    thesystemtype: int
+    numframes: int
+    largelens: int
 
 
 @dataclass
-class YOLODatasetConfig(ARISDatasetConfig):
+class YOLODatasetConfig(BaseDatasetConfig):
     """YOLO dataset configuration."""
 
     stride: int = 64

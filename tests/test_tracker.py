@@ -84,7 +84,7 @@ def test_invalid_tracker_types():
         run_tracker(
             low_preds,
             high_preds,
-            config.image_meter_width,
-            config.image_meter_height,
+            11.368606870117187,
+            23.060770468749997,
             tracking_config,
         )

@@ -3,16 +3,15 @@ import pytest
 import torch
 
 from fisheye.dataloaders import (
-    create_aris_dataloader,
+    create_dataloader,
     ARISBatchedDataset,
     YOLOARISBatchedDataset,
 )
 from fisheye.dataloaders.data_module import ARISDataModule
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
 from conftest import CORRUPTED_FILE, DDF_FILE, SHORTENED_DDF_FILE
-from fisheye.dataloaders.yolo import create_yolo_dataloader
 
-from fisheye.configs import ARISDatasetConfig, YOLODatasetConfig
+from fisheye.configs import BaseDatasetConfig, YOLODatasetConfig
 
 """The same as test_dataloaders but now running on a didson version 3 file NOTE: Currently the warped images are 
 being returned as [486, 300], this is smaller than the unwarped images [512, 96] when it should be at least the same 
@@ -25,8 +24,8 @@ class TestARISDataloader:
     # Test with different batch sizes
     @pytest.mark.parametrize("batch_size", [2, 32])
     def test_running_dataloader(self, batch_size):
-        config = ARISDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
-        dataloader, dataset = create_aris_dataloader(config)
+        config = BaseDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
+        dataloader, dataset = create_dataloader(config)
         assert len(dataset) == 133
         expected_batches = max(1, (len(dataset) + batch_size - 1) // batch_size)
         assert len(dataloader) == expected_batches
@@ -38,8 +37,8 @@ class TestARISDataloader:
             assert batch_labels is None
 
     def test_return_unwarped_images(self):
-        config = ARISDatasetConfig(filepath=DDF_FILE, return_unwarped=True)
-        dataloader, dataset = create_aris_dataloader(config)
+        config = BaseDatasetConfig(filepath=DDF_FILE, return_unwarped=True)
+        dataloader, dataset = create_dataloader(config)
 
         batch = next(iter(dataloader))
         batch_data, batch_unwarped = batch[0], batch[2]
@@ -47,8 +46,8 @@ class TestARISDataloader:
         assert batch_unwarped.shape == torch.Size([32, 512, 96])
 
     def test_return_echogram(self):
-        config = ARISDatasetConfig(filepath=DDF_FILE, return_echogram=True)
-        dataloader, _ = create_aris_dataloader(config)
+        config = BaseDatasetConfig(filepath=DDF_FILE, return_echogram=True)
+        dataloader, _ = create_dataloader(config)
         _, _, _, batch_echogram = next(iter(dataloader))
         assert batch_echogram.shape == torch.Size([32, 512, 2])
 
@@ -83,10 +82,10 @@ class TestARISDataloader:
         self, start_frame, end_frame, expected_length
     ):
         """Test ARIS factory function correctly handles frame range validation for ARIS datasets."""
-        config = ARISDatasetConfig(
+        config = BaseDatasetConfig(
             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
         )
-        dataloader, dataset = create_aris_dataloader(config)
+        dataloader, dataset = create_dataloader(config)
         assert len(dataset) == expected_length
 
 
@@ -96,7 +95,7 @@ class TestARISLightningDataloader:
     @pytest.mark.parametrize("batch_size", [2, 32])
     def test_running_dataloader(self, batch_size):
         """Test creating a ARIS dataloader using Lightning DataModule with no labels."""
-        config = ARISDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
+        config = BaseDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
         data_module = ARISDataModule(ARISBatchedDataset, config)
         data_module.setup(stage="test")
         dataloader = data_module.test_dataloader()
@@ -128,7 +127,7 @@ class TestARISLightningDataloader:
         self, start_frame, end_frame, expected_length
     ):
         """Test ARIS DataModule function correctly handles frame range validation for ARIS datasets."""
-        config = ARISDatasetConfig(
+        config = BaseDatasetConfig(
             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
         )
         data_module = ARISDataModule(ARISBatchedDataset, config)
@@ -147,7 +146,7 @@ class TestYOLODataloader:
         frames, unwarped_frames = didson.load_frames()
 
         config = YOLODatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
-        dataloader, dataset = create_yolo_dataloader(config)
+        dataloader, dataset = create_dataloader(config)
         num_batches = len(dataloader)
 
         assert len(dataset) == len(frames) - 1
@@ -177,7 +176,7 @@ class TestYOLODataloader:
         config = YOLODatasetConfig(
             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
         )
-        dataloader, dataset = create_yolo_dataloader(config)
+        dataloader, dataset = create_dataloader(config)
         assert len(dataset) == expected_length
 
 
@@ -229,8 +228,8 @@ class TestYOLOLightningDataloader:
 def test_corrupted_aris():
     """Test dataloader fails to create due to corrupted ARIS file."""
     with pytest.raises(RuntimeError) as exc_info:
-        config = ARISDatasetConfig(filepath=CORRUPTED_FILE)
-        create_aris_dataloader(config)
+        config = BaseDatasetConfig(filepath=CORRUPTED_FILE)
+        create_dataloader(config)
 
 
 def test_modified_start_end_frames(beam_widths_path):
