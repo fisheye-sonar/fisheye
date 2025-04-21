@@ -2130,6 +2130,20 @@ files = [
 traitlets = "*"
 
 [[package]]
+name = "memory-profiler"
+version = "0.61.0"
+description = "A module for monitoring memory usage of a python program"
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "memory_profiler-0.61.0-py3-none-any.whl", hash = "sha256:400348e61031e3942ad4d4109d18753b2fb08c2f6fb8290671c5513a34182d84"},
+    {file = "memory_profiler-0.61.0.tar.gz", hash = "sha256:4e5b73d7864a1d1292fb76a03e82a3e78ef934d06828a698d9dada76da2067b0"},
+]
+
+[package.dependencies]
+psutil = "*"
+
+[[package]]
 name = "mistune"
 version = "3.1.1"
 description = "A sane and fast Markdown parser with useful plugins and renderers"
@@ -5114,4 +5128,4 @@ ultralytics = ">=8.0.100"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "eab5a4ebadf308d85a699701088082e0605a28bed7c06317b37acf3bf608086f"
+content-hash = "a2821a7ed295c5a9d3860ea2fb348e16e69bc0fb4228012a445559d8ba7baef7"

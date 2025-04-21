@@ -1,17 +1,19 @@
+import logging
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import Dict, Any, Optional
 
-import logging
+import torch
+
+from fisheye.boxes import run_nms
+from fisheye.common.logging import log_progress
 from fisheye.configs import (
     YOLODatasetConfig,
     ObjectDetectionPipelineOutput,
     ObjectDetectionConfig,
 )
-
-from fisheye.boxes import run_nms
 from fisheye.dataloaders import create_dataloader
 from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
-from fisheye.common.logging import log_progress
 
 # Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
@@ -49,7 +51,7 @@ class ObjectDetectionPipeline:
         logger.info(
             f"Initialized model: {type(self.model).__name__} on device {self.device}"
         )
-
+        self.max_workers = dataset_config.max_workers
         self.dataloader, self.dataset = create_dataloader(dataset_config)
         self.metadata = self.dataset.metadata
         self.postprocessing_steps = (
@@ -108,36 +110,64 @@ class ObjectDetectionPipeline:
         return processed_output if processed_output else output
 
     def _forward(self, *args, **kwargs):
-        """Performs inference.
-
-        Returns:
-            Tuple[List[Any], List[Tuple]]:
-                - Model output(s)
-                - Image shapes for resizing predictions to original dimensions
-        """
+        """Performs inference with multithreading."""
         inference = []
         image_shapes = []
         width = None
         height = None
 
-        for batch_idx, (img, _, shapes) in enumerate(self.dataloader):
-            img = self.preprocess(img)
-            size = tuple(img.shape)
-            nb, _, height, width = size  # batch size, channels, height, width
-            inf_out = self.model.predict(img)
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            for batch_idx, (img, _, shapes) in enumerate(self.dataloader):
+                img = self.preprocess(img)
+                size = tuple(img.shape)
+                nb, _, height, width = size  # batch size, channels, height, width
 
-            # Save shapes for resizing to original shape
-            batch_shape = []
-            for si, pred in enumerate(inf_out):
-                batch_shape.append((img[si].shape[1:], shapes[si]))
+                # With multithreading - per image inference
+                img_list = [img[i : i + 1] for i in range(img.shape[0])]
+                # Parallelize model predictions
+                inf_out = list(executor.map(self.model.predict, img_list))
+                # Squeeze and stack to match batched output shape
+                inf_out = torch.cat(inf_out, dim=0)
 
-            image_shapes.append(batch_shape)
-            inference.append(inf_out)
+                # Save shapes for resizing to original shape
+                batch_shape = []
+                for si, pred in enumerate(inf_out):
+                    batch_shape.append((img[si].shape[1:], shapes[si]))
 
-            log_progress(
-                logger, batch_idx, len(self.dataloader), prefix="Detector progress | "
-            )
+                image_shapes.append(batch_shape)
+                inference.append(inf_out)
 
+                log_progress(
+                    logger,
+                    batch_idx,
+                    len(self.dataloader),
+                    prefix="Detector progress | ",
+                )
+
+        # for batch_idx, (img, _, shapes) in enumerate(self.dataloader):
+        #     img = self.preprocess(img)
+        #     size = tuple(img.shape)
+        #     nb, _, height, width = size  # batch size, channels, height, width
+        #
+        #     #img_list = [img[i : i + 1] for i in range(img.shape[0])]
+        #
+        #     inf_out = self.model.predict(img)
+        #
+        #     # Save shapes for resizing to original shape
+        #     batch_shape = []
+        #     for si, pred in enumerate(inf_out):
+        #         batch_shape.append((img[si].shape[1:], shapes[si]))
+        #
+        #     image_shapes.append(batch_shape)
+        #     inference.append(inf_out)
+        #
+        #     log_progress(
+        #         logger,
+        #         batch_idx,
+        #         len(self.dataloader),
+        #         prefix="Detector progress | ",
+        #     )
+        #
         return inference, image_shapes, width, height
 
     def run(self, *args, **kwargs):

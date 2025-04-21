@@ -39,17 +39,27 @@ class TestARISDataloader:
     def test_return_unwarped_images(self):
         config = BaseDatasetConfig(filepath=DDF_FILE, return_unwarped=True)
         dataloader, dataset = create_dataloader(config)
+        batch_size = (
+            dataset.metadata.numframes - 1
+            if dataset.metadata.numframes < config.batch_size
+            else (config.batch_size)
+        )
 
         batch = next(iter(dataloader))
         batch_data, batch_unwarped = batch[0], batch[2]
-        assert batch_data.shape == torch.Size([32, 512, 96, 3])
-        assert batch_unwarped.shape == torch.Size([32, 512, 96])
+        assert batch_data.shape == torch.Size([batch_size, 512, 96, 3])
+        assert batch_unwarped.shape == torch.Size([batch_size, 512, 96])
 
     def test_return_echogram(self):
         config = BaseDatasetConfig(filepath=DDF_FILE, return_echogram=True)
-        dataloader, _ = create_dataloader(config)
+        dataloader, dataset = create_dataloader(config)
+        batch_size = (
+            dataset.metadata.numframes - 1
+            if dataset.metadata.numframes < config.batch_size
+            else (config.batch_size)
+        )
         _, _, _, batch_echogram = next(iter(dataloader))
-        assert batch_echogram.shape == torch.Size([32, 512, 2])
+        assert batch_echogram.shape == torch.Size([batch_size, 512, 2])
 
     def test_loading_frames(self):
         """Test loading frames directly from DIDSON class."""

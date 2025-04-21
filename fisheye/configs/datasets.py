@@ -12,7 +12,7 @@ class BaseDatasetConfig:
 
     beam_width_dir: Path = BEAM_WIDTH_DIR
     filepath: str = ""
-    batch_size: int = 32
+    batch_size: int = 8
     rank: int = -1
     world_size: int = 1
     workers: int = 0
@@ -26,6 +26,7 @@ class BaseDatasetConfig:
     dev_load_all_frames: bool = (
         True  # Flag to load all frames if end frame and num of frames from header file is 0
     )
+    max_workers: int = 8
 
 
 @dataclass
