@@ -1,4 +1,3 @@
-import math
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -22,7 +21,6 @@ def test_preprocess():
     dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
     model_cfg = YOLOv5ModelConfig(weights="dummy/path")
     config = ObjectDetectionConfig(model=model_cfg)
-    batch_size = dataset_cfg.batch_size
 
     # Mock the model to be used in the pipeline
     mock_model = MagicMock()
@@ -56,7 +54,7 @@ def test_object_detection_pipeline_no_postprocessing():
     with patch.object(
         YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
     ):
-        dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE, max_workers=1)
+        dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
         model_cfg = YOLOv5ModelConfig(weights="dummy/path")
         config = ObjectDetectionConfig(model=model_cfg)
         batch_size = dataset_cfg.batch_size

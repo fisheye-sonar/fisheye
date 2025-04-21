@@ -26,7 +26,6 @@ class BaseDatasetConfig:
     dev_load_all_frames: bool = (
         True  # Flag to load all frames if end frame and num of frames from header file is 0
     )
-    max_workers: int = 8
 
 
 @dataclass
