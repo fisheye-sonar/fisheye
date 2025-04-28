@@ -166,10 +166,34 @@ def to_txt(data, out_dir):
         print(f"Exported results to {out_file}")
 
 
+def to_mot(data, output_dir, filename):
+    """Export inference results to MOT file(s). Expects data to be in MOT output already."""
+    out_path = os.path.join(output_dir, filename + ".txt")
+
+    mot_lines = []
+    for row in data:
+        # Convert frame number to int (if needed) and format row to MOT string
+        frame = int(row["frame"])
+        mot_line = "{},{},{:.3f},{:.3f},{:.3f},{:.3f},{:.3f}".format(
+            frame,
+            row["id"],
+            row["bb_left"],
+            row["bb_top"],
+            row["bb_width"],
+            row["bb_height"],
+            row["conf"],
+        )
+        mot_lines.append(mot_line)
+
+    with open(out_path, "w") as f:
+        f.write("\n".join(mot_lines))
+
+
 # Add any new export functions here
 EXPORT_FUNCTIONS: Dict[ExportType, Callable[[Any, str], None]] = {
     ExportType.CSV: to_csv,
     ExportType.TXT: to_txt,
+    ExportType.MOT: to_mot,
 }
 
 

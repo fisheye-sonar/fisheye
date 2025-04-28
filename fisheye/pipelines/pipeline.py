@@ -9,6 +9,7 @@ from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
 from fisheye.common.generic import safe_execution
+from fisheye.export import to_mot
 from fisheye.format import tracker_output_to_mot
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
@@ -83,6 +84,12 @@ class DetectTrackCountPipeline:
         )
 
         mot_tracks = tracker_output_to_mot(asdict(tracker_output))
+        to_mot(
+            mot_tracks,
+            "/Users/madison/Documents/Results/2025_04_mad_inference/mot/",
+            Path(file).stem,
+        )
+
         (left_count, right_count), crossing_frames = Count().count(mot_tracks)
 
         if crossing_frames:

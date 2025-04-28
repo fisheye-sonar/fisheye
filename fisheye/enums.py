@@ -18,8 +18,17 @@ class CountingMethod(str, Enum):
 
 
 class ExportType(str, Enum):
-    """Types of exports currently supported."""
+    """Types of exports/formats currently supported."""
 
     NONE = "none"
     CSV = "csv"
     TXT = "txt"
+    MOT = "mot"
+
+
+class DeviceType(str, Enum):
+    """Types of devices currently supported."""
+
+    GPU = "gpu"
+    CPU = "cpu"
+    MPS = "mps"  # enable GPU on Macs with Apple Silicon

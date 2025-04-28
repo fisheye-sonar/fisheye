@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from fisheye.detect.base import BaseModel
+from fisheye.enums import DeviceType
 
 
 @dataclass
@@ -9,7 +10,7 @@ class BaseModelConfig:
     """Base model configuration."""
 
     weights: str | BaseModel = None
-    device: str = "cpu"
+    device: str = DeviceType.MPS
 
 
 @dataclass

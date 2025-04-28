@@ -2,7 +2,12 @@ import cv2
 import numpy as np
 from torch.utils.data import Dataset
 
+from fisheye.common.generic import run_with_threads
 from fisheye.configs import BaseDatasetConfig
+
+
+def gaussian_blur_frame(frame: np.ndarray) -> np.ndarray:
+    return cv2.GaussianBlur(frame.astype(np.float32), (5, 5), 0)
 
 
 class BaseDataset(Dataset):
@@ -35,6 +40,8 @@ class BaseDataset(Dataset):
         self.extracted_echograms = []
         self.return_unwarped = config.return_unwarped
         self.return_echogram = config.return_echogram
+        self.max_workers = config.max_workers
+        self.use_multithreading = config.use_multithreading
 
         self._init_bg_frame()
 
@@ -71,11 +78,21 @@ class BaseDataset(Dataset):
             [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
             dtype=np.float32,
         )
-
-        for i in range(frames_for_bg_subtract.shape[0]):
-            blurred = cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0)
-            mean_blurred_frame += blurred
-            max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
+        if self.use_multithreading:
+            blurred_frames = run_with_threads(
+                lambda i: cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0),
+                list(range(frames_for_bg_subtract.shape[0])),
+                max_workers=self.max_workers,
+            )
+            # Aggregate results
+            for blurred in blurred_frames:
+                mean_blurred_frame += blurred
+                max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
+        else:
+            for i in range(frames_for_bg_subtract.shape[0]):
+                blurred = cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0)
+                mean_blurred_frame += blurred
+                max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
 
         mean_blurred_frame /= frames_for_bg_subtract.shape[0]
         max_blurred_frame -= mean_blurred_frame
@@ -139,10 +156,23 @@ class BaseDataset(Dataset):
 
     def _apply_bg_subtraction(self, frames: np.ndarray):
         """Apply background subtraction."""
-        # MAH 2025-02-05 19:16:34 TODO this function should be renamed to something that describes the fact it is stacking the channels
-        blurred_frames = frames.astype(np.float32)
-        for i in range(frames.shape[0]):
-            blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
+        # MAH 2025-02-05 19:16:34 TODO this function should be renamed to something that describes the fact it is
+        #  stacking the channels
+        if self.use_multithreading:
+            blurred_frames = np.zeros_like(frames, dtype=np.float32)
+            blurred_frames_list = run_with_threads(
+                lambda i: cv2.GaussianBlur(frames[i], (5, 5), 0),
+                list(range(frames.shape[0])),
+                max_workers=self.max_workers,
+            )
+
+            for i in range(frames.shape[0]):
+                blurred_frames[i] = blurred_frames_list[i]
+        else:
+            blurred_frames = frames.astype(np.float32)
+            for i in range(frames.shape[0]):
+                blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
+
         if self.return_unwarped:
             blurred_frames -= self.unwarped_mean_blurred_frame
             blurred_frames /= self.unwarped_mean_normalization_value

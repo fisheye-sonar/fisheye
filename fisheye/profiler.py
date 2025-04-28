@@ -41,27 +41,26 @@ def timed(func):
 
 
 # @timed
-def run_detector_pipeline(weights, fp, dataset_config):
+def run_detector_pipeline(dataset_config, detection_cfg):
     """Runs dataloader and detector pipeline."""
-
-    model_cfg = YOLOv5ModelConfig(weights=weights)
-    detection_cfg = ObjectDetectionConfig(model=model_cfg)
+    #
+    # model_cfg = YOLOv5ModelConfig(weights=weights)
+    # detection_cfg = ObjectDetectionConfig(model=model_cfg, max_workers=8)
 
     detector = ObjectDetectionPipeline(detection_cfg, dataset_config)
     detections = detector()
 
     del detector  # Free up memory
-    del model_cfg
     del detection_cfg
 
     return detections
 
 
-def run_pipeline_with_memory_tracking(weights, fp, dataset_config):
+def run_pipeline_with_memory_tracking(dataset_config, detection_cfg):
     def wrapped():
         # return run_detector_pipeline(weights, fp, dataset_config)
         start = time.perf_counter()
-        result = run_detector_pipeline(weights, fp, dataset_config)
+        result = run_detector_pipeline(dataset_config, detection_cfg)
         end = time.perf_counter()
         duration = end - start
 
@@ -95,7 +94,7 @@ def benchmark_batch_sizes(weights, fp):
     max_workers = [1, 2, 4, 8]
 
     with open(
-        "logs/2025-04-19_benchmark_object_detection_pipeline_multithreading.csv",
+        "logs/2025-04-19_benchmark_object_detection_pipeline_multithreading_mps.csv",
         mode="w",
         newline="",
     ) as file:
@@ -179,9 +178,14 @@ if __name__ == "__main__":
             workers=args.num_workers,
             max_workers=args.max_workers,
         )
-        # run_detector_pipeline(args.weights, args.filepath, dataset_cfg)
+
+        model_cfg = YOLOv5ModelConfig(weights=args.weights)
+        detection_cfg = ObjectDetectionConfig(
+            model=model_cfg, max_workers=args.max_workers
+        )
+
         time_taken, mem_increment = run_pipeline_with_memory_tracking(
-            args.weights, args.filepath, dataset_cfg
+            dataset_cfg, detection_cfg
         )
 
         cleanup()

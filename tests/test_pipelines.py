@@ -37,7 +37,7 @@ def test_preprocess():
         mock_image = torch.rand((1, 3, 640, 640))
         preprocessed_image = pipeline.preprocess(mock_image)
 
-        assert preprocessed_image.device == torch.device("cpu")
+        assert preprocessed_image.device.type == model_cfg.device
         assert preprocessed_image.shape == (1, 3, 640, 640)
         assert (preprocessed_image <= 1.0).all()  # Ensure the image is normalized
 

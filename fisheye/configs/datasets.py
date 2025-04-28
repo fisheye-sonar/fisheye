@@ -8,14 +8,17 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 @dataclass
 class BaseDatasetConfig:
-    """Base dataset configuration."""
+    """Base dataset configuration.
+
+    Defaults are optimized for running on MPS device.
+    """
 
     beam_width_dir: Path = BEAM_WIDTH_DIR
     filepath: str = ""
-    batch_size: int = 8
+    batch_size: int = 16
     rank: int = -1
     world_size: int = 1
-    workers: int = 0
+    workers: int = 0  # for multi-processing in dataloader
     cache_bg_frames: bool = False
     do_bg_subtract: bool = True
     start_frame: int = 0  # Default to first frame (zero-indexed)
@@ -26,6 +29,8 @@ class BaseDatasetConfig:
     dev_load_all_frames: bool = (
         True  # Flag to load all frames if end frame and num of frames from header file is 0
     )
+    use_multithreading: bool = True  # For dataloader threading
+    max_workers: int = 2
 
 
 @dataclass
