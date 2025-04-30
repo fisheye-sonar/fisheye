@@ -6,25 +6,20 @@ from fisheye.common.generic import run_with_threads
 from fisheye.configs import BaseDatasetConfig
 
 
-def gaussian_blur_frame(frame: np.ndarray) -> np.ndarray:
-    return cv2.GaussianBlur(frame.astype(np.float32), (5, 5), 0)
-
-
 class BaseDataset(Dataset):
     """BaseDataset
 
-    Base class for all datasets.
+    Base class for datasets used in model inference. This class is initialized with a BaseDatasetConfig object
+    containing all necessary configuration parameters such as frame ranges, background subtraction settings,
+    and batch size.
     """
 
     def __init__(self, config: BaseDatasetConfig):
         """
-        :param start_frame (int): Index of the start frame.
-        :param end_frame (int): Index of the end frame.
-        :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
-        :param batch_size (int): Batch size. Defaults to 32.
-        :param num_frames_bg_subtract: Number of frames to subtract from the background image. Defaults to 1000.
-        :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
-        :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
+        Initializes the dataset using the provided configuration.
+
+        Args:
+            config (BaseDatasetConfig): Configuration object containing dataset parameters.
         """
 
         self.start_frame = config.start_frame
@@ -130,8 +125,9 @@ class BaseDataset(Dataset):
             else:
                 frame_images = frames
 
-            # MAH 2025-02-07 17:13:36 Question, why are we removing the last frame?
-            # whether or not we are doing background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w, 3] not was [t,h,w])
+            # MAH 2025-02-07 17:13:36 Question, why are we removing the last frame? whether or not we are doing
+            # background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w,
+            # 3] not was [t,h,w])
             frame_images = (
                 self._apply_bg_subtraction(frame_images)
                 if self.do_bg_subtract
@@ -151,7 +147,8 @@ class BaseDataset(Dataset):
                 self.extracted_unwarped_frames.extend(unwarped_frames)
                 self.extracted_echograms.extend(echogram)
 
-        # MAH 2025-02-07 16:48:40 I think this is likely the best solution, it means indexes will be consistent and if needed we can add more things to the list when required
+        # MAH 2025-02-07 16:48:40 I think this is likely the best solution, it means indexes will be consistent and
+        # if needed we can add more things to the list when required
         return self._postprocess(frame_images, frame_labels, unwarped_frames, echogram)
 
     def _apply_bg_subtraction(self, frames: np.ndarray):

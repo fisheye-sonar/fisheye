@@ -1,8 +1,14 @@
+import gc
 import logging
+import random
+import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from typing import Callable, List, Any
+
+import numpy as np
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -39,3 +45,17 @@ def run_with_threads(func: Callable, inputs: List[Any], max_workers: int) -> Lis
     """
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         return list(executor.map(func, inputs))
+
+
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+def cleanup():
+    torch.cuda.empty_cache()
+    gc.collect()

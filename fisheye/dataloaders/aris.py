@@ -12,10 +12,17 @@ logger = logging.getLogger(__name__)
 class ARISBatchedDataset(BaseDataset):
     """ARISBatchedDataset
 
-    A Dataset class for loading an ARIS file, loading the frames, and applying background subtraction.
+    A PyTorch Dataset for loading and preprocessing frames from ARIS/DIDSON files. This includes frame extraction,
+    optional background subtraction, and batching.
     """
 
     def __init__(self, config: BaseDatasetConfig):
+        """
+        Initialize the ARISBatchedDataset with configuration options.
+
+        Args:
+            config (BaseDatasetConfig): Configuration object containing all dataset parameters.
+        """
         try:
             self.didson = DIDSON(config.filepath, beam_width_dir=config.beam_width_dir)
         except Exception as e:

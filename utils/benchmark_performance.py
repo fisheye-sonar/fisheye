@@ -1,56 +1,28 @@
 import argparse
 import csv
-import gc
+import datetime
 import itertools
-import random
 import subprocess
 import time
 
-import numpy as np
-import torch
 from memory_profiler import memory_usage
 
+from fisheye.common.generic import cleanup, set_seed
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.pipelines import ObjectDetectionPipeline
 
 
-def set_seed(seed=42):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # if using multi-GPU
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+DEFAULT_BATCH_SIZES = [2, 4, 8, 16, 32]
+DEFAULT_MAX_WORKERS = [1, 2, 4, 8]
+DEFAULT_NUM_WORKERS = 0
 
 
-def cleanup():
-    """Clear up memory between runs."""
-    torch.cuda.empty_cache()
-    gc.collect()
-
-
-def timed(func):
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        end = time.perf_counter()
-        print(f"[TIMER] {func.__name__} took {end - start:.4f} seconds")
-        return result, end - start
-
-    return wrapper
-
-
-# @timed
 def run_detector_pipeline(dataset_config, detection_cfg):
     """Runs dataloader and detector pipeline."""
-    #
-    # model_cfg = YOLOv5ModelConfig(weights=weights)
-    # detection_cfg = ObjectDetectionConfig(model=model_cfg, max_workers=8)
-
     detector = ObjectDetectionPipeline(detection_cfg, dataset_config)
     detections = detector()
 
-    del detector  # Free up memory
+    del detector
     del detection_cfg
 
     return detections
@@ -58,7 +30,6 @@ def run_detector_pipeline(dataset_config, detection_cfg):
 
 def run_pipeline_with_memory_tracking(dataset_config, detection_cfg):
     def wrapped():
-        # return run_detector_pipeline(weights, fp, dataset_config)
         start = time.perf_counter()
         result = run_detector_pipeline(dataset_config, detection_cfg)
         end = time.perf_counter()
@@ -76,10 +47,11 @@ def run_pipeline_with_memory_tracking(dataset_config, detection_cfg):
             multiprocess=True,
             stream=None,
         )
-        print(max(mem_usage), min(mem_usage))
+
         mem_increment = max(mem_usage) - min(mem_usage)
         print(f"[MEMORY] Increment: {mem_increment:.2f} MiB", flush=True)
         print(f"[TIMER] Pipeline took {duration:.4f} seconds", flush=True)
+
         return duration, mem_increment
 
     except Exception as e:
@@ -88,13 +60,13 @@ def run_pipeline_with_memory_tracking(dataset_config, detection_cfg):
 
 
 def benchmark_batch_sizes(weights, fp):
-    batch_sizes = [2, 4, 8, 16, 32]
-    # num_workers = [0, 2, 4, 8]
-    nw = 0
-    max_workers = [1, 2, 4, 8]
+    batch_sizes = DEFAULT_BATCH_SIZES
+    nw = DEFAULT_NUM_WORKERS
+    max_workers = DEFAULT_MAX_WORKERS
 
+    date = datetime.datetime.now().strftime("%Y-%m-%d")
     with open(
-        "logs/2025-04-19_benchmark_object_detection_pipeline_multithreading_mps.csv",
+        f"../fisheye/logs/{date}_benchmark_performance.csv",
         mode="w",
         newline="",
     ) as file:
