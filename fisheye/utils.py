@@ -96,4 +96,4 @@ def get_unwarped_distance(row):
         metadata.ydim - points_xy_unwarped[1]
     ) * metadata.pixel_meter_size + metadata.y_meter_stop
 
-    return distance
+    return round(distance, 2)
