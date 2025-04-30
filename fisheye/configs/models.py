@@ -10,7 +10,7 @@ class BaseModelConfig:
     """Base model configuration."""
 
     weights: str | BaseModel = None
-    device: str = DeviceType.MPS
+    device: str = DeviceType.MPS.value
 
 
 @dataclass
