@@ -26,6 +26,7 @@ def to_csv(data, out_dir):
     """
     out_file = os.path.join(out_dir, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     flattened_data = [item for sublist in data if sublist for item in sublist]
+
     if not flattened_data:
         raise ValueError(
             f"No counts were found in the provided data. Nothing to export."
