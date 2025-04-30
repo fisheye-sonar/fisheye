@@ -2,24 +2,24 @@ import cv2
 import numpy as np
 from torch.utils.data import Dataset
 
+from fisheye.common.generic import run_with_threads
 from fisheye.configs import BaseDatasetConfig
 
 
 class BaseDataset(Dataset):
     """BaseDataset
 
-    Base class for all datasets.
+    Base class for datasets used in model inference. This class is initialized with a BaseDatasetConfig object
+    containing all necessary configuration parameters such as frame ranges, background subtraction settings,
+    and batch size.
     """
 
     def __init__(self, config: BaseDatasetConfig):
         """
-        :param start_frame (int): Index of the start frame.
-        :param end_frame (int): Index of the end frame.
-        :param beam_width_dir (str): Path to beam widths directory. Defaults to BEAM_WIDTH_DIR.
-        :param batch_size (int): Batch size. Defaults to 32.
-        :param num_frames_bg_subtract: Number of frames to subtract from the background image. Defaults to 1000.
-        :param cache_bg_frames (bool): Whether to cache background frames. Defaults to False.
-        :param do_bg_subtract (bool): Whether to subtract background frames. Defaults to True.
+        Initializes the dataset using the provided configuration.
+
+        Args:
+            config (BaseDatasetConfig): Configuration object containing dataset parameters.
         """
 
         self.start_frame = config.start_frame
@@ -35,6 +35,8 @@ class BaseDataset(Dataset):
         self.extracted_echograms = []
         self.return_unwarped = config.return_unwarped
         self.return_echogram = config.return_echogram
+        self.max_workers = config.max_workers
+        self.use_multithreading = config.use_multithreading
 
         self._init_bg_frame()
 
@@ -71,11 +73,21 @@ class BaseDataset(Dataset):
             [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
             dtype=np.float32,
         )
-
-        for i in range(frames_for_bg_subtract.shape[0]):
-            blurred = cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0)
-            mean_blurred_frame += blurred
-            max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
+        if self.use_multithreading:
+            blurred_frames = run_with_threads(
+                lambda i: cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0),
+                list(range(frames_for_bg_subtract.shape[0])),
+                max_workers=self.max_workers,
+            )
+            # Aggregate results
+            for blurred in blurred_frames:
+                mean_blurred_frame += blurred
+                max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
+        else:
+            for i in range(frames_for_bg_subtract.shape[0]):
+                blurred = cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0)
+                mean_blurred_frame += blurred
+                max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
 
         mean_blurred_frame /= frames_for_bg_subtract.shape[0]
         max_blurred_frame -= mean_blurred_frame
@@ -113,8 +125,9 @@ class BaseDataset(Dataset):
             else:
                 frame_images = frames
 
-            # MAH 2025-02-07 17:13:36 Question, why are we removing the last frame?
-            # whether or not we are doing background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w, 3] not was [t,h,w])
+            # MAH 2025-02-07 17:13:36 Question, why are we removing the last frame? whether or not we are doing
+            # background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w,
+            # 3] not was [t,h,w])
             frame_images = (
                 self._apply_bg_subtraction(frame_images)
                 if self.do_bg_subtract
@@ -134,15 +147,29 @@ class BaseDataset(Dataset):
                 self.extracted_unwarped_frames.extend(unwarped_frames)
                 self.extracted_echograms.extend(echogram)
 
-        # MAH 2025-02-07 16:48:40 I think this is likely the best solution, it means indexes will be consistent and if needed we can add more things to the list when required
+        # MAH 2025-02-07 16:48:40 I think this is likely the best solution, it means indexes will be consistent and
+        # if needed we can add more things to the list when required
         return self._postprocess(frame_images, frame_labels, unwarped_frames, echogram)
 
     def _apply_bg_subtraction(self, frames: np.ndarray):
         """Apply background subtraction."""
-        # MAH 2025-02-05 19:16:34 TODO this function should be renamed to something that describes the fact it is stacking the channels
-        blurred_frames = frames.astype(np.float32)
-        for i in range(frames.shape[0]):
-            blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
+        # MAH 2025-02-05 19:16:34 TODO this function should be renamed to something that describes the fact it is
+        #  stacking the channels
+        if self.use_multithreading:
+            blurred_frames = np.zeros_like(frames, dtype=np.float32)
+            blurred_frames_list = run_with_threads(
+                lambda i: cv2.GaussianBlur(frames[i], (5, 5), 0),
+                list(range(frames.shape[0])),
+                max_workers=self.max_workers,
+            )
+
+            for i in range(frames.shape[0]):
+                blurred_frames[i] = blurred_frames_list[i]
+        else:
+            blurred_frames = frames.astype(np.float32)
+            for i in range(frames.shape[0]):
+                blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
+
         if self.return_unwarped:
             blurred_frames -= self.unwarped_mean_blurred_frame
             blurred_frames /= self.unwarped_mean_normalization_value

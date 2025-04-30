@@ -15,12 +15,15 @@ logger = logging.getLogger(__name__)
 class YOLOARISBatchedDataset(ARISBatchedDataset):
     """YOLOARISBatchedDataset
 
-    An ARIS Dataset tailored for YOLOv5 inference."""
+    A PyTorch Dataset for loading ARIS/DIDSON data specifically tailored for YOLOv5-style object detection tasks.
+    """
 
     def __init__(self, config: YOLODatasetConfig):
         """
+        Initialize the YOLOARISBatchedDataset with YOLO-specific configuration options.
 
-        :param config: YOLODatasetConfig
+        Args:
+            config (YOLODatasetConfig): Configuration object containing all dataset parameters optimized.
         """
         super().__init__(config)
 

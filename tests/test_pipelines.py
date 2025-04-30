@@ -18,25 +18,26 @@ from fisheye.pipelines import ObjectDetectionPipeline
 def test_preprocess():
     """Test image preprocessing."""
 
+    dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
+    model_cfg = YOLOv5ModelConfig(weights="dummy/path")
+    config = ObjectDetectionConfig(model=model_cfg)
+
     # Mock the model to be used in the pipeline
     mock_model = MagicMock()
-    mock_predict_return = torch.rand((3, 6, 6))
+    mock_predict_return = torch.rand((1, 6, 6))
     mock_model.predict.return_value = mock_predict_return
 
     # Patch the _load_model method to return the mocked model
     with patch.object(
         YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
     ):
-        dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
-        model_cfg = YOLOv5ModelConfig(weights="dummy/path")
-        config = ObjectDetectionConfig(model=model_cfg)
 
         pipeline = ObjectDetectionPipeline(config, dataset_cfg)
 
         mock_image = torch.rand((1, 3, 640, 640))
         preprocessed_image = pipeline.preprocess(mock_image)
 
-        assert preprocessed_image.device == torch.device("cpu")
+        assert preprocessed_image.device.type == model_cfg.device
         assert preprocessed_image.shape == (1, 3, 640, 640)
         assert (preprocessed_image <= 1.0).all()  # Ensure the image is normalized
 
@@ -46,7 +47,7 @@ def test_object_detection_pipeline_no_postprocessing():
 
     # Mock the model to be used in the pipeline
     mock_model = MagicMock()
-    mock_predict_return = torch.rand((3, 6, 6))
+    mock_predict_return = torch.rand((1, 6, 6))
     mock_model.predict.return_value = mock_predict_return
 
     # Patch the _load_model method to return the mocked model
@@ -56,16 +57,23 @@ def test_object_detection_pipeline_no_postprocessing():
         dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
         model_cfg = YOLOv5ModelConfig(weights="dummy/path")
         config = ObjectDetectionConfig(model=model_cfg)
+        batch_size = dataset_cfg.batch_size
 
         pipeline = ObjectDetectionPipeline(config, dataset_cfg)
+        # Minus 1 for optical flow
+        batch_size = (
+            pipeline.metadata.numframes - 1
+            if pipeline.metadata.numframes < batch_size
+            else batch_size
+        )
         pipeline.model = mock_model
         output = pipeline()
 
-        mock_model.predict.assert_called_once()
+        assert mock_model.predict.call_count == batch_size
         assert len(output.pred_bboxes) == 1
         assert isinstance(output.pred_bboxes[0][0], torch.Tensor)
         assert output.pred_bboxes[0].shape == (
-            3,
+            batch_size,
             6,
             6,
         )  # Check the shape of the predictions
@@ -115,7 +123,7 @@ def test_object_detection_pipeline_w_postprocessing_params(confs):
 
     # Mock the model to be used in the pipeline
     mock_model = MagicMock()
-    mock_predict_return = torch.rand((3, 6, 6))
+    mock_predict_return = torch.rand((1, 6, 6))
     mock_model.predict.return_value = mock_predict_return
 
     # Patch the _load_model method to return the mocked model
@@ -125,12 +133,20 @@ def test_object_detection_pipeline_w_postprocessing_params(confs):
         dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
         model_cfg = YOLOv5ModelConfig(weights="dummy/path")
         config = ObjectDetectionConfig(model=model_cfg)
+        batch_size = dataset_cfg.batch_size
 
         pipeline = ObjectDetectionPipeline(config, dataset_cfg, postprocessing_params)
+        # Minus 1 for optical flow
+        batch_size = (
+            pipeline.metadata.numframes - 1
+            if pipeline.metadata.numframes < batch_size
+            else batch_size
+        )
         pipeline.model = mock_model
         output = pipeline()
 
-        mock_model.predict.assert_called_once()
+        assert mock_model.predict.call_count == batch_size
+
         # Get the postprocessing parameters
         steps = pipeline.postprocessing_steps
 
@@ -153,11 +169,10 @@ def test_object_detection_pipeline_diff_postprocessing_structure(param):
     """Test enabling postprocessing parameters."""
 
     postprocessing_params = param
-    print(postprocessing_params)
 
     # Mock the model to be used in the pipeline
     mock_model = MagicMock()
-    mock_predict_return = torch.rand((3, 6, 6))
+    mock_predict_return = torch.rand((1, 6, 6))
     mock_model.predict.return_value = mock_predict_return
 
     # Patch the _load_model method to return the mocked model
@@ -167,12 +182,19 @@ def test_object_detection_pipeline_diff_postprocessing_structure(param):
         dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
         model_cfg = YOLOv5ModelConfig(weights="dummy/path")
         config = ObjectDetectionConfig(model=model_cfg)
+        batch_size = dataset_cfg.batch_size
 
         pipeline = ObjectDetectionPipeline(config, dataset_cfg, postprocessing_params)
+        # Minus 1 for optical flow
+        batch_size = (
+            pipeline.metadata.numframes - 1
+            if pipeline.metadata.numframes < batch_size
+            else batch_size
+        )
         pipeline.model = mock_model
         output = pipeline()
 
-        mock_model.predict.assert_called_once()
+        assert mock_model.predict.call_count == batch_size
         # Get the postprocessing parameters
         steps = pipeline.postprocessing_steps
 
@@ -185,7 +207,7 @@ def test_object_detection_pipeline_postprocessing_invalid_params():
 
     # Mock the model to be used in the pipeline
     mock_model = MagicMock()
-    mock_predict_return = torch.rand((3, 6, 6))
+    mock_predict_return = torch.rand((1, 6, 6))
     mock_model.predict.return_value = mock_predict_return
 
     # Patch the _load_model method to return the mocked model

@@ -27,7 +27,7 @@ def test_loading_yolov5(mock_yolov5_model):
         detector = YOLOv5ObjectDetectionModel(config)
 
         # Assertions to verify correct behavior - ensure yolov5.load was called
-        mock_load.assert_called_once_with("dummy/path", "cpu")
+        mock_load.assert_called_once_with("dummy/path", config.device)
         assert detector.model.agnostic == config.agnostic
         assert detector.model.multi_label == config.multi_label
         assert detector.model.classes == config.classes

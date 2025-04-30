@@ -9,6 +9,8 @@ from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
 from fisheye.common.generic import safe_execution
+from fisheye.enums import ExportType
+from fisheye.export import to_mot
 from fisheye.format import tracker_output_to_mot
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
@@ -24,10 +26,14 @@ class DetectTrackCountPipeline:
         self,
         detector_cfg: Optional[ObjectDetectionConfig] = None,
         tracker_cfg: Optional[TrackerConfig] = None,
+        export_format: Optional[ExportType] = ExportType.NONE,
+        output_dir: Optional[str] = None,
     ):
         self.detector_cfg = detector_cfg if detector_cfg else ObjectDetectionConfig()
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
         self.nms_config = NMSConfig()
+        self.export_format = export_format
+        self.output_dir = output_dir
 
     @safe_execution(default_return=[])
     def _run(self, file: str) -> List:
@@ -83,6 +89,10 @@ class DetectTrackCountPipeline:
         )
 
         mot_tracks = tracker_output_to_mot(asdict(tracker_output))
+
+        if self.export_format == ExportType.MOT:
+            to_mot(mot_tracks, self.output_dir, Path(file).stem)
+
         (left_count, right_count), crossing_frames = Count().count(mot_tracks)
 
         if crossing_frames:

@@ -48,6 +48,8 @@ class ObjectDetectionConfig(Generic[T]):
 
     model: T = field(default_factory=YOLOv5ModelConfig)
     conf: float = 0.05  # Confidence threshold for detections
+    use_multithreading: bool = True  # Multithreading for model inference
+    max_workers: int = 2
     nms_config: NMSConfig = field(default_factory=NMSConfig)
     fish_size: FishSizeConfig = field(default_factory=FishSizeConfig)
 
