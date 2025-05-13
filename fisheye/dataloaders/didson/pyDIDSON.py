@@ -545,6 +545,7 @@ class DIDSON:
         if hasattr(file, "read"):
             file_ctx = contextlib.nullcontext(file)
         else:
+            file = Path(file).expanduser().resolve()
             file_ctx = open(file, "rb")
 
         with file_ctx as fid:
