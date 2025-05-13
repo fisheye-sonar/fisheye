@@ -545,9 +545,11 @@ class DIDSON:
         if hasattr(file, "read"):
             file_ctx = contextlib.nullcontext(file)
         else:
+            file = Path(file).expanduser().resolve()
             file_ctx = open(file, "rb")
 
         with file_ctx as fid:
+            fid.seek(0)  # Reset pointer to start
             svector = None
             if start_frame == -1:
                 start_frame = self.info["startframe"]
