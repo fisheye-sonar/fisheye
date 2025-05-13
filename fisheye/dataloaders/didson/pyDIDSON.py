@@ -549,6 +549,7 @@ class DIDSON:
             file_ctx = open(file, "rb")
 
         with file_ctx as fid:
+            fid.seek(0)  # Reset pointer to start
             svector = None
             if start_frame == -1:
                 start_frame = self.info["startframe"]
