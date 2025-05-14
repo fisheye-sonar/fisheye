@@ -21,7 +21,8 @@ class ExportType(str, Enum):
     """Types of exports/formats currently supported."""
 
     NONE = "none"
-    CSV = "csv"
+    SUMMARY_CSV = "summary_csv"
+    DETAILED_CSV = "detailed_csv"
     TXT = "txt"
     MOT = "mot"
 
