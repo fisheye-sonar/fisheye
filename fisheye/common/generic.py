@@ -4,10 +4,13 @@ import random
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
+from pathlib import Path
 from typing import Callable, List, Any
 
 import numpy as np
 import torch
+
+from fisheye.enums import ValidExtensions
 
 logger = logging.getLogger(__name__)
 
@@ -58,3 +61,17 @@ def set_seed(seed=42):
 def cleanup():
     torch.cuda.empty_cache()
     gc.collect()
+
+
+def _is_valid_file(file_path: Path) -> bool:
+    """Check if the file is valid based on extension."""
+    return file_path.is_file() and file_path.suffix in {
+        e.value for e in ValidExtensions
+    }
+
+
+def _is_valid_dir(dir_path: Path) -> bool:
+    """Check if the directory contains valid files."""
+    return dir_path.is_dir() and any(
+        file.suffix in {e.value for e in ValidExtensions} for file in dir_path.iterdir()
+    )

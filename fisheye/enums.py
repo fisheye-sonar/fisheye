@@ -33,3 +33,8 @@ class DeviceType(str, Enum):
     GPU = "gpu"
     CPU = "cpu"
     MPS = "mps"  # enable GPU on Macs with Apple Silicon
+
+
+class ValidExtensions(Enum):
+    ARIS = ".aris"
+    DDF = ".ddf"
