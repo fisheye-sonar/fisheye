@@ -4,6 +4,7 @@ import time
 from typing import List
 
 from fisheye.common.logging import setup_logging
+from fisheye.common.system import check_disk_space
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
 from fisheye.enums import ExportType
 from fisheye.export import save_to_disk
@@ -17,10 +18,13 @@ logger = logging.getLogger(__name__)
 def main(
     path: List[str] | str, weights, export_options: List[ExportType], output_dir: str
 ):
+    check_disk_space(path=output_dir)  # Make sure there's enough space to store results
+
     model_cfg = YOLOv5ModelConfig(weights=weights)
     detection_cfg = ObjectDetectionConfig(model=model_cfg)
+
     logger.info("Pipeline started 🚀")
-    # TODO (MVH) - this may take up too much memory holding all of the results, probably need to dump earlier
+
     results = DetectTrackCountPipeline(detection_cfg).run(
         path, output_dir, export_options
     )
