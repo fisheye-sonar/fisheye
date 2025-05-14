@@ -46,7 +46,7 @@ def to_summary_csv(data, out_dir):
         data (dict): Dictionary of inference results.
         out_dir (str): Output directory for CSV files.
     """
-    out_file = os.path.join(out_dir, datetime.now().strftime("%Y-%m-%d"))
+    out_file = os.path.join(out_dir, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     flattened_data = [item for sublist in data if sublist for item in sublist]
 
     if not flattened_data:
