@@ -18,12 +18,13 @@ logger = logging.getLogger(__name__)
 def main(
     path: List[str] | str, weights, export_options: List[ExportType], output_dir: str
 ):
-    check_disk_space(path="/")  # Make sure there's enough space to store results
+    check_disk_space(path=output_dir)  # Make sure there's enough space to store results
 
     model_cfg = YOLOv5ModelConfig(weights=weights)
     detection_cfg = ObjectDetectionConfig(model=model_cfg)
+
     logger.info("Pipeline started 🚀")
-    # TODO (MVH) - this may take up too much memory holding all of the results, probably need to dump earlier
+
     results = DetectTrackCountPipeline(detection_cfg).run(
         path, output_dir, export_options
     )
