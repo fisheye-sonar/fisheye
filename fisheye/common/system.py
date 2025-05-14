@@ -1,10 +1,7 @@
-import logging
 import shutil
 from pathlib import Path
 
 from fisheye.common.exceptions import LowDiskSpaceError
-
-logger = logging.getLogger(__name__)
 
 
 def check_disk_space(path: str | Path = "/", threshold: float = 10.0) -> None:
