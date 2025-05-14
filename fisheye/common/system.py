@@ -7,7 +7,7 @@ from fisheye.common.exceptions import LowDiskSpaceError
 logger = logging.getLogger(__name__)
 
 
-def check_disk_space(path: str | Path = "/", threshold: float = 10.0) -> bool:
+def check_disk_space(path: str | Path = "/", threshold: float = 10.0) -> None:
     """
     Checks if the available disk space is below the threshold. Don't want to run inference and then find out you
     can't save the results due to storage issues.
@@ -28,5 +28,3 @@ def check_disk_space(path: str | Path = "/", threshold: float = 10.0) -> bool:
             f"Low disk space: Only {percent_free:.2f}% free. Suggest moving unused files to external "
             f"storage."
         )
-
-    return False
