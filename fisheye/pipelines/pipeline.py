@@ -1,20 +1,18 @@
 import logging
-import os
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from fisheye.boxes import run_nms, normalize_boxes_for_tracking
+from fisheye.common.generic import safe_execution, _is_valid_file, _is_valid_dir
 from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
-from fisheye.common.generic import safe_execution
 from fisheye.enums import ExportType
-from fisheye.export import to_mot
+from fisheye.export import save_to_disk
 from fisheye.format import tracker_output_to_mot
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
-
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +30,13 @@ class DetectTrackCountPipeline:
         self.nms_config = NMSConfig()
 
     @safe_execution(default_return=[])
-    def _run(self, file: str) -> List:
-        logging.info(f"Currently processing {file}")
+    def _run(
+        self,
+        file: Union[Path, List[Path]],
+        output_dir: str,
+        export_types: Optional[List[ExportType]] = None,
+    ) -> List:
+        logger.info(f"Currently processing {file}")
         dataset_cfg = YOLODatasetConfig(filepath=file)
         detector = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg)
         detections = detector()
@@ -86,6 +89,18 @@ class DetectTrackCountPipeline:
 
         mot_tracks = tracker_output_to_mot(asdict(tracker_output))
 
+        if export_types is None:
+            export_types_list = []
+
+        elif isinstance(export_types, ExportType):
+            export_types_list = [export_types]
+
+        else:
+            export_types_list = export_types
+
+        if ExportType.MOT in export_types_list:
+            save_to_disk(mot_tracks, output_dir, export_types=ExportType.MOT)
+
         (left_count, right_count), crossing_frames = Count().count(mot_tracks)
 
         if crossing_frames:
@@ -114,57 +129,59 @@ class DetectTrackCountPipeline:
             formatted_crossings = []
             logger.info(f"No crossing frames detected for {file}")
 
+        remaining_export_types = [
+            et
+            for et in export_types_list
+            if et != ExportType.MOT and (et != ExportType.SUMMARY_CSV)
+        ]
+        save_to_disk(
+            [formatted_crossings], output_dir, export_types=remaining_export_types
+        )
+
         return formatted_crossings
 
-    def run(self, file: List[str] | str) -> List[List[dict]] | List[dict]:
+    def run(
+        self,
+        file: List[str] | str,
+        output_dir: str,
+        export_types: Optional[List[ExportType]] = None,
+    ) -> List[List[dict]] | List[dict]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
         Args:
             file (List[str] | str): File(s) to process. Must be a path to an ARIS file or a directory holding ARIS files
+            output_dir (str): Output directory to save results to
+            export_types (Optional[List[ExportType]]): List of ExportType objects to export to
 
         Returns:
             dict: Tracking results and counts.
         """
 
-        def is_valid_path(file_path: str) -> bool:
-            # Check if it's a valid file and ends with '.aris' or '.ddf'
-            return (
-                os.path.exists(file_path)
-                and os.path.isfile(file_path)
-                and (file_path.endswith(".aris") or file_path.endswith(".ddf"))
-            )
+        if isinstance(file, (str, Path)):
+            path = Path(file)
+            if _is_valid_file(path):
+                return [self._run(path, output_dir, export_types)]
 
-        def is_valid_directory(dir_path: str) -> bool:
-            return os.path.isdir(dir_path) and any(
-                f.endswith((".aris", ".ddf")) for f in os.listdir(dir_path)
-            )
-
-        if isinstance(file, str):
-            if is_valid_path(file):
-                return [self._run(file)]
-            elif is_valid_directory(file):
-                # If path is a directory containing ARIS or DIDSON files, process all ARIS or DIDSON files in the
-                # directory
-                files = [
-                    os.path.join(file, f)
-                    for f in os.listdir(file)
-                    if f.endswith((".aris", ".ddf"))
-                ]
-
-                return [self._run(f) for f in files]
+            elif _is_valid_dir(path):
+                # Process all ARIS or DIDSON files in directory
+                files = [f for f in path.iterdir() if _is_valid_file(f)]
+                return [self._run(f, output_dir, export_types) for f in files]
 
             else:
                 raise ValueError(f"Invalid file or directory path: {file}")
 
         elif isinstance(file, list):
-            valid_files = [f for f in file if is_valid_path(f) or is_valid_directory(f)]
+            valid_files = [
+                Path(f)
+                for f in file
+                if _is_valid_file(Path(f)) or _is_valid_dir(Path(f))
+            ]
 
             if len(valid_files) < len(file):
-                logger.info(
-                    f"Skipping invalid file path(s): {', '.join(set(file) - set(valid_files))}"
-                )
+                invalid = set(map(str, file)) - set(map(str, valid_files))
+                logger.info(f"Skipping invalid file path(s): {', '.join(invalid)}")
 
-            return [self._run(f) for f in valid_files]
+            return [self._run(f, output_dir, export_types) for f in valid_files]
 
         else:
             raise ValueError(

@@ -21,7 +21,8 @@ class ExportType(str, Enum):
     """Types of exports/formats currently supported."""
 
     NONE = "none"
-    CSV = "csv"
+    SUMMARY_CSV = "summary_csv"
+    DETAILED_CSV = "detailed_csv"
     TXT = "txt"
     MOT = "mot"
 
@@ -32,3 +33,8 @@ class DeviceType(str, Enum):
     GPU = "gpu"
     CPU = "cpu"
     MPS = "mps"  # enable GPU on Macs with Apple Silicon
+
+
+class ValidExtensions(Enum):
+    ARIS = ".aris"
+    DDF = ".ddf"

@@ -3,7 +3,7 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Callable, Any
+from typing import Dict, Callable, Any, Union
 
 import pandas as pd
 
@@ -13,12 +13,34 @@ from fisheye.utils import get_unwarped_distance
 logger = logging.getLogger(__name__)
 
 
-def to_csv(data, out_dir):
+def to_detailed_csv(data, out_dir):
     """Export inference results to CSV file.
 
-    Two CSVs are generated:
-    1. A detailed CSV with all track counts.
-    2. A summary CSV with net counts per ARIS/DDF file.
+    A detailed CSV with where each row is considered a count with additional metadata.
+
+    Args:
+        data (dict): Dictionary of inference results.
+        out_dir (str): Output directory for CSV files.
+    """
+    out_file = os.path.join(out_dir, datetime.now().strftime("%Y-%m-%d"))
+    flattened_data = [item for sublist in data if sublist for item in sublist]
+    out_file = out_file + "_" + Path(flattened_data[0].get("file_name")).stem
+
+    if not flattened_data:
+        raise ValueError(
+            f"No counts were found in the provided data. Nothing to export."
+        )
+
+    df = pd.DataFrame(flattened_data)
+    df.to_csv(out_file + ".csv", index=False)
+
+    logger.info(f"Exported results to {out_dir}")
+
+
+def to_summary_csv(data, out_dir):
+    """Export inference results to CSV file.
+
+    A summary CSV containing counts for each ARIS/DDF file to a single CSV
 
     Args:
         data (dict): Dictionary of inference results.
@@ -34,7 +56,6 @@ def to_csv(data, out_dir):
 
     df = pd.DataFrame(flattened_data)
     # Save off all track counts to CSV
-    df.to_csv(out_file + ".csv", index=False)
     df.drop(columns=["bbox", "metadata"], inplace=True)
 
     direction_counts = (
@@ -45,6 +66,7 @@ def to_csv(data, out_dir):
     direction_counts["absolute_left"] = (
         direction_counts["left"] > direction_counts["right"]
     ).astype(int)
+
     direction_counts["absolute_right"] = (
         direction_counts["right"] > direction_counts["left"]
     ).astype(int)
@@ -59,10 +81,10 @@ def to_csv(data, out_dir):
     )
 
     final_result = file_counts.reset_index()
-    # Save off the absolute left counts, absolute right counts, absolute net counts for each ARIS/DDF file to CSV
+    # Save absolute left, right, and net counts for each ARIS/DDF file to a single CSV
     final_result.to_csv(out_file + "_summary.csv", index=False)
 
-    logger.info(f"Exported results to {out_dir}")
+    logger.info(f"Exported summary to {out_dir}")
 
 
 def to_txt(data, out_dir):
@@ -192,7 +214,8 @@ def to_mot(data, output_dir, filename):
 
 # Add any new export functions here
 EXPORT_FUNCTIONS: Dict[ExportType, Callable[[Any, str], None]] = {
-    ExportType.CSV: to_csv,
+    ExportType.DETAILED_CSV: to_detailed_csv,
+    ExportType.SUMMARY_CSV: to_summary_csv,
     ExportType.TXT: to_txt,
     ExportType.MOT: to_mot,
 }
@@ -205,3 +228,15 @@ def get_exporter(export_type: ExportType | str) -> Callable[[Any, str], None]:
         export_type = ExportType(export_type)
 
     return EXPORT_FUNCTIONS.get(export_type)
+
+
+def save_to_disk(
+    results, output_dir, export_types: Union[list[ExportType], ExportType]
+) -> None:
+    """Save results to disk."""
+    if not isinstance(export_types, list):
+        export_types = [export_types]
+
+    for export_option in export_types:
+        exporter = get_exporter(export_option)
+        exporter(results, output_dir)
