@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fisheye"
-version = "0.1.0"
+version = "v1.0.0-dev.1"
 description = "Performing inference on sonar data."
 authors = ["Madison Van Horn"]
 readme = "README.md"
@@ -35,3 +35,6 @@ memory-profiler = "^0.61.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry-dynamic-versioning]
+enable = true
