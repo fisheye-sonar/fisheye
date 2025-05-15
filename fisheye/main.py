@@ -10,11 +10,11 @@ from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
 from fisheye.enums import ExportType
 from fisheye.export import save_to_disk
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
-
+from fisheye.version import __version__
 
 job_id = generate_job_id()
 setup_logging(file_logging=True, job_id=job_id)
-logger = structlog.get_logger().bind(job_id=job_id)
+logger = structlog.get_logger().bind(job_id=job_id, app_version=__version__)
 
 
 def main(
