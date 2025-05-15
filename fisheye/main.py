@@ -82,6 +82,4 @@ if __name__ == "__main__":
         except KeyError as e:
             raise argparse.ArgumentTypeError(f"Invalid export type: {e.args[0]}")
 
-    start = time.time()
     results = main(args.path, args.weights, export_types, args.output_dir)
-    end = time.time()
