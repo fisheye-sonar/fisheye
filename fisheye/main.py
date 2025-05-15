@@ -5,16 +5,16 @@ from typing import List
 import structlog
 
 from fisheye.common.logging import setup_logging
-from fisheye.common.system import check_disk_space
+from fisheye.common.system import check_disk_space, generate_job_id
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
 from fisheye.enums import ExportType
 from fisheye.export import save_to_disk
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 
-# setup_logging(modules=["dataloaders", "pipelines", "track", "count", "export"], file_logging=True)
-setup_logging(file_logging=True)
 
-logger = structlog.get_logger()
+job_id = generate_job_id()
+setup_logging(file_logging=True, job_id=job_id)
+logger = structlog.get_logger().bind(job_id=job_id)
 
 
 def main(
@@ -26,7 +26,7 @@ def main(
     detection_cfg = ObjectDetectionConfig(model=model_cfg)
 
     start_time = time.time()
-    logger.info("Pipeline started 🚀", {"start_time": start_time})
+    logger.info("inference_started", start_time=start_time)
 
     results = DetectTrackCountPipeline(detection_cfg).run(
         path, output_dir, export_options
@@ -37,9 +37,9 @@ def main(
 
     end_time = time.time()
     logger.info(
-        "Pipeline completed 🎉",
+        "inference_completed",
         inference_duration_sec=end_time - start_time,
-        files_processed=len(results),
+        num_files_processed=len(results),
     )
 
     return results
@@ -85,5 +85,3 @@ if __name__ == "__main__":
     start = time.time()
     results = main(args.path, args.weights, export_types, args.output_dir)
     end = time.time()
-
-    logger.info(f"Total inference time: {end - start:.2f} seconds")

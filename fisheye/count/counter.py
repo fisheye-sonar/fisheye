@@ -89,7 +89,7 @@ class Count:
         Returns:
             tuple: (absolute_left_count, absolute_right_count)
         """
-        logger.info(f"Initialized counter", type=self.protocol)
+        logger.info(f"initialized_counter", type=self.protocol)
         mot_df = pd.DataFrame(tracks)
         if not mot_df.empty:
             # Calculate the center point of the bounding box

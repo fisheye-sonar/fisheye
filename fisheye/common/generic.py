@@ -24,8 +24,16 @@ def safe_execution(default_return=None):
             try:
                 return fn(*args, **kwargs)
             except Exception as e:
-                logger.error(f"Error in {fn.__name__}: {e}")
-                logger.debug("Stack trace:\n" + traceback.format_exc())
+                logger.error(
+                    "function_execution_failed",
+                    function=fn.__name__,
+                    error=str(e),
+                )
+                logger.debug(
+                    "stack_trace",
+                    function=fn.__name__,
+                    traceback=traceback.format_exc(),
+                )
                 return default_return
 
         return wrapper

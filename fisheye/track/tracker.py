@@ -188,7 +188,7 @@ def run_tracker(
 ):
     """Factory method to run tracker."""
     logger.info(
-        "Initializing tracker",
+        "initialized_tracker",
         tracker_type=tracking_config.type,
         max_age=tracking_config.max_age,
         iou_threshold=tracking_config.iou_threshold,

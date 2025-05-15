@@ -53,7 +53,7 @@ def create_dataloader(config: Union[BaseDatasetConfig, YOLODatasetConfig]):
     )  # number of workers
 
     logger.info(
-        "Initialized dataloader",
+        "initialized_dataloader",
         config_type=type(config).__name__,
         dataset_class=dataset_class.__name__,
         dataset_size=len(dataset),

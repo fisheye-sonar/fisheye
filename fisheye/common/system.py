@@ -1,4 +1,5 @@
 import shutil
+import uuid
 from pathlib import Path
 
 from fisheye.common.exceptions import LowDiskSpaceError
@@ -25,3 +26,8 @@ def check_disk_space(path: str | Path = "/", threshold: float = 10.0) -> None:
             f"Low disk space: Only {percent_free:.2f}% free. Suggest moving unused files to external "
             f"storage."
         )
+
+
+def generate_job_id() -> str:
+    """Generate a unique job ID."""
+    return str(uuid.uuid4())

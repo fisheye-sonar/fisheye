@@ -1,5 +1,6 @@
 import structlog
 
+from fisheye.common.exceptions import LowDiskSpaceError
 from fisheye.configs import BaseDatasetConfig
 from fisheye.configs.datasets import ARISMetadata
 from fisheye.dataloaders.base import BaseDataset
@@ -26,9 +27,13 @@ class ARISBatchedDataset(BaseDataset):
             self.didson = DIDSON(config.filepath, beam_width_dir=config.beam_width_dir)
         except Exception as e:
             logger.error(
-                "Failed to load DIDSON file", filepath=config.filepath, error=str(e)
+                "failed_to_load_file",
+                filepath=config.filepath,
+                error=str(e),
+                exc_info=True,
             )
-            raise RuntimeError(f"Could not load {config.filepath}: {e}")
+
+            raise RuntimeError(f"Could not load {config.filepath}") from e
 
         config.start_frame, config.end_frame = self._validate_frame_range(config=config)
         self.metadata = self._extract_metadata()

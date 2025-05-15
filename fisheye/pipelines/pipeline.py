@@ -37,7 +37,7 @@ class DetectTrackCountPipeline:
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
     ) -> List:
-        logger.info(f"Currently processing {file}")
+        logger.info("file_processing_started", file_path=str(file))
         dataset_cfg = YOLODatasetConfig(filepath=file)
         detector = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg)
         detections = detector()
@@ -128,7 +128,7 @@ class DetectTrackCountPipeline:
             ]
         else:
             formatted_crossings = []
-            logger.info("No crossing frames detected", file=str(file))
+            logger.debug("no_crossings_detected", file_path=str(file))
 
         remaining_export_types = [
             et
@@ -180,9 +180,7 @@ class DetectTrackCountPipeline:
 
             if len(valid_files) < len(file):
                 invalid = set(map(str, file)) - set(map(str, valid_files))
-                logger.info(
-                    "Skipping invalid file path(s)", invalid_paths=list(invalid)
-                )
+                logger.info("skipping_invalid_file_paths", invalid_paths=list(invalid))
 
             return [self._run(f, output_dir, export_types) for f in valid_files]
 
