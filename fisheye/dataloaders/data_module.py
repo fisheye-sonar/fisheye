@@ -1,8 +1,8 @@
-import logging
 import os
 from pathlib import Path
 
 import pytorch_lightning as pl
+import structlog
 from torch.utils.data import DataLoader
 
 from fisheye.configs import BaseDatasetConfig
@@ -13,7 +13,7 @@ BASE = Path(__file__).parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class ARISDataModule(pl.LightningDataModule):
@@ -58,7 +58,10 @@ class ARISDataModule(pl.LightningDataModule):
         )
 
         logger.info(
-            f"Dataset size: {len(self.dataset)}, Number of workers: {self.num_workers}"
+            "Initialized dataloader",
+            dataset_size=len(self.dataset),
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
         )
 
     def get_dataloader(self):

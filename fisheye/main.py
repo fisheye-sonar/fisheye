@@ -1,7 +1,8 @@
 import argparse
-import logging
 import time
 from typing import List
+
+import structlog
 
 from fisheye.common.logging import setup_logging
 from fisheye.common.system import check_disk_space
@@ -10,9 +11,10 @@ from fisheye.enums import ExportType
 from fisheye.export import save_to_disk
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 
-setup_logging(modules=["dataloaders", "pipelines", "track", "count", "export"])
+# setup_logging(modules=["dataloaders", "pipelines", "track", "count", "export"], file_logging=True)
+setup_logging(file_logging=True)
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 def main(
@@ -23,7 +25,8 @@ def main(
     model_cfg = YOLOv5ModelConfig(weights=weights)
     detection_cfg = ObjectDetectionConfig(model=model_cfg)
 
-    logger.info("Pipeline started 🚀")
+    start_time = time.time()
+    logger.info("Pipeline started 🚀", {"start_time": start_time})
 
     results = DetectTrackCountPipeline(detection_cfg).run(
         path, output_dir, export_options
@@ -31,6 +34,13 @@ def main(
 
     if ExportType.SUMMARY_CSV in export_options:
         save_to_disk(results, output_dir, export_types=ExportType.SUMMARY_CSV)
+
+    end_time = time.time()
+    logger.info(
+        "Pipeline completed 🎉",
+        inference_duration_sec=end_time - start_time,
+        files_processed=len(results),
+    )
 
     return results
 

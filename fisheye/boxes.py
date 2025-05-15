@@ -28,7 +28,7 @@ def norm(bbox, w, h):
 
 
 def normalize_boxes_for_tracking(
-    image_shapes, outputs, width, height, batch_size, gp=None, verbose=True
+    image_shapes, outputs, width, height, batch_size, gp=None, verbose=False
 ):
     """Normalize boxes for tracking input format - xyxy with confidence score."""
     original_width = image_shapes[0][0][1][0][1]
@@ -259,7 +259,7 @@ def run_nms(
     batch_size,
     nms_config: NMSConfig = NMSConfig(),
     gp=None,
-    verbose=True,
+    verbose=False,
 ):
     """Run NMS on inference results to reject overlapping detections."""
 

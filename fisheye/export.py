@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 from datetime import datetime
@@ -6,11 +5,12 @@ from pathlib import Path
 from typing import Dict, Callable, Any, Union
 
 import pandas as pd
+import structlog
 
 from fisheye.enums import ExportType
 from fisheye.utils import get_unwarped_distance
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 def to_detailed_csv(data, out_dir):

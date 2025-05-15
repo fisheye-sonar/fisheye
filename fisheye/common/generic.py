@@ -1,5 +1,4 @@
 import gc
-import logging
 import random
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -8,11 +7,12 @@ from pathlib import Path
 from typing import Callable, List, Any
 
 import numpy as np
+import structlog
 import torch
 
 from fisheye.enums import ValidExtensions
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 def safe_execution(default_return=None):

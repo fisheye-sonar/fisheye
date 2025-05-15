@@ -17,6 +17,7 @@ opencv-python = "^4.11.0.86"
 lightning = "^2.5.0.post0"
 yolov5 = "^7.0.14"
 filterpy = "^1.4.5"
+structlog = "^25.3.0"
 
 
 [tool.poetry.group.test.dependencies]

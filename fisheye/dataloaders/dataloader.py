@@ -1,8 +1,8 @@
-import logging
 import os
 import warnings
 from typing import Union
 
+import structlog
 import torch
 
 from fisheye.configs import BaseDatasetConfig, YOLODatasetConfig
@@ -11,7 +11,7 @@ from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.common.collate import yolo_collate_fn
 from fisheye.common import torch_distributed_zero_first
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 def create_dataloader(config: Union[BaseDatasetConfig, YOLODatasetConfig]):
@@ -34,7 +34,6 @@ def create_dataloader(config: Union[BaseDatasetConfig, YOLODatasetConfig]):
     # Make sure only the first process in DDP processes the dataset first, and the following others can use the cache
     # this is a no-op for a single-gpu machine
     with torch_distributed_zero_first(config.rank):
-        logger.info(f"Initializing dataloader using {type(config).__name__}")
         dataset = dataset_class(config)
 
     if len(dataset) == 0:
@@ -53,7 +52,14 @@ def create_dataloader(config: Union[BaseDatasetConfig, YOLODatasetConfig]):
         ]
     )  # number of workers
 
-    logger.info(f"Dataset size: {len(dataset)}, Number of workers: {nw}")
+    logger.info(
+        "Initialized dataloader",
+        config_type=type(config).__name__,
+        dataset_class=dataset_class.__name__,
+        dataset_size=len(dataset),
+        batch_size=batch_size,
+        num_workers=nw,
+    )
 
     dataloader = torch.utils.data.dataloader.DataLoader(
         dataset,

@@ -1,7 +1,7 @@
-import logging
 from functools import partial
 from typing import Dict, Any, Optional
 
+import structlog
 import torch
 
 from fisheye.boxes import run_nms
@@ -20,7 +20,7 @@ POSTPROCESSING_REGISTRY = {
     "nms": run_nms,
 }
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class ObjectDetectionPipeline:
