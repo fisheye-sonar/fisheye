@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fisheye"
-version = "0.1.0"
+version = "v1.0.0-dev.1"
 description = "Performing inference on sonar data."
 authors = ["Madison Van Horn"]
 readme = "README.md"
@@ -17,6 +17,8 @@ opencv-python = "^4.11.0.86"
 lightning = "^2.5.0.post0"
 yolov5 = "^7.0.14"
 filterpy = "^1.4.5"
+structlog = "^25.3.0"
+tomli = "^2.2.1"
 
 
 [tool.poetry.group.test.dependencies]

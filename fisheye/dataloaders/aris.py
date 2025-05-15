@@ -1,12 +1,12 @@
-import logging
-import warnings
+import structlog
 
+from fisheye.common.exceptions import LowDiskSpaceError
 from fisheye.configs import BaseDatasetConfig
 from fisheye.configs.datasets import ARISMetadata
 from fisheye.dataloaders.base import BaseDataset
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class ARISBatchedDataset(BaseDataset):
@@ -26,7 +26,14 @@ class ARISBatchedDataset(BaseDataset):
         try:
             self.didson = DIDSON(config.filepath, beam_width_dir=config.beam_width_dir)
         except Exception as e:
-            raise RuntimeError(f"Could not load {config.filepath}: {e}")
+            logger.error(
+                "failed_to_load_file",
+                filepath=config.filepath,
+                error=str(e),
+                exc_info=True,
+            )
+
+            raise RuntimeError(f"Could not load {config.filepath}") from e
 
         config.start_frame, config.end_frame = self._validate_frame_range(config=config)
         self.metadata = self._extract_metadata()
@@ -86,7 +93,7 @@ class ARISBatchedDataset(BaseDataset):
         # We are possibly looking at a shortened clip where the start and end frame indexes are larger than the number
         # of frames in the file.
         if config.start_frame > config.end_frame:
-            warnings.warn(
+            logger.warning(
                 "End frame is 0 or -1, likely due to a corrupted or incomplete header file. "
                 "Even if you provided a valid end_frame, it was overwritten because the original end_frame is smaller. "
                 "Falling back to loading all frames, which may be inefficient."
@@ -94,7 +101,7 @@ class ARISBatchedDataset(BaseDataset):
             # Reset the start and end frames
             config.start_frame = 0
             config.end_frame = end_frame
-            warnings.warn(
+            logger.warning(
                 f"Resetting start_frame to 0 and end_frame to {config.end_frame}."
             )
 

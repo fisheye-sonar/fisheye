@@ -1,7 +1,10 @@
 import logging
 import os
+from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+
+import structlog
 
 
 def log_progress(logger, current: int, total: int, prefix: str = "", every: int = 10):
@@ -28,45 +31,62 @@ def log_progress(logger, current: int, total: int, prefix: str = "", every: int 
 
 def setup_logging(
     base_log_dir: str = "logs",
-    level: int = logging.INFO,
-    max_bytes: int = 10 * 1024 * 1024,  # 10MB
-    backup_count: int = 5,
-    modules: list[str] = None,
     file_logging: bool = False,
-) -> None:
-    """
-    Configure logging across modules.
+    level: int = logging.INFO,
+    max_bytes: int = 10 * 1024 * 1024,
+    backup_count: int = 5,
+    job_id: str = None,
+):
+    shared_processors = [
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.add_log_level,
+        structlog.processors.CallsiteParameterAdder(
+            [structlog.processors.CallsiteParameter.FILENAME]
+        ),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+    ]
 
-    Args:
-        base_log_dir: Directory to store log files.
-        level: Logging level (e.g., logging.INFO, logging.ERROR).
-        max_bytes: Max size of each log file before rotation.
-        backup_count: Number of rotated log files to keep.
-        modules: Optional list of module names to configure separately.
-        file_logging: Enable or disable logging to local file(s).
-    """
-
-    formatter = logging.Formatter(
-        fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+    # Configure structlog but no renderer here
+    structlog.configure(
+        processors=shared_processors
+        + [
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
     )
-
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
 
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
+    root_logger.handlers.clear()
+
+    # console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            processor=structlog.dev.ConsoleRenderer(),
+            foreign_pre_chain=shared_processors,
+        )
+    )
     root_logger.addHandler(console_handler)
 
-    if file_logging and modules:
+    if file_logging:
         Path(base_log_dir).mkdir(parents=True, exist_ok=True)
-        for module in modules:
-            logger = logging.getLogger(f"fisheye.{module}")
-            log_path = os.path.join(base_log_dir, f"{module}.log")
-            file_handler = RotatingFileHandler(
-                log_path, maxBytes=max_bytes, backupCount=backup_count
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}-{job_id}.log" if job_id else f"fisheye-{timestamp}.log"
+        log_path = os.path.join(base_log_dir, filename)
+
+        file_handler = RotatingFileHandler(
+            log_path, maxBytes=max_bytes, backupCount=backup_count
+        )
+        file_handler.setFormatter(
+            structlog.stdlib.ProcessorFormatter(
+                processor=structlog.processors.JSONRenderer(),
+                foreign_pre_chain=shared_processors,
             )
-            file_handler.setFormatter(formatter)
-            logger.setLevel(level)
-            logger.addHandler(file_handler)
-            logger.propagate = True
+        )
+
+        root_logger.addHandler(file_handler)

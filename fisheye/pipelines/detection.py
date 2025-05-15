@@ -1,7 +1,7 @@
-import logging
 from functools import partial
 from typing import Dict, Any, Optional
 
+import structlog
 import torch
 
 from fisheye.boxes import run_nms
@@ -20,7 +20,7 @@ POSTPROCESSING_REGISTRY = {
     "nms": run_nms,
 }
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class ObjectDetectionPipeline:
@@ -49,7 +49,7 @@ class ObjectDetectionPipeline:
             else model.weights
         )
         logger.info(
-            f"Initialized model: {type(self.model).__name__} on device {self.device}"
+            f"initialized_detector", model=type(self.model).__name__, device=self.device
         )
         self.dataloader, self.dataset = create_dataloader(dataset_config)
         self.metadata = self.dataset.metadata
@@ -157,7 +157,6 @@ class ObjectDetectionPipeline:
         Returns:
             List[Any]: Processed detection results.
         """
-        logger.info("Running object detection pipeline...")
         output = ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))
 
         return output if not self.postprocessing_steps else self.postprocess(output)

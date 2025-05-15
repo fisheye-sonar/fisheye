@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 from datetime import datetime
@@ -6,11 +5,12 @@ from pathlib import Path
 from typing import Dict, Callable, Any, Union
 
 import pandas as pd
+import structlog
 
 from fisheye.enums import ExportType
 from fisheye.utils import get_unwarped_distance
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 def to_detailed_csv(data, out_dir):
@@ -24,7 +24,7 @@ def to_detailed_csv(data, out_dir):
     """
     out_file = os.path.join(out_dir, datetime.now().strftime("%Y-%m-%d"))
     flattened_data = [item for sublist in data if sublist for item in sublist]
-    out_file = out_file + "_" + Path(flattened_data[0].get("file_name")).stem
+    out_file = out_file + "_" + Path(flattened_data[0].get("file_name")).stem + ".csv"
 
     if not flattened_data:
         raise ValueError(
@@ -32,9 +32,9 @@ def to_detailed_csv(data, out_dir):
         )
 
     df = pd.DataFrame(flattened_data)
-    df.to_csv(out_file + ".csv", index=False)
+    df.to_csv(out_file, index=False)
 
-    logger.info(f"Exported results to {out_dir}")
+    logger.info(f"exported_results", output_dir=out_file)
 
 
 def to_summary_csv(data, out_dir):
@@ -46,7 +46,10 @@ def to_summary_csv(data, out_dir):
         data (dict): Dictionary of inference results.
         out_dir (str): Output directory for CSV files.
     """
-    out_file = os.path.join(out_dir, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    out_file = (
+        os.path.join(out_dir, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+        + "_summary.csv"
+    )
     flattened_data = [item for sublist in data if sublist for item in sublist]
 
     if not flattened_data:
@@ -82,9 +85,9 @@ def to_summary_csv(data, out_dir):
 
     final_result = file_counts.reset_index()
     # Save absolute left, right, and net counts for each ARIS/DDF file to a single CSV
-    final_result.to_csv(out_file + "_summary.csv", index=False)
+    final_result.to_csv(out_file, index=False)
 
-    logger.info(f"Exported summary to {out_dir}")
+    logger.info(f"exported_summary", output_dir=out_file)
 
 
 def to_txt(data, out_dir):
@@ -186,7 +189,7 @@ def to_txt(data, out_dir):
                 row_line = "  ".join(f"{str(row_data[h]):<10}" for h in headers)
                 f.write(row_line + "\n")
 
-        print(f"Exported results to {out_file}")
+        logger.info(f"exported_txt", output_dir=out_file)
 
 
 def to_mot(data, output_dir, filename):
@@ -210,6 +213,8 @@ def to_mot(data, output_dir, filename):
 
     with open(out_path, "w") as f:
         f.write("\n".join(mot_lines))
+
+    logger.info(f"exported_mot", output_dir=out_path)
 
 
 # Add any new export functions here

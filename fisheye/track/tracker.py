@@ -1,9 +1,9 @@
 import json
-import logging
 from collections import Counter
 from copy import deepcopy
 
 import numpy as np
+import structlog
 from tqdm import tqdm
 
 from fisheye.configs.inference import TrackerConfig, FishSizeConfig, TrackerOutput
@@ -12,9 +12,7 @@ from fisheye.track.bytetrack import ByteTracker
 from fisheye.track.sort import Sort
 from fisheye.track.utils import FishMetrics
 
-logger = logging.getLogger(__name__)
-
-logger.info("Tracking module initialized.")
+logger = structlog.get_logger()
 
 # Add any new trackers here
 TRACKER_CLASSES = {
@@ -186,10 +184,16 @@ def run_tracker(
     tracking_config,
     min_length=FishSizeConfig.min_length,
     gp=None,
-    verbose=True,
+    verbose=False,
 ):
     """Factory method to run tracker."""
-    logger.info(f"Running tracker using {tracking_config.type}...")
+    logger.info(
+        "initialized_tracker",
+        tracker_type=tracking_config.type,
+        max_age=tracking_config.max_age,
+        iou_threshold=tracking_config.iou_threshold,
+        reverse=tracking_config.reverse,
+    )
     if gp:
         gp(0, f"Tracking using {tracking_config}...")
 

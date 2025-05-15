@@ -1,7 +1,8 @@
-import logging
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, List, Union
+
+import structlog
 
 from fisheye.boxes import run_nms, normalize_boxes_for_tracking
 from fisheye.common.generic import safe_execution, _is_valid_file, _is_valid_dir
@@ -14,7 +15,7 @@ from fisheye.format import tracker_output_to_mot
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 class DetectTrackCountPipeline:
@@ -36,7 +37,7 @@ class DetectTrackCountPipeline:
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
     ) -> List:
-        logger.info(f"Currently processing {file}")
+        logger.info("file_processing_started", file_path=str(file))
         dataset_cfg = YOLODatasetConfig(filepath=file)
         detector = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg)
         detections = detector()
@@ -127,7 +128,7 @@ class DetectTrackCountPipeline:
             ]
         else:
             formatted_crossings = []
-            logger.info(f"No crossing frames detected for {file}")
+            logger.debug("no_crossings_detected", file_path=str(file))
 
         remaining_export_types = [
             et
@@ -179,7 +180,7 @@ class DetectTrackCountPipeline:
 
             if len(valid_files) < len(file):
                 invalid = set(map(str, file)) - set(map(str, valid_files))
-                logger.info(f"Skipping invalid file path(s): {', '.join(invalid)}")
+                logger.info("skipping_invalid_file_paths", invalid_paths=list(invalid))
 
             return [self._run(f, output_dir, export_types) for f in valid_files]
 

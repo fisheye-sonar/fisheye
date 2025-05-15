@@ -1,7 +1,6 @@
-import logging
-
 import cv2
 import numpy as np
+import structlog
 import torch
 from yolov5.utils.augmentations import letterbox
 from yolov5.utils.general import xyxy2xywh
@@ -9,7 +8,7 @@ from yolov5.utils.general import xyxy2xywh
 from fisheye.configs import YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class YOLOARISBatchedDataset(ARISBatchedDataset):

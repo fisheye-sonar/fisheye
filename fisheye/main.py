@@ -1,18 +1,20 @@
 import argparse
-import logging
 import time
 from typing import List
 
+import structlog
+
 from fisheye.common.logging import setup_logging
-from fisheye.common.system import check_disk_space
+from fisheye.common.system import check_disk_space, generate_job_id
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
 from fisheye.enums import ExportType
 from fisheye.export import save_to_disk
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
+from fisheye.version import __version__
 
-setup_logging(modules=["dataloaders", "pipelines", "track", "count", "export"])
-
-logger = logging.getLogger(__name__)
+job_id = generate_job_id()
+setup_logging(file_logging=True, job_id=job_id)
+logger = structlog.get_logger().bind(job_id=job_id, app_version=__version__)
 
 
 def main(
@@ -23,7 +25,8 @@ def main(
     model_cfg = YOLOv5ModelConfig(weights=weights)
     detection_cfg = ObjectDetectionConfig(model=model_cfg)
 
-    logger.info("Pipeline started 🚀")
+    start_time = time.time()
+    logger.info("inference_started", start_time=start_time)
 
     results = DetectTrackCountPipeline(detection_cfg).run(
         path, output_dir, export_options
@@ -31,6 +34,13 @@ def main(
 
     if ExportType.SUMMARY_CSV in export_options:
         save_to_disk(results, output_dir, export_types=ExportType.SUMMARY_CSV)
+
+    end_time = time.time()
+    logger.info(
+        "inference_completed",
+        inference_duration_sec=end_time - start_time,
+        num_files_processed=len(results),
+    )
 
     return results
 
@@ -72,8 +82,4 @@ if __name__ == "__main__":
         except KeyError as e:
             raise argparse.ArgumentTypeError(f"Invalid export type: {e.args[0]}")
 
-    start = time.time()
     results = main(args.path, args.weights, export_types, args.output_dir)
-    end = time.time()
-
-    logger.info(f"Total inference time: {end - start:.2f} seconds")
