@@ -4,12 +4,12 @@ FishEye is a Python library for working with imaging sonar data, designed to aut
 
 FishEye simplifies the process of loading, preprocessing, and analyzing sonar data, making it easier to integrate into machine learning workflows.
 
-
-## Step 0: Software Requirements
+## Installation and Setup
+### Step 0: Software Requirements
 - Python 3.10.14  (Recommendation: use [pyenv](https://github.com/pyenv/pyenv) for python and virtual environment management)
 - [Poetry](https://python-poetry.org/docs/) (dependency management & packaging)
 
-## Step 1: Environment Setup
+### Step 1: Environment Setup
 1. Create virtual environment. 
 
 `pyenv virtualenv 3.10.8 fisheye-dev`
@@ -26,5 +26,36 @@ FishEye simplifies the process of loading, preprocessing, and analyzing sonar da
 
 `poetry shell`
 
-## Step 2: Activate pre-commit hooks
+💡 If using a new version of poetry, command has changed to `poetry env activate`
+
+### Step 2: Activate pre-commit hooks
 Run `pre-commit install`.
+
+### Step 4: Make run.sh executable
+Run `chmod +x run.sh`
+
+
+## How to Run the App
+1. Open the run.sh file in any text editor (like VS Code, Notepad, or TextEdit), and look for lines like this:
+
+    `DATA_DIR=${1:-"./data"}`
+    
+    `MODEL_PATH=${2:-"./models/model.pt"}`    
+
+    `EXPORT=${3:-"summary_csv,detailed_csv,txt"}`
+ 
+    `OUTPUT_DIR=${4:-"./output"}`
+
+You can change the default values (inside the "") to whatever you want:
+    
+    `DATA_DIR=${1:-"/home/fisheye/my-folder"}`
+
+💡 If you’re unsure how to edit .sh files, just right-click the file and open it with any text editor.
+
+2. Once the values are set, open your Terminal. Navigate to the project folder using the cd command. 
+
+    `cd ~/home/fisheye/code/fisheye/`
+
+    Now run the script:
+
+    `./run.sh`
