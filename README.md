@@ -26,7 +26,7 @@ FishEye simplifies the process of loading, preprocessing, and analyzing sonar da
 
 `poetry shell`
 
-If using a new version of poetry, command has changed to `poetry env activate`
+💡 If using a new version of poetry, command has changed to `poetry env activate`
 
 ### Step 2: Activate pre-commit hooks
 Run `pre-commit install`.
@@ -37,12 +37,13 @@ Run `chmod +x run.sh`
 
 ## How to Run the App
 1. Open the run.sh file in any text editor (like VS Code, Notepad, or TextEdit), and look for lines like this:
+
     `DATA_DIR=${1:-"./data"}`
     
-    `EXPORT=${2:-"true"}`
+    `MODEL_PATH=${2:-"./models/model.pt"}`    
 
-    `MODEL_PATH=${3:-"./models/model.pt"}`
-    
+    `EXPORT=${3:-"summary_csv,detailed_csv,txt"}`
+ 
     `OUTPUT_DIR=${4:-"./output"}`
 
 You can change the default values (inside the "") to whatever you want:
@@ -51,9 +52,10 @@ You can change the default values (inside the "") to whatever you want:
 
 💡 If you’re unsure how to edit .sh files, just right-click the file and open it with any text editor.
 
-2. Once the values are set, open your terminal. Navigate to the project folder using the cd command. 
+2. Once the values are set, open your Terminal. Navigate to the project folder using the cd command. 
 
     `cd ~/home/fisheye/code/fisheye/`
 
     Now run the script:
+
     `./run.sh`
