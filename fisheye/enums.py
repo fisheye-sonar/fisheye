@@ -30,7 +30,7 @@ class ExportType(str, Enum):
 class DeviceType(str, Enum):
     """Types of devices currently supported."""
 
-    GPU = "gpu"
+    CUDA = "cuda:0"  # single NVIDIA GPU
     CPU = "cpu"
     MPS = "mps"  # enable GPU on Macs with Apple Silicon
 
