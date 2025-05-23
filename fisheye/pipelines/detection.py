@@ -128,11 +128,11 @@ class ObjectDetectionPipeline:
                 inf_out = run_with_threads(
                     self.model.predict, img_list, self.max_workers
                 )
-                # Squeeze and stack to match batched output shape
+                # Concatenate per sample predictions into a batched tensor [B, N, 6]
                 inf_out = torch.cat(inf_out, dim=0)
             else:
-                # Batched inference
-                inf_out = [self.model.predict(img)]
+                # Batched inference - [B, N, 6]
+                inf_out = self.model.predict(img)
 
             # Save shapes for resizing to original shape
             batch_shape = []
