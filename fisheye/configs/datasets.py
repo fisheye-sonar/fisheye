@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-BASE = Path(__file__).parent.parent
-BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
+BASE_DIR = Path(__file__).resolve().parent.parent
+BEAM_WIDTH_DIR = BASE_DIR / "beam_widths"
 
 
 @dataclass
@@ -13,7 +13,6 @@ class BaseDatasetConfig:
     Defaults are optimized for running on MPS device.
     """
 
-    beam_width_dir: Path = BEAM_WIDTH_DIR
     filepath: str = ""
     batch_size: int = 16
     rank: int = -1

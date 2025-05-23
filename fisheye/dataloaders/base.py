@@ -24,7 +24,6 @@ class BaseDataset(Dataset):
 
         self.start_frame = config.start_frame
         self.end_frame = config.end_frame
-        self.beam_width_dir = config.beam_width_dir
         self.batch_size = config.batch_size
         self.cache_bg_frames = config.cache_bg_frames
         self.num_frames_bg_subtract = config.num_frames_bg_subtract

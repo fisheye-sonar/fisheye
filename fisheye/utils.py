@@ -1,6 +1,7 @@
 import numpy as np
 
 from fisheye.dataloaders.didson import pyARIS
+from fisheye.configs.datasets import BEAM_WIDTH_DIR
 
 
 def calculate_unwarped_points(points, info, xdim, ydim):
@@ -78,7 +79,7 @@ def get_unwarped_distance(row):
     """
     metadata = row["metadata"]
     metadata.beam_width_data, _ = pyARIS.load_beam_width_data(
-        frame=metadata, beam_width_dir="/Users/madison/Code/fisheye/fisheye/beam_widths"
+        frame=metadata, beam_width_dir=BEAM_WIDTH_DIR
     )
 
     bbox_xywh = np.array(row["bbox"]) * np.array(
