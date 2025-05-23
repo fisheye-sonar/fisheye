@@ -1,17 +1,12 @@
 import os
-from pathlib import Path
 
 import pytorch_lightning as pl
 import structlog
 from torch.utils.data import DataLoader
 
-from fisheye.configs import BaseDatasetConfig
-from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.common import torch_distributed_zero_first, yolo_collate_fn
-
-BASE = Path(__file__).parent.parent
-BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
-
+from fisheye.configs.datasets import BaseDatasetConfig
+from fisheye.dataloaders.samplers import OnePerBatchSampler
 
 logger = structlog.get_logger()
 
