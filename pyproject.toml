@@ -13,7 +13,6 @@ pillow = "^11.1.0"
 matplotlib = "^3.10.0"
 tqdm = "^4.67.1"
 opencv-python = "^4.11.0.86"
-lightning = "^2.5.0.post0"
 yolov5 = "^7.0.14"
 filterpy = "^1.4.5"
 structlog = "^25.3.0"
@@ -33,9 +32,9 @@ black = "^25.1.0"
 memory-profiler = "^0.61.0"
 
 
-
 [tool.poetry.group.mac.dependencies]
 torch = "^2.6.0"
+lightning = "^2.5.0.post0"
 
 [build-system]
 requires = ["poetry-core"]

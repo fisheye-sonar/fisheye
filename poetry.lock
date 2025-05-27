@@ -5352,4 +5352,4 @@ ultralytics = ">=8.0.100"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "bb1321427a069849fc92b246d760acb33e0b1706ef79a6ead2337438bf5b3c44"
+content-hash = "5f4f3229e69a3791a2d878fcb80d18f7d1d4f6bd4df981b08439136e6e9b9aa0"
