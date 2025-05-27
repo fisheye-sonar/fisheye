@@ -38,13 +38,16 @@ FishEye simplifies the process of loading, preprocessing, and analyzing sonar da
 
 `poetry env use $(which python)`
 
-8. Install project's dependencies
+8. Install project's dependencies. If on Mac, run: 
 
-`poetry install`
+   `poetry install`
+
+   If running on Linux or Windows, run:
+   `poetry install --without dev --without test --without mac`
 
 9. Activate the virtual environment
 
-`poetry shell`
+   `poetry shell`
 
 💡 If using a new version of poetry, command has changed to `poetry env activate`
 
