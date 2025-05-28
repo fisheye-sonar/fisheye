@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 from fisheye.detect.base import BaseModel
 from fisheye.enums import DeviceType
@@ -9,7 +9,7 @@ from fisheye.enums import DeviceType
 class BaseModelConfig:
     """Base model configuration."""
 
-    weights: str | BaseModel = None
+    weights: Union[str, BaseModel] = None
     device: str = DeviceType.MPS.value
 
 

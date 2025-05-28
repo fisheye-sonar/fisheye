@@ -19,8 +19,15 @@ COPY pyproject.toml poetry.lock README.md ./
 COPY . .
 
 RUN curl -sSL https://install.python-poetry.org | python3 - && \
-    ~/.local/bin/poetry config virtualenvs.create false && \
-    ~/.local/bin/poetry install --no-interaction --no-ansi
+    ~/.local/bin/poetry config virtualenvs.create false
+
+# Add Poetry to PATh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Install only core dependencies needed for Windows 11 machine
+RUN poetry install --no-interaction --no-ansi --without dev --without test --without mac
+
+RUN chmod +x run.sh
 
 # Make sure all entrypoints and scripts use bash
 SHELL ["/bin/bash", "-c"]

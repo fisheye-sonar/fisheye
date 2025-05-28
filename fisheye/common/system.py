@@ -1,11 +1,12 @@
 import shutil
 import uuid
 from pathlib import Path
+from typing import Union
 
 from fisheye.common.exceptions import LowDiskSpaceError
 
 
-def check_disk_space(path: str | Path = "/", threshold: float = 10.0) -> None:
+def check_disk_space(path: Union[str, Path] = "/", threshold: float = 10.0) -> None:
     """
     Checks if the available disk space is below the threshold. Don't want to run inference and then find out you
     can't save the results due to storage issues.

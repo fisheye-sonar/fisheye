@@ -10,6 +10,7 @@ FishEye simplifies the process of loading, preprocessing, and analyzing sonar da
 - [Poetry](https://python-poetry.org/docs/) (dependency management & packaging)
 
 ### Step 1: Environment Setup
+The following is needed for development as well as running inference on a Mac.
 1. Create virtual environment. 
 
 `pyenv virtualenv 3.10.8 fisheye-dev`
@@ -38,20 +39,24 @@ FishEye simplifies the process of loading, preprocessing, and analyzing sonar da
 
 `poetry env use $(which python)`
 
-8. Install project's dependencies. If on Mac, run: 
+8. Install project's dependencies. 
 
+   If on Mac, run: 
+   
    `poetry install`
-
+   
    If running on Linux or Windows, run:
+   
    `poetry install --without dev --without test --without mac`
+
 
 9. Activate the virtual environment
 
-   `poetry shell`
+`poetry shell`
 
 💡 If using a new version of poetry, command has changed to `poetry env activate`
 
-### Step 2: Activate pre-commit hooks
+### Step 2: Activate pre-commit hooks - development only.
 Run `pre-commit install`.
 
 ### Step 4: Make run.sh executable

@@ -1,6 +1,6 @@
 import argparse
 import time
-from typing import List
+from typing import List, Union
 
 import structlog
 
@@ -18,7 +18,10 @@ logger = structlog.get_logger().bind(job_id=job_id, app_version=__version__)
 
 
 def main(
-    path: List[str] | str, weights, export_options: List[ExportType], output_dir: str
+    path: Union[List[str], str],
+    weights,
+    export_options: List[ExportType],
+    output_dir: str,
 ):
     check_disk_space(path=output_dir)  # Make sure there's enough space to store results
 

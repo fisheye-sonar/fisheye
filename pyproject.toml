@@ -8,15 +8,17 @@ packages = [{include = "fisheye"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+setuptools = "<81"
+numpy = "<2.0"
 pandas = "^2.2.3"
 pillow = "^11.1.0"
 matplotlib = "^3.10.0"
 tqdm = "^4.67.1"
-opencv-python = "^4.11.0.86"
-yolov5 = "^7.0.14"
+opencv-python = "<4.7.0"
 filterpy = "^1.4.5"
 structlog = "^25.3.0"
 tomli = "^2.2.1"
+yolov5 = "^7.0.14"
 
 
 [tool.poetry.group.test.dependencies]
