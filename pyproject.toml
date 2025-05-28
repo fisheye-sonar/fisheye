@@ -29,15 +29,15 @@ structlog = [
     { version = "^25.3.0", python = ">=3.10" }
 ]
 tomli = "^2.2.1"
+lightning = [
+    { version = "<2.1.0", python = "<3.10" },
+    { version = "^2.5.0.post0", python = ">=3.10" }
+]
 
 [tool.poetry.group.mac.dependencies]
 torch = [{version = "^2.6.0", python = ">=3.10" }]
 torchvision = [
   { version = "0.22.0", python = ">=3.10" }
-]
-lightning = [
-    { version = "<2.1.0", python = "<3.10" },
-    { version = "^2.5.0.post0", python = ">=3.10" }
 ]
 
 [tool.poetry.group.test.dependencies]
