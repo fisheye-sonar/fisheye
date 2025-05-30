@@ -36,6 +36,7 @@ class DetectTrackCountPipeline:
         file: Union[Path, List[Path]],
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
+        job_id: Optional[str] = None,
     ) -> List:
         logger.info("file_processing_started", file_path=str(file))
         dataset_cfg = YOLODatasetConfig(filepath=file)
@@ -100,7 +101,9 @@ class DetectTrackCountPipeline:
             export_types_list = export_types
 
         if ExportType.MOT in export_types_list:
-            save_to_disk(mot_tracks, output_dir, export_types=ExportType.MOT)
+            save_to_disk(
+                mot_tracks, output_dir, export_types=ExportType.MOT, job_id=job_id
+            )
 
         (left_count, right_count), crossing_frames = Count().count(mot_tracks)
 
@@ -136,7 +139,10 @@ class DetectTrackCountPipeline:
             if et != ExportType.MOT and (et != ExportType.SUMMARY_CSV)
         ]
         save_to_disk(
-            [formatted_crossings], output_dir, export_types=remaining_export_types
+            [formatted_crossings],
+            output_dir,
+            export_types=remaining_export_types,
+            job_id=job_id,
         )
 
         return formatted_crossings
@@ -146,6 +152,7 @@ class DetectTrackCountPipeline:
         file: Union[List[str], str],
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
+        job_id: Optional[str] = None,
     ) -> Union[List[List[dict]], List[dict]]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
@@ -166,7 +173,7 @@ class DetectTrackCountPipeline:
             elif _is_valid_dir(path):
                 # Process all ARIS or DIDSON files in directory
                 files = [f for f in path.iterdir() if _is_valid_file(f)]
-                return [self._run(f, output_dir, export_types) for f in files]
+                return [self._run(f, output_dir, export_types, job_id) for f in files]
 
             else:
                 raise ValueError(f"Invalid file or directory path: {file}")
@@ -182,7 +189,7 @@ class DetectTrackCountPipeline:
                 invalid = set(map(str, file)) - set(map(str, valid_files))
                 logger.info("skipping_invalid_file_paths", invalid_paths=list(invalid))
 
-            return [self._run(f, output_dir, export_types) for f in valid_files]
+            return [self._run(f, output_dir, export_types, job_id) for f in valid_files]
 
         else:
             raise ValueError(
