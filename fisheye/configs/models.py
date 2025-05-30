@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union, List
 
 from fisheye.detect.base import BaseModel
 from fisheye.enums import DeviceType
@@ -9,7 +9,7 @@ from fisheye.enums import DeviceType
 class BaseModelConfig:
     """Base model configuration."""
 
-    weights: str | BaseModel = None
+    weights: Union[str, BaseModel] = None
     device: str = DeviceType.MPS.value
 
 
@@ -22,7 +22,7 @@ class YOLOv5ModelConfig(BaseModelConfig):
 
     agnostic: bool = False  # NMS class-agnostic
     multi_label: bool = False  # NMS multiple labels per box
-    classes: Optional[list[int]] = (
+    classes: Optional[List[int]] = (
         None  # (Optional list) filter by class, i.e. = [0, 15, 16] for COCO
     )
     max_det: int = 300  # Maximum number of detections per image

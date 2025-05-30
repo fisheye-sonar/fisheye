@@ -26,23 +26,22 @@ FishEye simplifies the process of loading, preprocessing, and analyzing sonar da
 
 `pyenv activate fisheye-dev`
 
-5. Make sure virtualenv creation is disabled:
+5. Update the following poetry configs:
 
 `poetry config virtualenvs.create false`
 
-6. Make sure to enable using virtualenv in project 
-
 `poetry config virtualenvs.in-project true`
 
-7. Tell Poetry to use the current Python executable inside this activated env
+`poetry config keyring.enabled false`
 
 `poetry env use $(which python)`
 
-8. Install project's dependencies
+
+6. Install project's dependencies
 
 `poetry install`
 
-9. Activate the virtual environment
+7. Activate the virtual environment
 
 `poetry shell`
 

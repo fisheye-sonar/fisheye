@@ -2,7 +2,7 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Callable, Any, Union
+from typing import Dict, Callable, Any, Union, List
 
 import pandas as pd
 import structlog
@@ -226,7 +226,7 @@ EXPORT_FUNCTIONS: Dict[ExportType, Callable[[Any, str], None]] = {
 }
 
 
-def get_exporter(export_type: ExportType | str) -> Callable[[Any, str], None]:
+def get_exporter(export_type: Union[ExportType, str]) -> Callable[[Any, str], None]:
     """Retrieve the appropriate export function."""
 
     if isinstance(export_type, str):
@@ -236,7 +236,7 @@ def get_exporter(export_type: ExportType | str) -> Callable[[Any, str], None]:
 
 
 def save_to_disk(
-    results, output_dir, export_types: Union[list[ExportType], ExportType]
+    results, output_dir, export_types: Union[List[ExportType], ExportType]
 ) -> None:
     """Save results to disk."""
     if not isinstance(export_types, list):
