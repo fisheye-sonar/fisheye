@@ -226,7 +226,7 @@ EXPORT_FUNCTIONS: Dict[ExportType, Callable[[Any, str], None]] = {
 }
 
 
-def get_exporter(export_type: ExportType | str) -> Callable[[Any, str], None]:
+def get_exporter(export_type: Union[ExportType, str]) -> Callable[[Any, str], None]:
     """Retrieve the appropriate export function."""
 
     if isinstance(export_type, str):

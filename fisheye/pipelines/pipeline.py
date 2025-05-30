@@ -143,10 +143,10 @@ class DetectTrackCountPipeline:
 
     def run(
         self,
-        file: List[str] | str,
+        file: Union[List[str], str],
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
-    ) -> List[List[dict]] | List[dict]:
+    ) -> Union[List[List[dict]], List[dict]]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
         Args:
