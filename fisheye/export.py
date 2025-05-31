@@ -28,12 +28,13 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
     out_file = os.path.join(out_dir, f"{timestamp}{job_suffix}")
 
     flattened_data = [item for sublist in data if sublist for item in sublist]
-    out_file = out_file + "_" + Path(flattened_data[0].get("file_name")).stem + ".csv"
 
     if not flattened_data:
         raise ValueError(
             f"No counts were found in the provided data. Nothing to export."
         )
+
+    out_file = out_file + "_" + Path(flattened_data[0].get("file_name")).stem + ".csv"
 
     df = pd.DataFrame(flattened_data)
     df.to_csv(out_file, index=False)
@@ -57,9 +58,8 @@ def to_summary_csv(data, out_dir, job_id: str = None):
     flattened_data = [item for sublist in data if sublist for item in sublist]
 
     if not flattened_data:
-        raise ValueError(
-            f"No counts were found in the provided data. Nothing to export."
-        )
+        logger.warning(f"No counts were found in the provided data. Nothing to export.")
+        return
 
     df = pd.DataFrame(flattened_data)
     # Save off all track counts to CSV
@@ -109,9 +109,9 @@ def to_txt(data, out_dir):
     """
     flattened_data = [item for sublist in data if sublist for item in sublist]
     if not flattened_data:
-        raise ValueError(
-            f"No tracks were found in the provided data. Nothing to export."
-        )
+        logger.warning(f"No counts were found in the provided data. Nothing to export.")
+        return
+
     df = pd.DataFrame(flattened_data)
     # Calculate the distance from the sonar camera to the fish in an unwarped frame
     df["distance"] = df.apply(get_unwarped_distance, axis=1)
@@ -248,6 +248,10 @@ def save_to_disk(
     results, output_dir, export_types: Union[List[ExportType], ExportType], job_id: str
 ) -> None:
     """Save results to disk."""
+    if not results or all(len(sublist) == 0 for sublist in results):
+        logger.warning(f"No counts were found in the provided data. Nothing to export.")
+        return
+
     if not isinstance(export_types, list):
         export_types = [export_types]
 
