@@ -30,9 +30,8 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
     flattened_data = [item for sublist in data if sublist for item in sublist]
 
     if not flattened_data:
-        raise ValueError(
-            f"No counts were found in the provided data. Nothing to export."
-        )
+        logger.warning(f"No counts were found in the provided data. Nothing to export.")
+        return
 
     out_file = out_file + "_" + Path(flattened_data[0].get("file_name")).stem + ".csv"
 
