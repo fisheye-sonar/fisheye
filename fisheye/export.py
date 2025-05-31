@@ -13,7 +13,7 @@ from fisheye.utils import get_unwarped_distance
 logger = structlog.get_logger()
 
 
-def to_detailed_csv(data, out_dir):
+def to_detailed_csv(data, out_dir, job_id: str = None):
     """Export inference results to CSV file.
 
     A detailed CSV with where each row is considered a count with additional metadata.
@@ -21,8 +21,12 @@ def to_detailed_csv(data, out_dir):
     Args:
         data (dict): Dictionary of inference results.
         out_dir (str): Output directory for CSV files.
+        job_id (str): Job ID.
     """
-    out_file = os.path.join(out_dir, datetime.now().strftime("%Y-%m-%d"))
+    timestamp = datetime.now().strftime("%Y-%m-%d")
+    job_suffix = f"_{job_id}" if job_id else ""
+    out_file = os.path.join(out_dir, f"{timestamp}{job_suffix}")
+
     flattened_data = [item for sublist in data if sublist for item in sublist]
     out_file = out_file + "_" + Path(flattened_data[0].get("file_name")).stem + ".csv"
 
@@ -37,7 +41,7 @@ def to_detailed_csv(data, out_dir):
     logger.info(f"exported_results", output_dir=out_file)
 
 
-def to_summary_csv(data, out_dir):
+def to_summary_csv(data, out_dir, job_id: str = None):
     """Export inference results to CSV file.
 
     A summary CSV containing counts for each ARIS/DDF file to a single CSV
@@ -46,10 +50,10 @@ def to_summary_csv(data, out_dir):
         data (dict): Dictionary of inference results.
         out_dir (str): Output directory for CSV files.
     """
-    out_file = (
-        os.path.join(out_dir, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-        + "_summary.csv"
-    )
+    timestamp = datetime.now().strftime("%Y-%m-%d")
+    job_suffix = f"_{job_id}" if job_id else ""
+    out_file = os.path.join(out_dir, f"{timestamp}{job_suffix}_summary.csv")
+
     flattened_data = [item for sublist in data if sublist for item in sublist]
 
     if not flattened_data:
@@ -236,7 +240,7 @@ def get_exporter(export_type: Union[ExportType, str]) -> Callable[[Any, str], No
 
 
 def save_to_disk(
-    results, output_dir, export_types: Union[List[ExportType], ExportType]
+    results, output_dir, export_types: Union[List[ExportType], ExportType], job_id: str
 ) -> None:
     """Save results to disk."""
     if not isinstance(export_types, list):
@@ -244,4 +248,9 @@ def save_to_disk(
 
     for export_option in export_types:
         exporter = get_exporter(export_option)
-        exporter(results, output_dir)
+
+        if export_option in [ExportType.DETAILED_CSV, ExportType.SUMMARY_CSV]:
+            exporter(results, output_dir, job_id=job_id)
+
+        else:
+            exporter(results, output_dir)

@@ -34,12 +34,14 @@ def main(
     start_time = time.time()
     logger.info("inference_started", start_time=start_time)
 
-    results = DetectTrackCountPipeline(detection_cfg).run(
-        path, output_dir, export_options
+    results = DetectTrackCountPipeline(detector_cfg=detection_cfg).run(
+        path, output_dir, export_options, job_id
     )
 
     if ExportType.SUMMARY_CSV in export_options:
-        save_to_disk(results, output_dir, export_types=ExportType.SUMMARY_CSV)
+        save_to_disk(
+            results, output_dir, export_types=ExportType.SUMMARY_CSV, job_id=job_id
+        )
 
     end_time = time.time()
     logger.info(
