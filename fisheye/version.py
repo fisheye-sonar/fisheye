@@ -1,5 +1,7 @@
-import tomli
 from pathlib import Path
+
+import tomli
+from yolov5.models.experimental import attempt_load
 
 
 def get_version_from_pyproject():
@@ -11,4 +13,12 @@ def get_version_from_pyproject():
     return pyproject["tool"]["poetry"]["version"]
 
 
-__version__ = get_version_from_pyproject()
+def get_detector_version(path: str):
+    """Get version of object detector."""
+    model = attempt_load(path, inplace=True)
+
+    return model.fisheye_version if hasattr(model, "fisheye_version") else None
+
+
+__app_version__ = get_version_from_pyproject()
+__detector_version__ = get_detector_version("")
