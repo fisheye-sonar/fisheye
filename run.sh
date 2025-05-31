@@ -11,7 +11,7 @@ EXPORT_OPTIONS=${3:-"summary_csv,detailed_csv,txt"}
 # Where to save the output files.
 # You can choose any folder. If you save to the same folder as your ARIS/DIDSON files, ARISFish Software will be able to
 # read the model outputs and display results in its interface. Otherwise, you'll need to manually copy the .txt output
-# files to the same folder later if you want to view them in the ARISFish interface.
+# files to the same location of the ARIS file if you want to view them in the ARISFish interface.
 # If empty or not provided, defaults to same as INPUT_DIR
 RAW_OUTPUT_DIR=${4:-""}
 OUTPUT_DIR=${RAW_OUTPUT_DIR:-$INPUT_DIR}
