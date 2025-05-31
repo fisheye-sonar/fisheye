@@ -5,9 +5,6 @@
 # Path to the folder containing your ARIS or DIDSON files
 DATA_DIR=${1:-"./data"}
 
-# Path to your trained model weights file
-MODEL_PATH=${2:-"./models/model.pt"}
-
 # What to export. Options include: summary_csv, detailed_csv, txt, mot, none. Use "none" to skip exporting.
 EXPORT=${3:-"summary_csv,detailed_csv,txt"}
 
@@ -23,6 +20,5 @@ OUTPUT_DIR=${4:-"./data/"}
 ### DO NOT CHANGE ANYTHING BELOW THIS LINE ###
 poetry run python fisheye/main.py \
   --path "$DATA_DIR" \
-  --weights "$MODEL_PATH" \
   --export_options "$EXPORT" \
   --output_dir "$OUTPUT_DIR"

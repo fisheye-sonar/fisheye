@@ -1,0 +1,2 @@
+detector:
+  path: /Users/madison/Code/fisheye/weights/cfc_detect_yolov5s_v0.pt
