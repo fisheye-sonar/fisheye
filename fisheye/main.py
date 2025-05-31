@@ -1,31 +1,37 @@
 import argparse
 import time
+from pathlib import Path
 from typing import List, Union
 
 import structlog
 
+from fisheye.common.generic import load_model_config
 from fisheye.common.logging import setup_logging
 from fisheye.common.system import check_disk_space, generate_job_id
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig
 from fisheye.enums import ExportType
 from fisheye.export import save_to_disk
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
-from fisheye.version import __version__
+from fisheye.version import __app_version__, __detector_version__
 
 job_id = generate_job_id()
 setup_logging(file_logging=True, job_id=job_id)
-logger = structlog.get_logger().bind(job_id=job_id, app_version=__version__)
+logger = structlog.get_logger().bind(
+    job_id=job_id, app_version=__app_version__, detector_version=__detector_version__
+)
 
 
 def main(
     path: Union[List[str], str],
-    weights,
     export_options: List[ExportType],
     output_dir: str,
 ):
     check_disk_space(path=output_dir)  # Make sure there's enough space to store results
+    project_root = Path(__file__).resolve().parents[1]
+    relative_model_path = load_model_config()["detector"]["path"]
+    model_path = str((project_root / relative_model_path).resolve())
 
-    model_cfg = YOLOv5ModelConfig(weights=weights)
+    model_cfg = YOLOv5ModelConfig(weights=model_path)
     detection_cfg = ObjectDetectionConfig(model=model_cfg)
 
     start_time = time.time()
@@ -58,9 +64,6 @@ if __name__ == "__main__":
         type=str,
         help="Path to directory of ARIS/DIDSON files.",
     )
-    parser.add_argument(
-        "--weights", required=True, type=str, help="Path to model weights."
-    )
 
     parser.add_argument(
         "--export_options",
@@ -87,4 +90,4 @@ if __name__ == "__main__":
         except KeyError as e:
             raise argparse.ArgumentTypeError(f"Invalid export type: {e.args[0]}")
 
-    results = main(args.path, args.weights, export_types, args.output_dir)
+    results = main(args.path, export_types, args.output_dir)

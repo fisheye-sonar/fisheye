@@ -39,3 +39,5 @@ logs/
 *gif
 _debugging_images/
 tests/sample_midlength.aris
+weights/
+*.pt

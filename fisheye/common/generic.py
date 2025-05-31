@@ -9,6 +9,7 @@ from typing import Callable, List, Any
 import numpy as np
 import structlog
 import torch
+import yaml
 
 from fisheye.enums import ValidExtensions
 
@@ -83,3 +84,14 @@ def _is_valid_dir(dir_path: Path) -> bool:
     return dir_path.is_dir() and any(
         file.suffix in {e.value for e in ValidExtensions} for file in dir_path.iterdir()
     )
+
+
+def load_model_config():
+    """Load model configuration from YAML file."""
+    base_dir = Path(__file__).resolve().parents[2]
+    config_path = base_dir / "config" / "model.yaml"
+
+    with config_path.open("r") as f:
+        config = yaml.safe_load(f)
+
+    return config
