@@ -69,6 +69,11 @@ def to_summary_csv(data, out_dir, job_id: str = None):
         df.groupby(["file_name", "fish_id", "direction"]).size().unstack(fill_value=0)
     )
 
+    # Ensure both 'left' and 'right' columns exist
+    for col in ["left", "right"]:
+        if col not in direction_counts:
+            direction_counts[col] = 0
+
     # Calculate the absolute left and right counts for each fish_id within each file
     direction_counts["absolute_left"] = (
         direction_counts["left"] > direction_counts["right"]
