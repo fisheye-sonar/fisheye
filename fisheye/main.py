@@ -1,5 +1,6 @@
 import argparse
 import time
+from pathlib import Path
 from typing import List, Union
 
 import structlog
@@ -26,8 +27,10 @@ def main(
     output_dir: str,
 ):
     check_disk_space(path=output_dir)  # Make sure there's enough space to store results
+    project_root = Path(__file__).resolve().parents[1]
+    relative_model_path = load_model_config()["detector"]["path"]
+    model_path = str((project_root / relative_model_path).resolve())
 
-    model_path = load_model_config()["detector"]["path"]
     model_cfg = YOLOv5ModelConfig(weights=model_path)
     detection_cfg = ObjectDetectionConfig(model=model_cfg)
 

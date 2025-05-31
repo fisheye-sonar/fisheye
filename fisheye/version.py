@@ -18,7 +18,9 @@ def get_app_version_from_pyproject():
 def get_version_from_detector(path: str):
     """Get version of object detector."""
     try:
-        model = attempt_load(path, inplace=True)
+        project_root = Path(__name__).resolve().parents[1]
+        model_path = str((project_root / path).resolve())
+        model = attempt_load(model_path, inplace=True)
 
     except FileNotFoundError as e:
         raise FileNotFoundError(f"Could not find {path}: {e}")
