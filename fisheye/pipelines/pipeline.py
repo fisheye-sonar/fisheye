@@ -130,7 +130,17 @@ class DetectTrackCountPipeline:
                 for track, frame, bbox in crossing_frames["right"]
             ]
         else:
-            formatted_crossings = []
+            formatted_crossings = [
+                {
+                    "fish_id": None,
+                    "direction": None,
+                    "frame_id": None,
+                    "file_name": Path(file).name,
+                    "bbox": None,
+                    "metadata": metadata,
+                }
+            ]
+
             logger.debug("no_crossings_detected", file_path=str(file))
 
         remaining_export_types = [

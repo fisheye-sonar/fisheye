@@ -112,8 +112,10 @@ def to_txt(data, out_dir):
         return
 
     df = pd.DataFrame(flattened_data)
-    # Calculate the distance from the sonar camera to the fish in an unwarped frame
-    df["distance"] = df.apply(get_unwarped_distance, axis=1)
+
+    if not df["bbox"].isna().all():
+        # Calculate the distance from the sonar camera to the fish in an unwarped frame
+        df["distance"] = df.apply(get_unwarped_distance, axis=1)
 
     title = "*** Manual Marking (Manual Sizing: Q = Quality, N = Repeat Count) ***"
 
@@ -187,14 +189,43 @@ def to_txt(data, out_dir):
             f.write(header_line + "\n")
             f.write(separator_line + "\n")
 
-            for i, (_, row) in enumerate(group_df_sorted.iterrows()):
-                # Merge row with defaults to ensure all keys are present
-                row_data["Total"] = row_data["Total"] + 1
-                row_data["Frame#"] = row["frame_id"]
-                # Left to right is considered upstream for now
-                row_data["Dir"] = "Up" if row["direction"] == "left" else "Down"
-                row_data["R (m)"] = row["distance"]
-                row_line = "  ".join(f"{str(row_data[h]):<10}" for h in headers)
+            for _, row in group_df_sorted.iterrows():
+                has_data = (
+                    pd.notna(row.get("bbox"))
+                    and "distance" in row
+                    and pd.notna(row["distance"])
+                )
+
+                if has_data:
+                    row_data = {
+                        "File": 1,
+                        "Total": row_data["Total"] + 1,
+                        "Frame#": row["frame_id"],
+                        "Dir": "Up" if row.get("direction") == "left" else "Down",
+                        "R (m)": row["distance"],
+                        "Theta": 0.0,  # Optional: Replace with real theta
+                        "L(cm)": 0.0,
+                        "dR(cm)": 0.0,
+                        "L/dR": 0.0,
+                        "Aspect": 0.0,
+                        "Time": "00:00:00",
+                        "Date": date,
+                        "Latitude": "N 00 d  0.00000 m",
+                        "Longitude": "E 000 d  0.00000 m",
+                        "Pan": 0.0,
+                        "Tilt": 0.0,
+                        "Roll": 0.0,
+                        "Species": "Unknown",
+                        "Motion": "Running <->",
+                        "Q": 5,
+                        "N": 1,
+                        "Comment": "",
+                    }
+
+                    row_line = "  ".join(f"{str(row_data[h]):<10}" for h in headers)
+                else:
+                    row_line = "  ".join(["" for _ in headers])
+
                 f.write(row_line + "\n")
 
         logger.info(f"exported_txt", output_dir=out_file)
