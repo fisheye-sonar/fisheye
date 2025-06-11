@@ -64,32 +64,56 @@ def to_summary_csv(data, out_dir, job_id: str = None):
     # Save off all track counts to CSV
     df.drop(columns=["bbox", "metadata"], inplace=True)
 
-    direction_counts = (
-        df.groupby(["file_name", "fish_id", "direction"]).size().unstack(fill_value=0)
-    )
+    # Ensure fish_id and direction exist even if they're empty
+    df["fish_id"] = df.get("fish_id", pd.NA)
+    df["direction"] = df.get("direction", pd.NA)
 
-    # Ensure both 'left' and 'right' columns exist
-    for col in ["left", "right"]:
-        if col not in direction_counts:
-            direction_counts[col] = 0
+    # Group only on rows where fish_id and direction are not null
+    valid_rows = df.dropna(subset=["fish_id", "direction"])
 
-    # Calculate the absolute left and right counts for each fish_id within each file
-    direction_counts["absolute_left"] = (
-        direction_counts["left"] > direction_counts["right"]
-    ).astype(int)
+    # If we have valid fish + direction data, compute counts, else fill with zeros
+    if not valid_rows.empty:
+        direction_counts = (
+            valid_rows.groupby(["file_name", "fish_id", "direction"])
+            .size()
+            .unstack()
+            .fillna(0)
+        )
 
-    direction_counts["absolute_right"] = (
-        direction_counts["right"] > direction_counts["left"]
-    ).astype(int)
+        direction_counts = direction_counts.reindex(
+            columns=["left", "right"], fill_value=0
+        )
 
-    # Aggregate over fish_id to calculate the total absolute_left and absolute_right per file_name
-    file_counts = direction_counts.groupby("file_name")[
-        ["absolute_left", "absolute_right"]
-    ].sum()
+        direction_counts["absolute_left"] = (
+            direction_counts["left"] > direction_counts["right"]
+        ).astype(int)
+        direction_counts["absolute_right"] = (
+            direction_counts["right"] > direction_counts["left"]
+        ).astype(int)
 
-    file_counts["net_count"] = abs(
-        file_counts["absolute_left"] - file_counts["absolute_right"]
-    )
+        file_counts = direction_counts.groupby("file_name")[
+            ["absolute_left", "absolute_right"]
+        ].sum()
+
+        file_counts["net_count"] = abs(
+            file_counts["absolute_left"] - file_counts["absolute_right"]
+        )
+
+    else:
+        # Create a zeroed row if no valid fish_id + direction
+        file_name = df["file_name"].iloc[
+            0
+        ]  # You may need to adapt this for multiple files
+        file_counts = pd.DataFrame(
+            [
+                {
+                    "file_name": file_name,
+                    "absolute_left": 0,
+                    "absolute_right": 0,
+                    "net_count": 0,
+                }
+            ]
+        ).set_index("file_name")
 
     final_result = file_counts.reset_index()
     # Save absolute left, right, and net counts for each ARIS/DDF file to a single CSV
@@ -190,8 +214,10 @@ def to_txt(data, out_dir):
             f.write(separator_line + "\n")
 
             for _, row in group_df_sorted.iterrows():
+                bbox = row.get("bbox")
                 has_data = (
-                    pd.notna(row.get("bbox"))
+                    bbox is not None
+                    and len(bbox) > 0
                     and "distance" in row
                     and pd.notna(row["distance"])
                 )
