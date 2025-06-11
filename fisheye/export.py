@@ -87,7 +87,7 @@ def to_summary_csv(data, out_dir, job_id: str = None):
         ["absolute_left", "absolute_right"]
     ].sum()
 
-    file_counts["net_count"] = abs(
+    file_counts["net_count"] = (
         file_counts["absolute_left"] - file_counts["absolute_right"]
     )
 
