@@ -42,14 +42,7 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
 
 
 def to_summary_csv(data, out_dir, job_id: str = None):
-    """Export inference results to CSV file.
-
-    A summary CSV containing counts for each ARIS/DDF file to a single CSV
-
-    Args:
-        data (dict): Dictionary of inference results.
-        out_dir (str): Output directory for CSV files.
-    """
+    """Export inference results to CSV file, ensuring all files are represented."""
     timestamp = datetime.now().strftime("%Y-%m-%d")
     job_suffix = f"_{job_id}" if job_id else ""
     out_file = os.path.join(out_dir, f"{timestamp}{job_suffix}_summary.csv")
@@ -57,27 +50,24 @@ def to_summary_csv(data, out_dir, job_id: str = None):
     flattened_data = [item for sublist in data if sublist for item in sublist]
 
     if not flattened_data:
-        logger.warning(f"No counts were found in the provided data. Nothing to export.")
+        logger.warning("No counts were found in the provided data. Nothing to export.")
         return
 
     df = pd.DataFrame(flattened_data)
-    # Save off all track counts to CSV
-    df.drop(columns=["bbox", "metadata"], inplace=True)
-
-    # Ensure fish_id and direction exist even if they're empty
     df["fish_id"] = df.get("fish_id", pd.NA)
     df["direction"] = df.get("direction", pd.NA)
 
-    # Group only on rows where fish_id and direction are not null
+    # Get all unique file names upfront
+    all_files = df["file_name"].unique()
+
+    # Only valid rows for counting
     valid_rows = df.dropna(subset=["fish_id", "direction"])
 
-    # If we have valid fish + direction data, compute counts, else fill with zeros
     if not valid_rows.empty:
         direction_counts = (
             valid_rows.groupby(["file_name", "fish_id", "direction"])
             .size()
-            .unstack()
-            .fillna(0)
+            .unstack(fill_value=0)
         )
 
         direction_counts = direction_counts.reindex(
@@ -95,28 +85,21 @@ def to_summary_csv(data, out_dir, job_id: str = None):
             ["absolute_left", "absolute_right"]
         ].sum()
 
-        file_counts["net_count"] = (
-            file_counts["absolute_left"] - file_counts["absolute_right"]
-        )
-
     else:
-        # Create a zeroed row if no valid fish_id + direction
-        file_name = df["file_name"].iloc[
-            0
-        ]  # You may need to adapt this for multiple files
         file_counts = pd.DataFrame(
-            [
-                {
-                    "file_name": file_name,
-                    "absolute_left": 0,
-                    "absolute_right": 0,
-                    "net_count": 0,
-                }
-            ]
-        ).set_index("file_name")
+            columns=["absolute_left", "absolute_right"], index=all_files
+        ).fillna(0)
 
-    final_result = file_counts.reset_index()
-    # Save absolute left, right, and net counts for each ARIS/DDF file to a single CSV
+    # Ensure all files are represented
+    for file in all_files:
+        if file not in file_counts.index:
+            file_counts.loc[file] = {"absolute_left": 0, "absolute_right": 0}
+
+    file_counts["net_count"] = (
+        file_counts["absolute_left"] - file_counts["absolute_right"]
+    )
+    final_result = file_counts.reset_index().rename(columns={"index": "file_name"})
+
     final_result.to_csv(out_file, index=False)
 
     logger.info(f"exported_summary", output_dir=out_file)
