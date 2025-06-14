@@ -42,7 +42,12 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
 
 
 def to_summary_csv(data, out_dir, job_id: str = None):
-    """Export inference results to CSV file, ensuring all files are represented."""
+    """Export inference results to CSV file, ensuring all files are represented.
+
+    Args:
+        data (dict): Dictionary of inference results.
+        out_dir (str): Output directory for CSV files.
+    """
     timestamp = datetime.now().strftime("%Y-%m-%d")
     job_suffix = f"_{job_id}" if job_id else ""
     out_file = os.path.join(out_dir, f"{timestamp}{job_suffix}_summary.csv")
