@@ -42,9 +42,7 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
 
 
 def to_summary_csv(data, out_dir, job_id: str = None):
-    """Export inference results to CSV file.
-
-    A summary CSV containing counts for each ARIS/DDF file to a single CSV
+    """Export inference results to CSV file, ensuring all files are represented.
 
     Args:
         data (dict): Dictionary of inference results.
@@ -57,42 +55,56 @@ def to_summary_csv(data, out_dir, job_id: str = None):
     flattened_data = [item for sublist in data if sublist for item in sublist]
 
     if not flattened_data:
-        logger.warning(f"No counts were found in the provided data. Nothing to export.")
+        logger.warning("No counts were found in the provided data. Nothing to export.")
         return
 
     df = pd.DataFrame(flattened_data)
-    # Save off all track counts to CSV
-    df.drop(columns=["bbox", "metadata"], inplace=True)
+    df["fish_id"] = df.get("fish_id", pd.NA)
+    df["direction"] = df.get("direction", pd.NA)
 
-    direction_counts = (
-        df.groupby(["file_name", "fish_id", "direction"]).size().unstack(fill_value=0)
-    )
+    # Get all unique file names upfront
+    all_files = df["file_name"].unique()
 
-    # Ensure both 'left' and 'right' columns exist
-    for col in ["left", "right"]:
-        if col not in direction_counts:
-            direction_counts[col] = 0
+    # Only valid rows for counting
+    valid_rows = df.dropna(subset=["fish_id", "direction"])
 
-    # Calculate the absolute left and right counts for each fish_id within each file
-    direction_counts["absolute_left"] = (
-        direction_counts["left"] > direction_counts["right"]
-    ).astype(int)
+    if not valid_rows.empty:
+        direction_counts = (
+            valid_rows.groupby(["file_name", "fish_id", "direction"])
+            .size()
+            .unstack(fill_value=0)
+        )
 
-    direction_counts["absolute_right"] = (
-        direction_counts["right"] > direction_counts["left"]
-    ).astype(int)
+        direction_counts = direction_counts.reindex(
+            columns=["left", "right"], fill_value=0
+        )
 
-    # Aggregate over fish_id to calculate the total absolute_left and absolute_right per file_name
-    file_counts = direction_counts.groupby("file_name")[
-        ["absolute_left", "absolute_right"]
-    ].sum()
+        direction_counts["absolute_left"] = (
+            direction_counts["left"] > direction_counts["right"]
+        ).astype(int)
+        direction_counts["absolute_right"] = (
+            direction_counts["right"] > direction_counts["left"]
+        ).astype(int)
+
+        file_counts = direction_counts.groupby("file_name")[
+            ["absolute_left", "absolute_right"]
+        ].sum()
+
+    else:
+        file_counts = pd.DataFrame(
+            columns=["absolute_left", "absolute_right"], index=all_files
+        ).fillna(0)
+
+    # Ensure all files are represented
+    for file in all_files:
+        if file not in file_counts.index:
+            file_counts.loc[file] = {"absolute_left": 0, "absolute_right": 0}
 
     file_counts["net_count"] = (
         file_counts["absolute_left"] - file_counts["absolute_right"]
     )
+    final_result = file_counts.reset_index().rename(columns={"index": "file_name"})
 
-    final_result = file_counts.reset_index()
-    # Save absolute left, right, and net counts for each ARIS/DDF file to a single CSV
     final_result.to_csv(out_file, index=False)
 
     logger.info(f"exported_summary", output_dir=out_file)
@@ -112,8 +124,10 @@ def to_txt(data, out_dir):
         return
 
     df = pd.DataFrame(flattened_data)
-    # Calculate the distance from the sonar camera to the fish in an unwarped frame
-    df["distance"] = df.apply(get_unwarped_distance, axis=1)
+
+    if not df["bbox"].isna().all():
+        # Calculate the distance from the sonar camera to the fish in an unwarped frame
+        df["distance"] = df.apply(get_unwarped_distance, axis=1)
 
     title = "*** Manual Marking (Manual Sizing: Q = Quality, N = Repeat Count) ***"
 
@@ -187,14 +201,45 @@ def to_txt(data, out_dir):
             f.write(header_line + "\n")
             f.write(separator_line + "\n")
 
-            for i, (_, row) in enumerate(group_df_sorted.iterrows()):
-                # Merge row with defaults to ensure all keys are present
-                row_data["Total"] = row_data["Total"] + 1
-                row_data["Frame#"] = row["frame_id"]
-                # Left to right is considered upstream for now
-                row_data["Dir"] = "Up" if row["direction"] == "left" else "Down"
-                row_data["R (m)"] = row["distance"]
-                row_line = "  ".join(f"{str(row_data[h]):<10}" for h in headers)
+            for _, row in group_df_sorted.iterrows():
+                bbox = row.get("bbox")
+                has_data = (
+                    bbox is not None
+                    and len(bbox) > 0
+                    and "distance" in row
+                    and pd.notna(row["distance"])
+                )
+
+                if has_data:
+                    row_data = {
+                        "File": 1,
+                        "Total": row_data["Total"] + 1,
+                        "Frame#": row["frame_id"],
+                        "Dir": "Up" if row.get("direction") == "left" else "Down",
+                        "R (m)": row["distance"],
+                        "Theta": 0.0,  # Optional: Replace with real theta
+                        "L(cm)": 0.0,
+                        "dR(cm)": 0.0,
+                        "L/dR": 0.0,
+                        "Aspect": 0.0,
+                        "Time": "00:00:00",
+                        "Date": date,
+                        "Latitude": "N 00 d  0.00000 m",
+                        "Longitude": "E 000 d  0.00000 m",
+                        "Pan": 0.0,
+                        "Tilt": 0.0,
+                        "Roll": 0.0,
+                        "Species": "Unknown",
+                        "Motion": "Running <->",
+                        "Q": 5,
+                        "N": 1,
+                        "Comment": "",
+                    }
+
+                    row_line = "  ".join(f"{str(row_data[h]):<10}" for h in headers)
+                else:
+                    row_line = "  ".join(["" for _ in headers])
+
                 f.write(row_line + "\n")
 
         logger.info(f"exported_txt", output_dir=out_file)
