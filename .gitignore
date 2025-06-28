@@ -41,3 +41,10 @@ _debugging_images/
 tests/sample_midlength.aris
 weights/
 *.pt
+
+results/
+analysis/gt_files/
+analysis/outputs/
+analysis/generated_results/
+analysis/Z_gt_files_old
+analysis/Z_outputs_old

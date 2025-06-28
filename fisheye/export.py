@@ -8,7 +8,10 @@ import pandas as pd
 import structlog
 
 from fisheye.enums import ExportType
-from fisheye.utils import get_unwarped_distance
+from fisheye.utils import (
+    get_unwarped_distance,
+    get_theta,
+)
 
 logger = structlog.get_logger()
 
@@ -128,6 +131,7 @@ def to_txt(data, out_dir):
     if not df["bbox"].isna().all():
         # Calculate the distance from the sonar camera to the fish in an unwarped frame
         df["distance"] = df.apply(get_unwarped_distance, axis=1)
+        df["theta"] = df.apply(get_theta, axis=1)
 
     title = "*** Manual Marking (Manual Sizing: Q = Quality, N = Repeat Count) ***"
 
@@ -158,8 +162,8 @@ def to_txt(data, out_dir):
         "Comment",
     ]
 
-    col_width = 2
-    header_line = "  ".join(f"{h:<{col_width}}" for h in headers)
+    col_width = 10
+    header_line = "".join(f"{h:<{col_width}}" for h in headers)
     separator_line = "-" * len(header_line)
 
     for file_name, group_df in df.groupby("file_name"):
@@ -190,7 +194,7 @@ def to_txt(data, out_dir):
             "Motion": "Running <->",
             "Q": 5,
             "N": 1,
-            "Comment": "",
+            "Comment": 1,
         }
 
         file_stem = Path(file_name).stem
@@ -217,7 +221,7 @@ def to_txt(data, out_dir):
                         "Frame#": row["frame_id"],
                         "Dir": "Up" if row.get("direction") == "left" else "Down",
                         "R (m)": row["distance"],
-                        "Theta": 0.0,  # Optional: Replace with real theta
+                        "Theta": row["theta"],
                         "L(cm)": 0.0,
                         "dR(cm)": 0.0,
                         "L/dR": 0.0,
@@ -233,12 +237,12 @@ def to_txt(data, out_dir):
                         "Motion": "Running <->",
                         "Q": 5,
                         "N": 1,
-                        "Comment": "",
+                        "Comment": f"Centerlinecrossingtrackid{row['fish_id']}",
                     }
 
-                    row_line = "  ".join(f"{str(row_data[h]):<10}" for h in headers)
+                    row_line = "".join(f"{str(row_data[h]):<10}" for h in headers)
                 else:
-                    row_line = "  ".join(["" for _ in headers])
+                    row_line = "".join(["" for _ in headers])
 
                 f.write(row_line + "\n")
 

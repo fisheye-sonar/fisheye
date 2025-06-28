@@ -98,3 +98,31 @@ def get_unwarped_distance(row):
     ) * metadata.pixel_meter_size + metadata.y_meter_stop
 
     return round(distance, 2)
+
+
+def get_theta(row):
+    """Get the theta to an unwarped point.
+
+    Function requires a DataFrame row where it has bounding boxes [x, y, width, height] and DIDSON header information
+    under the column name `metadata`
+    """
+    metadata = row["metadata"]
+    metadata.beam_width_data, _ = pyARIS.load_beam_width_data(
+        frame=metadata, beam_width_dir=BEAM_WIDTH_DIR
+    )
+
+    bbox_xywh = np.array(row["bbox"]) * np.array(
+        [metadata.xdim, metadata.ydim, metadata.xdim, metadata.ydim]
+    )
+    # average_x, average y
+    bbox_xywh = [bbox_xywh[0] + bbox_xywh[2] / 2, bbox_xywh[1] + bbox_xywh[3] / 2, 1, 1]
+    bbox_xywh = np.expand_dims(np.array(bbox_xywh), axis=0)
+
+    points_xy = [bbox_xywh[0][0], bbox_xywh[0][1]]
+    points_xy_unwarped = calculate_unwarped_points(
+        points_xy, metadata, metadata.xdim, metadata.ydim
+    )
+
+    theta = metadata.beam_width_data.iloc[points_xy_unwarped[0]]["beam_center"]
+
+    return round(theta, 2)

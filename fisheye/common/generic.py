@@ -29,6 +29,7 @@ def safe_execution(default_return=None):
                     "function_execution_failed",
                     function=fn.__name__,
                     error=str(e),
+                    traceback=traceback.format_exc(),
                 )
                 logger.debug(
                     "stack_trace",

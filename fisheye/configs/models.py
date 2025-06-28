@@ -10,7 +10,7 @@ class BaseModelConfig:
     """Base model configuration."""
 
     weights: Union[str, BaseModel] = None
-    device: str = DeviceType.MPS.value
+    device: str = DeviceType.CUDA.value
 
 
 @dataclass
