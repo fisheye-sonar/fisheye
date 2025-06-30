@@ -4,6 +4,7 @@ import pytest
 import torch
 
 from conftest import ARIS_FILE
+from fisheye.common.generic import safe_execution
 from fisheye.configs import (
     ObjectDetectionConfig,
     YOLODatasetConfig,
@@ -230,3 +231,51 @@ def test_object_detection_pipeline_postprocessing_invalid_params():
             ValueError, match="Unknown postprocessing step: some_func_name"
         ):
             ObjectDetectionPipeline(config, dataset_cfg, processing_params)
+
+
+def test_safe_execution_eventually_succeeds():
+    call_tracker = {"count": 0}
+
+    @safe_execution(default_return="FAILED", max_retries=3, delay=0.01)
+    def flaky_function():
+        call_tracker["count"] += 1
+        if call_tracker["count"] < 3:
+            raise ValueError("Temporary failure")
+        return "SUCCESS"
+
+    result = flaky_function()
+
+    assert result == "SUCCESS"
+    assert call_tracker["count"] == 3
+
+
+def test_safe_execution_fails_all_retries():
+    call_tracker = {"count": 0}
+
+    @safe_execution(default_return=[], max_retries=2, delay=0.01)
+    def always_fails():
+        call_tracker["count"] += 1
+        raise RuntimeError("Still broken")
+
+    result = always_fails()
+
+    assert result == []
+    assert call_tracker["count"] == 2
+
+
+@patch("time.sleep", return_value=None)
+def test_exponential_backoff_sleep_called(mock_sleep):
+    call_tracker = {"count": 0}
+
+    @safe_execution(default_return=[], max_retries=3, delay=0.1)
+    def fails_then_succeeds():
+        call_tracker["count"] += 1
+        if call_tracker["count"] < 3:
+            raise Exception("try again")
+        return "OK"
+
+    result = fails_then_succeeds()
+    assert result == "OK"
+    assert mock_sleep.call_count == 2
+    assert mock_sleep.call_args_list[0][0][0] == 0.1  # 1st backoff
+    assert mock_sleep.call_args_list[1][0][0] == 0.2  # 2nd backoff (0.1 * 2^1)
