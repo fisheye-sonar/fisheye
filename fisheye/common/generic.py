@@ -22,10 +22,12 @@ def safe_execution(
     """
     A decorator to catch and log exceptions, with retry logic and exponential backoff.
 
-    Args: default_return: Value to return if all retries fail. max_retries (int): Number of times to retry before
-    failing. delay (float): Initial delay in seconds before retrying. Doubles each retry (exponential backoff).
-    exceptions (tuple): Exceptions to catch. Enables fine-grained control over which exceptions the decorator handles
-    and retries on.
+    Args:
+        default_return: Value to return if all retries fail.
+        max_retries (int): Number of times to retry before failing.
+        delay (float): Initial delay in seconds before retrying. Doubles each retry (exponential backoff).
+        exceptions (tuple): Exceptions to catch. Enables fine-grained control over which exceptions the decorator
+            handles and retries on.
 
     Returns:
         Function return value or default_return on failure.
