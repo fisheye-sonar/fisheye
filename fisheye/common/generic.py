@@ -87,6 +87,12 @@ def _is_valid_dir(dir_path: Path) -> bool:
     )
 
 
+def _is_valid_parent_dir(dir_path: Path) -> bool:
+    """Check if the directory contains valid files."""
+    valid_files = [f for f in dir_path.rglob("*") if f.is_file() and _is_valid_file(f)]
+    return dir_path.is_dir() and len(valid_files) > 0
+
+
 def load_model_config():
     """Load model configuration from YAML file."""
     base_dir = Path(__file__).resolve().parents[2]

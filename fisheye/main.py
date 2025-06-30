@@ -25,6 +25,7 @@ def main(
     path: Union[List[str], str],
     export_options: List[ExportType],
     output_dir: str,
+    map_input_dir_structure_to_output: bool = False,
 ):
     check_disk_space(path=output_dir)  # Make sure there's enough space to store results
     project_root = Path(__file__).resolve().parents[1]
@@ -38,7 +39,11 @@ def main(
     logger.info("inference_started", start_time=start_time)
 
     results = DetectTrackCountPipeline(detector_cfg=detection_cfg).run(
-        path, output_dir, export_options, job_id
+        path,
+        output_dir,
+        export_options,
+        job_id,
+        map_input_dir_structure_to_output=map_input_dir_structure_to_output,
     )
 
     if ExportType.SUMMARY_CSV in export_options:
@@ -74,6 +79,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--map_input_dir_structure_to_output",
+        action=argparse.BooleanOptionalAction,
+        help="Map input directory structure to output directory structure.",
+    )
+
+    parser.add_argument(
         "--output_dir",
         required=False,
         type=str,
@@ -90,4 +101,9 @@ if __name__ == "__main__":
         except KeyError as e:
             raise argparse.ArgumentTypeError(f"Invalid export type: {e.args[0]}")
 
-    results = main(args.path, export_types, args.output_dir)
+    results = main(
+        args.path,
+        export_types,
+        args.output_dir,
+        map_input_dir_structure_to_output=args.map_input_dir_structure_to_output,
+    )

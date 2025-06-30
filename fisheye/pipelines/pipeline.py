@@ -5,7 +5,12 @@ from typing import Optional, List, Union
 import structlog
 
 from fisheye.boxes import run_nms, normalize_boxes_for_tracking
-from fisheye.common.generic import safe_execution, _is_valid_file, _is_valid_dir
+from fisheye.common.generic import (
+    safe_execution,
+    _is_valid_file,
+    _is_valid_dir,
+    _is_valid_parent_dir,
+)
 from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
@@ -163,6 +168,7 @@ class DetectTrackCountPipeline:
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
+        map_input_dir_structure_to_output: bool = False,
     ) -> Union[List[List[dict]], List[dict]]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
@@ -185,6 +191,27 @@ class DetectTrackCountPipeline:
                 files = [f for f in path.iterdir() if _is_valid_file(f)]
                 return [self._run(f, output_dir, export_types, job_id) for f in files]
 
+            elif _is_valid_parent_dir(path):
+
+                # Get all valid files recursively under `path`
+                files = [
+                    f for f in path.rglob("*") if f.is_file() and _is_valid_file(f)
+                ]
+                if map_input_dir_structure_to_output:
+                    output_paths = [
+                        (output_dir / f.relative_to(path)).parent for f in files
+                    ]
+                    for output_path in output_paths:
+                        output_path.mkdir(parents=True, exist_ok=True)
+
+                    return [
+                        self._run(f, output_path, export_types, job_id)
+                        for (f, output_path) in zip(files, output_paths)
+                    ]
+                else:
+                    return [
+                        self._run(f, output_dir, export_types, job_id) for f in files
+                    ]
             else:
                 raise ValueError(f"Invalid file or directory path: {file}")
 
