@@ -30,7 +30,7 @@ class DetectTrackCountPipeline:
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
         self.nms_config = NMSConfig()
 
-    @safe_execution(default_return=[])
+    @safe_execution(default_return=[], max_retries=3, delay=2)
     def _run(
         self,
         file: Union[Path, List[Path]],

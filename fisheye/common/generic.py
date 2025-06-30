@@ -1,6 +1,6 @@
 import gc
 import random
-import traceback
+import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from pathlib import Path
@@ -16,26 +16,50 @@ from fisheye.enums import ValidExtensions
 logger = structlog.get_logger()
 
 
-def safe_execution(default_return=None):
-    """Generic decorator to catch exceptions and return a default value."""
+def safe_execution(
+    default_return=None, max_retries=1, delay=0, exceptions=(Exception,)
+):
+    """
+    A decorator to catch and log exceptions, with retry logic and exponential backoff.
 
-    def decorator(fn):
-        @wraps(fn)
+    Args:
+        default_return: Value to return if all retries fail.
+        max_retries (int): Number of times to retry before failing.
+        delay (float): Initial delay in seconds before retrying. Doubles each retry (exponential backoff).
+        exceptions (tuple): Exceptions to catch. Enables fine-grained control over which exceptions the decorator
+            handles and retries on.
+
+    Returns:
+        Function return value or default_return on failure.
+    """
+
+    def decorator(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
-            try:
-                return fn(*args, **kwargs)
-            except Exception as e:
-                logger.error(
-                    "function_execution_failed",
-                    function=fn.__name__,
-                    error=str(e),
-                )
-                logger.debug(
-                    "stack_trace",
-                    function=fn.__name__,
-                    traceback=traceback.format_exc(),
-                )
-                return default_return
+            last_exception = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    logger.error(
+                        "safe_execution_exception",
+                        function=func.__name__,
+                        attempt=attempt,
+                        error=str(e),
+                    )
+
+                    if attempt < max_retries and delay:
+                        backoff = delay * (2 ** (attempt - 1))
+                        time.sleep(backoff)
+
+            logger.error(
+                "safe_execution_failed",
+                function=func.__name__,
+                error=str(last_exception),
+                retries=max_retries,
+            )
+            return default_return
 
         return wrapper
 
