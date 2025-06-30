@@ -20,6 +20,8 @@ annotations_file_name = f"gt.txt"
 analysis_output_dir = "/home/mahobley/Code/fisheye/analysis/outputs"
 
 locations = ["nushagak"]
+locations = ["kenai-val"]
+locations = ["elwha"]
 
 for location in locations:
 
@@ -48,7 +50,7 @@ for location in locations:
         output_fn = f"{input_fn.split('.')[0]}_{start_frame}_{end_frame}_cropped.txt"
         output_gt_path = os.path.join(gt_dir, location, output_fn)
 
-        input_path = os.path.join(model_output_dir, input_fn)
+        input_path = os.path.join(model_output_dir, location, input_fn)
         output_path = os.path.join(generation_dir, location, output_fn)
         output_filepath = os.path.join(analysis_output_dir, location, clip_name)
 
@@ -72,4 +74,4 @@ for location in locations:
                 remove_multiple_tracks=False,
             )
         else:
-            print(f"No input file found for {clip_name}")
+            print(f"No input file found for {clip_name} {input_path}")

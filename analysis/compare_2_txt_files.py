@@ -161,13 +161,16 @@ def parse_file(file_path):
 
         # Skip header lines (lines starting with *** or containing dashes)
         data_lines = []
+
         for line in lines:
             line = line.strip()
+
             if (
                 line
                 and not line.startswith("***")
                 and not line.startswith("---")
                 and not line.startswith("File")
+                and not line == "\n"
             ):
                 data_lines.append(line)
 
@@ -235,6 +238,7 @@ def compare_2_txt_files(
     max_frame_diff=10,
     max_r_diff=0.2,
     remove_multiple_tracks=False,
+    verbose=False,
 ):
     # Define the two files to compare
 
@@ -244,23 +248,26 @@ def compare_2_txt_files(
     # print(f"=== Comparing {gt_name} and {pred_name} ===\n")
 
     # Parse both files
-    print(f"Parsing {gt_name}: {gt_file}")
+    if verbose:
+        print(f"Parsing {gt_name}: {gt_file}")
     data_gt, up_gt, down_gt, data_summary_gt = parse_file(gt_file)
 
-    print(f"Parsing {pred_name}: {pred_file}")
+    if verbose:
+        print(f"Parsing {pred_name}: {pred_file}")
     data_pred, up_pred, down_pred, data_summary_pred = parse_file(pred_file)
     if data_gt is None or data_pred is None:
         print("Error: Could not parse one or both files")
         return
 
     # Summary comparison
-    print(f"=== Summary Comparison ===")
-    print(
-        f"{gt_name}: {up_gt} up, {down_gt} down, {len(data_gt)} total, {up_gt-down_gt} net"
-    )
-    print(
-        f"{pred_name}: {up_pred} up, {down_pred} down, {len(data_pred)} total, {up_pred-down_pred} net"
-    )
+    if verbose:
+        print(f"=== Summary Comparison ===")
+        print(
+            f"{gt_name}: {up_gt} up, {down_gt} down, {len(data_gt)} total, {up_gt-down_gt} net"
+        )
+        print(
+            f"{pred_name}: {up_pred} up, {down_pred} down, {len(data_pred)} total, {up_pred-down_pred} net"
+        )
 
     total_upstream_gt = sum(1 for d in data_gt if d["direction"] == "up")
     total_downstream_gt = sum(1 for d in data_gt if d["direction"] == "down")
@@ -277,27 +284,29 @@ def compare_2_txt_files(
         1 for d in data_pred_cancelled if d["direction"] == "down"
     )
 
-    print(f"{cancel_upstream_gt=}")
-    print(f"{cancel_downstream_gt=}")
-    print(f"{cancel_upstream_pred=}")
-    print(f"{cancel_downstream_pred=}")
+    if verbose:
+        print(f"{cancel_upstream_gt=}")
+        print(f"{cancel_downstream_gt=}")
+        print(f"{cancel_upstream_pred=}")
+        print(f"{cancel_downstream_pred=}")
 
     total_crossings_error = (
         abs(total_upstream_gt - total_upstream_pred)
         + abs(total_downstream_gt - total_downstream_pred)
-    ) / (total_upstream_gt + total_downstream_gt)
+    ) / (total_upstream_gt + total_downstream_gt + 1e-10)
     total_count_error = (
         abs(cancel_upstream_gt - cancel_upstream_pred)
         + abs(cancel_downstream_gt - cancel_downstream_pred)
-    ) / (cancel_upstream_gt + cancel_downstream_gt)
+    ) / (cancel_upstream_gt + cancel_downstream_gt + 1e-10)
     net_count_error = (
         (total_upstream_pred - total_downstream_pred)
         - (total_upstream_gt - total_downstream_gt)
-    ) / (total_upstream_gt - total_downstream_gt)
+    ) / (total_upstream_gt - total_downstream_gt + 1e-10)
 
-    print(f"Total Crossings Error: {total_crossings_error*100:.2f}%")
-    print(f"Total Count Error: {total_count_error*100:.2f}%")
-    print(f"Net Count Error:   {net_count_error*100:.2f}%")
+    if verbose:
+        print(f"Total Crossings Error: {total_crossings_error*100:.2f}%")
+        print(f"Total Count Error: {total_count_error*100:.2f}%")
+        print(f"Net Count Error:   {net_count_error*100:.2f}%")
 
     # save the data_summary_gt and data_summary_pred to a json file
     with open(output_filepath + ".json", "w") as f:
@@ -334,211 +343,225 @@ def compare_2_txt_files(
         data_pred = data_pred_cancelled
 
     if plot:
-        plt.figure(figsize=(16, 9))  # 16 inches wide, 9 inches tall
+        for data_type in ["r_m", "theta"]:
+            plt.figure(figsize=(16, 9))  # 16 inches wide, 9 inches tall
 
-        gt_frame_ids = [d["frame_id"] for d in data_gt]
-        pred_frame_ids = [d["frame_id"] for d in data_pred]
-        gt_r_m = [d["r_m"] for d in data_gt]
-        pred_r_m = [d["r_m"] for d in data_pred]
-        gt_track_ids = [d["track_id"] for d in data_gt]
-        pred_track_ids = [d["track_id"] for d in data_pred]
+            gt_frame_ids = [d["frame_id"] for d in data_gt]
+            pred_frame_ids = [d["frame_id"] for d in data_pred]
+            gt_dat = [d[data_type] for d in data_gt]
+            pred_dat = [d[data_type] for d in data_pred]
+            gt_track_ids = [d["track_id"] for d in data_gt]
+            pred_track_ids = [d["track_id"] for d in data_pred]
 
-        gt_up_frame_ids = [d["frame_id"] for d in data_gt if d["direction"] == "up"]
-        gt_down_frame_ids = [d["frame_id"] for d in data_gt if d["direction"] == "down"]
-        pred_up_frame_ids = [d["frame_id"] for d in data_pred if d["direction"] == "up"]
-        pred_down_frame_ids = [
-            d["frame_id"] for d in data_pred if d["direction"] == "down"
-        ]
-
-        gt_up_r_m = [d["r_m"] for d in data_gt if d["direction"] == "up"]
-        gt_down_r_m = [d["r_m"] for d in data_gt if d["direction"] == "down"]
-        pred_up_r_m = [d["r_m"] for d in data_pred if d["direction"] == "up"]
-        pred_down_r_m = [d["r_m"] for d in data_pred if d["direction"] == "down"]
-
-        print(f"Matching up points")
-        matches_up, unmatched_gt_up, unmatched_pred_up = match_points_by_axis(
-            gt_up_frame_ids,
-            pred_up_frame_ids,
-            gt_up_r_m,
-            pred_up_r_m,
-            max_frame_diff=max_frame_diff,
-            max_r_diff=max_r_diff,
-        )
-
-        print(f"Matching down points")
-        matches_down, unmatched_gt_down, unmatched_pred_down = match_points_by_axis(
-            gt_down_frame_ids,
-            pred_down_frame_ids,
-            gt_down_r_m,
-            pred_down_r_m,
-            max_frame_diff=max_frame_diff,
-            max_r_diff=max_r_diff,
-        )
-
-        # for match in matches_up:
-        #     plt.plot(
-        #         [gt_up_frame_ids[match[0]], pred_up_frame_ids[match[1]]],
-        #         [gt_up_r_m[match[0]], pred_up_r_m[match[1]]],
-        #         color="green",
-        #     )
-
-        # for match in matches_down:
-        #     plt.plot(
-        #         [gt_down_frame_ids[match[0]], pred_down_frame_ids[match[1]]],
-        #         [gt_down_r_m[match[0]], pred_down_r_m[match[1]]],
-        #         color="orange",
-        #     )
-        handles = []
-        labels = []
-
-        for unmatched_gt_up_idx in unmatched_gt_up:
-            h = plt.scatter(
-                [
-                    gt_up_frame_ids[unmatched_gt_up_idx],
-                ],
-                [gt_up_r_m[unmatched_gt_up_idx]],
-                color="yellow",
-                s=100,
-                alpha=0.75,
-            )
-            handles.append(h)
-            labels.append("Unmatched GT")
-        for unmatched_gt_down_idx in unmatched_gt_down:
-            plt.scatter(
-                [
-                    gt_down_frame_ids[unmatched_gt_down_idx],
-                ],
-                [gt_down_r_m[unmatched_gt_down_idx]],
-                color="yellow",
-                s=100,
-                alpha=0.75,
-            )
-        for unmatched_pred_up_idx in unmatched_pred_up:
-            h = plt.scatter(
-                [
-                    pred_up_frame_ids[unmatched_pred_up_idx],
-                ],
-                [pred_up_r_m[unmatched_pred_up_idx]],
-                color="orange",
-                s=100,
-                alpha=0.5,
-            )
-            handles.append(h)
-            labels.append("Unmatched pred")
-        for unmatched_pred_down_idx in unmatched_pred_down:
-            plt.scatter(
-                [
-                    pred_down_frame_ids[unmatched_pred_down_idx],
-                ],
-                [pred_down_r_m[unmatched_pred_down_idx]],
-                color="orange",
-                s=100,
-                alpha=0.5,
-            )
-
-        for gt_track_id in set(gt_track_ids):
-            gt_fids = [d["frame_id"] for d in data_gt if d["track_id"] == gt_track_id]
-            gt_r_m = [d["r_m"] for d in data_gt if d["track_id"] == gt_track_id]
-            if len(gt_fids) > 1:
-                h = plt.plot(
-                    gt_fids,
-                    gt_r_m,
-                    alpha=0.5,
-                    color="blue",
-                )
-                handles.append(h[0])
-                labels.append("GT same track")
-
-        for pred_track_id in set(pred_track_ids):
-            pred_fids = [
-                d["frame_id"] for d in data_pred if d["track_id"] == pred_track_id
+            gt_up_frame_ids = [d["frame_id"] for d in data_gt if d["direction"] == "up"]
+            gt_down_frame_ids = [
+                d["frame_id"] for d in data_gt if d["direction"] == "down"
             ]
-            pred_r_m = [d["r_m"] for d in data_pred if d["track_id"] == pred_track_id]
-            if len(pred_fids) > 1:
-                h = plt.plot(
-                    pred_fids,
-                    pred_r_m,
-                    alpha=0.5,
-                    color="red",
+            pred_up_frame_ids = [
+                d["frame_id"] for d in data_pred if d["direction"] == "up"
+            ]
+            pred_down_frame_ids = [
+                d["frame_id"] for d in data_pred if d["direction"] == "down"
+            ]
+
+            gt_up_dat = [d[data_type] for d in data_gt if d["direction"] == "up"]
+            gt_down_dat = [d[data_type] for d in data_gt if d["direction"] == "down"]
+            pred_up_dat = [d[data_type] for d in data_pred if d["direction"] == "up"]
+            pred_down_dat = [
+                d[data_type] for d in data_pred if d["direction"] == "down"
+            ]
+
+            if verbose:
+                print(f"Matching up points")
+            matches_up, unmatched_gt_up, unmatched_pred_up = match_points_by_axis(
+                gt_up_frame_ids,
+                pred_up_frame_ids,
+                gt_up_dat,
+                pred_up_dat,
+                max_frame_diff=max_frame_diff,
+                max_r_diff=max_r_diff,
+            )
+
+            if verbose:
+                print(f"Matching down points")
+            matches_down, unmatched_gt_down, unmatched_pred_down = match_points_by_axis(
+                gt_down_frame_ids,
+                pred_down_frame_ids,
+                gt_down_dat,
+                pred_down_dat,
+                max_frame_diff=max_frame_diff,
+                max_r_diff=max_r_diff,
+            )
+
+            # for match in matches_up:
+            #     plt.plot(
+            #         [gt_up_frame_ids[match[0]], pred_up_frame_ids[match[1]]],
+            #         [gt_up_r_m[match[0]], pred_up_r_m[match[1]]],
+            #         color="green",
+            #     )
+
+            # for match in matches_down:
+            #     plt.plot(
+            #         [gt_down_frame_ids[match[0]], pred_down_frame_ids[match[1]]],
+            #         [gt_down_r_m[match[0]], pred_down_r_m[match[1]]],
+            #         color="orange",
+            #     )
+            handles = []
+            labels = []
+
+            for unmatched_gt_up_idx in unmatched_gt_up:
+                h = plt.scatter(
+                    [
+                        gt_up_frame_ids[unmatched_gt_up_idx],
+                    ],
+                    [gt_up_dat[unmatched_gt_up_idx]],
+                    color="yellow",
+                    s=100,
+                    alpha=0.75,
                 )
-                handles.append(h[0])
-                labels.append("Pred same track")
+                handles.append(h)
+                labels.append("Unmatched GT")
+            for unmatched_gt_down_idx in unmatched_gt_down:
+                plt.scatter(
+                    [
+                        gt_down_frame_ids[unmatched_gt_down_idx],
+                    ],
+                    [gt_down_dat[unmatched_gt_down_idx]],
+                    color="yellow",
+                    s=100,
+                    alpha=0.75,
+                )
+            for unmatched_pred_up_idx in unmatched_pred_up:
+                h = plt.scatter(
+                    [
+                        pred_up_frame_ids[unmatched_pred_up_idx],
+                    ],
+                    [pred_up_dat[unmatched_pred_up_idx]],
+                    color="orange",
+                    s=100,
+                    alpha=0.5,
+                )
+                handles.append(h)
+                labels.append("Unmatched pred")
+            for unmatched_pred_down_idx in unmatched_pred_down:
+                plt.scatter(
+                    [
+                        pred_down_frame_ids[unmatched_pred_down_idx],
+                    ],
+                    [pred_down_dat[unmatched_pred_down_idx]],
+                    color="orange",
+                    s=100,
+                    alpha=0.5,
+                )
 
-        h = plt.scatter(
-            gt_up_frame_ids,
-            gt_up_r_m,
-            alpha=0.5,
-            color="blue",
-            marker="^",
-        )
-        handles.append(h)
-        labels.append("GT 'up'")
-        h = plt.scatter(
-            gt_down_frame_ids,
-            gt_down_r_m,
-            alpha=0.5,
-            color="blue",
-            marker="v",
-        )
-        handles.append(h)
-        labels.append("GT 'down'")
-        h = plt.scatter(
-            pred_up_frame_ids,
-            pred_up_r_m,
-            alpha=0.5,
-            color="red",
-            marker="^",
-        )
-        handles.append(h)
-        labels.append("Pred 'up'")
-        h = plt.scatter(
-            pred_down_frame_ids,
-            pred_down_r_m,
-            alpha=0.5,
-            color="red",
-            marker="v",
-        )
-        handles.append(h)
-        labels.append("Pred 'down'")
-        unique = dict()
-        for h, l in zip(handles, labels):
-            if l not in unique:
-                unique[l] = h
-        print(f"{unique=}")
-        plt.legend(unique.values(), unique.keys())
+            for gt_track_id in set(gt_track_ids):
+                gt_fids = [
+                    d["frame_id"] for d in data_gt if d["track_id"] == gt_track_id
+                ]
+                gt_dat = [d[data_type] for d in data_gt if d["track_id"] == gt_track_id]
+                if len(gt_fids) > 1:
+                    h = plt.plot(
+                        gt_fids,
+                        gt_dat,
+                        alpha=0.5,
+                        color="blue",
+                    )
+                    handles.append(h[0])
+                    labels.append("GT same track")
 
-        vmin = min(gt_up_r_m + gt_down_r_m + pred_up_r_m + pred_down_r_m)
-        vmax = max(gt_up_r_m + gt_down_r_m + pred_up_r_m + pred_down_r_m)
-        plt.ylim(vmin - 1, vmax + 1)
-        xmin = min(
-            gt_up_frame_ids
-            + gt_down_frame_ids
-            + pred_up_frame_ids
-            + pred_down_frame_ids
-        )
-        xmax = max(
-            gt_up_frame_ids
-            + gt_down_frame_ids
-            + pred_up_frame_ids
-            + pred_down_frame_ids
-        )
-        plt.xlim(int(xmin - 10), int(xmax + 10))
+            for pred_track_id in set(pred_track_ids):
+                pred_fids = [
+                    d["frame_id"] for d in data_pred if d["track_id"] == pred_track_id
+                ]
+                pred_dat = [d[data_type] for d in data_pred if d["track_id"]]
+                if len(pred_fids) > 1:
+                    h = plt.plot(
+                        pred_fids,
+                        pred_dat,
+                        alpha=0.5,
+                        color="red",
+                    )
+                    handles.append(h[0])
+                    labels.append("Pred same track")
 
-        plt.xlabel("Frame ID")
-        plt.ylabel("Distance R (m)")
-        plt.title(
-            "Nushagak clip 0, R(m) vs Frame ID\n"
-            f"{gt_name}: counts: {cancel_upstream_gt} up, {cancel_downstream_gt} down, crossings: {total_upstream_gt} up, {total_downstream_gt} down, {total_upstream_gt+total_downstream_gt} total crossings, {cancel_upstream_gt-cancel_downstream_gt} net\n"
-            f"{pred_name}: counts: {cancel_upstream_pred} up, {cancel_downstream_pred} down,crossings: {total_upstream_pred} up, {total_downstream_pred} down, {total_upstream_pred+total_downstream_pred} total crossings, {cancel_upstream_pred-cancel_downstream_pred} net\n"
-            f"Total Count Error: {total_count_error*100:.2f}% "
-            f"Total Crossings Error: {total_crossings_error*100:.2f}%, "
-            f"Net Count Error: {net_count_error*100:.2f}%"
-        )
-        # plt.legend()
-        if save:
-            plt.savefig(output_filepath + ".png")
-        else:
-            plt.show()
+            h = plt.scatter(
+                gt_up_frame_ids,
+                gt_up_dat,
+                alpha=0.5,
+                color="blue",
+                marker="^",
+            )
+            handles.append(h)
+            labels.append("GT 'up'")
+            h = plt.scatter(
+                gt_down_frame_ids,
+                gt_down_dat,
+                alpha=0.5,
+                color="blue",
+                marker="v",
+            )
+            handles.append(h)
+            labels.append("GT 'down'")
+            h = plt.scatter(
+                pred_up_frame_ids,
+                pred_up_dat,
+                alpha=0.5,
+                color="red",
+                marker="^",
+            )
+            handles.append(h)
+            labels.append("Pred 'up'")
+            h = plt.scatter(
+                pred_down_frame_ids,
+                pred_down_dat,
+                alpha=0.5,
+                color="red",
+                marker="v",
+            )
+            handles.append(h)
+            labels.append("Pred 'down'")
+            unique = dict()
+            for h, l in zip(handles, labels):
+                if l not in unique:
+                    unique[l] = h
+            plt.legend(unique.values(), unique.keys())
+
+            vmin = min(gt_up_dat + gt_down_dat + pred_up_dat + pred_down_dat)
+            vmax = max(gt_up_dat + gt_down_dat + pred_up_dat + pred_down_dat)
+            plt.ylim(vmin - 1, vmax + 1)
+            xmin = min(
+                gt_up_frame_ids
+                + gt_down_frame_ids
+                + pred_up_frame_ids
+                + pred_down_frame_ids
+            )
+            xmax = max(
+                gt_up_frame_ids
+                + gt_down_frame_ids
+                + pred_up_frame_ids
+                + pred_down_frame_ids
+            )
+            plt.xlim(int(xmin - 10), int(xmax + 10))
+
+            plt.xlabel("Frame ID")
+            if data_type == "r_m":
+                plt.ylabel("Distance R (m)")
+            elif data_type == "theta":
+                plt.ylabel("Angle (deg)")
+            plt.title(
+                f"{data_type} vs Frame ID\n{output_filepath.split('/')[-2:]}\n"
+                f"{gt_name}: counts: {cancel_upstream_gt} up, {cancel_downstream_gt} down, crossings: {total_upstream_gt} up, {total_downstream_gt} down, {total_upstream_gt+total_downstream_gt} total crossings, {cancel_upstream_gt-cancel_downstream_gt} net\n"
+                f"{pred_name}: counts: {cancel_upstream_pred} up, {cancel_downstream_pred} down,crossings: {total_upstream_pred} up, {total_downstream_pred} down, {total_upstream_pred+total_downstream_pred} total crossings, {cancel_upstream_pred-cancel_downstream_pred} net\n"
+                f"Total Count Error: {total_count_error*100:.2f}% "
+                f"Total Crossings Error: {total_crossings_error*100:.2f}%, "
+                f"Net Count Error: {net_count_error*100:.2f}%"
+            )
+            # plt.legend()
+            if save:
+                plt.savefig(output_filepath + f"_{data_type}.png")
+                plt.close()
+            else:
+                plt.show()
 
 
 if __name__ == "__main__":

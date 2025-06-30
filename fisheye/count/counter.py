@@ -22,6 +22,7 @@ class LOICounter(BaseCounter):
         crossing_frames = {"left": [], "right": []}
 
         for track, track_df in grouped_tracks:
+            print(f"MAH FIX THIS TO BE THE CENTER OF THE BBOX")
             x_coords = track_df["kp_x"].values
             frames = track_df["frame"].values
             first_x = x_coords[0]
@@ -40,12 +41,13 @@ class LOICounter(BaseCounter):
             )  # Subtract 1 since it was for MOT format
             bbox = [bb_left, bb_top, bb_width, bb_height]
 
+            # MAH 2025-06-30 15:26:47 bumping the line so that we never have the x cordinate bang on the center line
             # Determine initial and final positions
-            if last_x <= line < first_x:
+            if last_x <= (line - 0.1) < first_x:
                 track_counts[track]["left"] += 1
                 crossing_frames["left"].append((track, closest_frame, bbox))
 
-            elif last_x >= line > first_x:
+            elif last_x >= (line - 0.1) > first_x:
                 track_counts[track]["right"] += 1
                 crossing_frames["right"].append((track, closest_frame, bbox))
 

@@ -18,7 +18,9 @@ def parse_frame_id(line):
     return None
 
 
-def crop_txt_to_frame_range(input_file, start_frame, end_frame, output_file=None):
+def crop_txt_to_frame_range(
+    input_file, start_frame, end_frame, output_file=None, verbose=False
+):
     """
     Filter a file by frame ID range and save to new file.
 
@@ -50,8 +52,9 @@ def crop_txt_to_frame_range(input_file, start_frame, end_frame, output_file=None
     kept_lines = 0
     met_a_result_line = False
 
-    print(f"Processing file: {input_file}")
-    print(f"Frame range: {start_frame} to {end_frame}")
+    if verbose:
+        print(f"Processing file: {input_file}")
+        print(f"Frame range: {start_frame} to {end_frame}")
 
     with open(input_file, "r") as f:
         for line_num, line in enumerate(f, 1):
@@ -60,6 +63,15 @@ def crop_txt_to_frame_range(input_file, start_frame, end_frame, output_file=None
             # Skip empty lines
             # if not line.strip():
             #     continue
+
+            if (
+                not line.strip()
+                or line.startswith("***")
+                or line.startswith("---")
+                or line.startswith("File")
+                or line == "\n"
+            ):
+                continue
 
             frame_id = parse_frame_id(line)
 
@@ -80,10 +92,10 @@ def crop_txt_to_frame_range(input_file, start_frame, end_frame, output_file=None
     # Write filtered data to output file
     with open(output_path, "w") as f:
         f.writelines(filtered_lines)
-
-    print(f"Total lines processed: {total_lines}")
-    print(f"Lines kept: {kept_lines}")
-    print(f"Lines filtered out: {total_lines - kept_lines}")
+    if verbose:
+        print(f"Total lines processed: {total_lines}")
+        print(f"Lines kept: {kept_lines}")
+        print(f"Lines filtered out: {total_lines - kept_lines}")
     print(f"Output saved to: {output_path}")
 
     return str(output_path)
