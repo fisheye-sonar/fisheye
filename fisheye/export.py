@@ -7,6 +7,7 @@ from typing import Dict, Callable, Any, Union, List
 import pandas as pd
 import structlog
 
+from fisheye.configs.datasets import ARISMetadata
 from fisheye.enums import ExportType
 from fisheye.utils import get_unwarped_distance
 
@@ -35,7 +36,15 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
 
     out_file = out_file + "_" + Path(flattened_data[0].get("file_name")).stem + ".csv"
 
-    df = pd.DataFrame(flattened_data)
+    # Extract ARISMetadata fields and flatten them into each row
+    expanded_data = []
+    for item in flattened_data:
+        meta = item.pop("metadata", None)
+        if isinstance(meta, ARISMetadata):
+            item.update(meta.__dict__)
+        expanded_data.append(item)
+
+    df = pd.DataFrame(expanded_data)
     df.to_csv(out_file, index=False)
 
     logger.info(f"exported_results", output_dir=out_file)
