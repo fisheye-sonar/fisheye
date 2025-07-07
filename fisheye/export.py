@@ -9,7 +9,7 @@ import structlog
 
 from fisheye.configs.datasets import ARISMetadata
 from fisheye.enums import ExportType
-from fisheye.utils import get_unwarped_distance
+from fisheye.utils import get_unwarped_distance_and_theta
 
 logger = structlog.get_logger()
 
@@ -136,7 +136,9 @@ def to_txt(data, out_dir):
 
     if not df["bbox"].isna().all():
         # Calculate the distance from the sonar camera to the fish in an unwarped frame
-        df["distance"] = df.apply(get_unwarped_distance, axis=1)
+        df[["distance", "theta"]] = df.apply(
+            get_unwarped_distance_and_theta, axis=1, result_type="expand"
+        )
 
     title = "*** Manual Marking (Manual Sizing: Q = Quality, N = Repeat Count) ***"
 
@@ -183,7 +185,7 @@ def to_txt(data, out_dir):
             "Frame#": 0,
             "Dir": "",
             "R (m)": 0.0,
-            "Theta": 0.0,  # TODO (MVH) - update to use our theta estimations
+            "Theta": 0.0,
             "L(cm)": 0.0,  # TODO (MVH) - update to use our length estimations
             "dR(cm)": 0.0,
             "L/dR": 0.0,
@@ -226,7 +228,7 @@ def to_txt(data, out_dir):
                         "Frame#": row["frame_id"],
                         "Dir": "Up" if row.get("direction") == "left" else "Down",
                         "R (m)": row["distance"],
-                        "Theta": 0.0,  # Optional: Replace with real theta
+                        "Theta": row["theta"],
                         "L(cm)": 0.0,
                         "dR(cm)": 0.0,
                         "L/dR": 0.0,

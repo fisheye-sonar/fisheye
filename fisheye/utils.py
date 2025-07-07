@@ -71,8 +71,8 @@ def calculate_unwarped_points(points, info, xdim, ydim):
     return unwarped_points
 
 
-def get_unwarped_distance(row):
-    """Get the distance to an unwarped point.
+def get_unwarped_distance_and_theta(row):
+    """Get the distance and theta to an unwarped point.
 
     Function requires a DataFrame row where it has bounding boxes [x, y, width, height] and DIDSON header information
     under the column name `metadata`
@@ -97,4 +97,9 @@ def get_unwarped_distance(row):
         metadata.ydim - points_xy_unwarped[1]
     ) * metadata.pixel_meter_size + metadata.y_meter_stop
 
-    return round(distance, 2)
+    distance = round(distance, 2)
+    theta = round(
+        metadata.beam_width_data.iloc[points_xy_unwarped[0]]["beam_center"], 2
+    )
+
+    return distance, theta
