@@ -39,6 +39,8 @@ def remove_opposite_pairs(data_pred):
             # Remove both entries
             for idx in sorted([i, j], reverse=True):
                 del group[idx]
+        if len(group) > 1:
+            print(f"MAYBE ERROR CANCELLED TO NOT 1 {group=}")
         result.extend(group)
     return result
 
@@ -525,22 +527,38 @@ def compare_2_txt_files(
                 if l not in unique:
                     unique[l] = h
             plt.legend(unique.values(), unique.keys())
-
-            vmin = min(gt_up_dat + gt_down_dat + pred_up_dat + pred_down_dat)
-            vmax = max(gt_up_dat + gt_down_dat + pred_up_dat + pred_down_dat)
+            if len(gt_up_dat + gt_down_dat + pred_up_dat + pred_down_dat) > 0:
+                vmin = min(gt_up_dat + gt_down_dat + pred_up_dat + pred_down_dat) - 1
+                vmax = max(gt_up_dat + gt_down_dat + pred_up_dat + pred_down_dat) + 1
+            else:
+                vmin = 0
+                vmax = 1
             plt.ylim(vmin - 1, vmax + 1)
-            xmin = min(
-                gt_up_frame_ids
-                + gt_down_frame_ids
-                + pred_up_frame_ids
-                + pred_down_frame_ids
-            )
-            xmax = max(
-                gt_up_frame_ids
-                + gt_down_frame_ids
-                + pred_up_frame_ids
-                + pred_down_frame_ids
-            )
+            if (
+                len(
+                    gt_up_frame_ids
+                    + gt_down_frame_ids
+                    + pred_up_frame_ids
+                    + pred_down_frame_ids
+                )
+                > 0
+            ):
+                xmin = min(
+                    gt_up_frame_ids
+                    + gt_down_frame_ids
+                    + pred_up_frame_ids
+                    + pred_down_frame_ids
+                )
+                xmax = max(
+                    gt_up_frame_ids
+                    + gt_down_frame_ids
+                    + pred_up_frame_ids
+                    + pred_down_frame_ids
+                )
+            else:
+                xmin = 0
+                xmax = 1
+
             plt.xlim(int(xmin - 10), int(xmax + 10))
 
             plt.xlabel("Frame ID")
@@ -572,7 +590,11 @@ if __name__ == "__main__":
     gt_file = f"/home/mahobley/Code/fisheye/analysis/RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000_{frame_range}_crossings_generated_from_annotations.txt"
     pred_file = f"/home/mahobley/Code/fisheye/results/FCe_RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000_ID_{frame_range}.txt"
     pred_file = f"/home/mahobley/Code/fisheye/analysis/RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000_{frame_range}_crossings_generated_from_annotations.txt"
+    pred_file = f"/home/mahobley/Code/fisheye/analysis/generated_results/nushagak/FCe_RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000_ID__900_1200_cropped.txt"
+    pred_file = f"/home/mahobley/Code/fisheye/analysis/generated_results/kenai-rightbank/FCe_2018-05-26-JD146_RightFar_Stratum2_Set1_RO_2018-05-26_151004_ID__1560_1760_cropped.txt"
     gt_file = f"/home/mahobley/Code/fisheye/results/FCe_RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000_ID_{frame_range}.txt"
+    gt_file = f"/home/mahobley/Code/fisheye/analysis/gt_files/nushagak/FCe_RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000_ID__900_1200_cropped.txt"
+    gt_file = f"/home/mahobley/Code/fisheye/analysis/gt_files/kenai-rightbank/FCe_2018-05-26-JD146_RightFar_Stratum2_Set1_RO_2018-05-26_151004_ID__1560_1760_cropped.txt"
     # gt_file = "/home/mahobley/Code/fisheye/results/FCe_2018-05-26-JD146_LeftFar_Stratum1_Set1_LO_2018-05-26_080004_ID_.txt"
     # pred_file = "/home/mahobley/Code/fisheye/results/FCe_2018-05-26-JD146_LeftFar_Stratum1_Set1_LO_2018-05-26_080004_ID_285_885.txt"
     output_dir = "/home/mahobley/Code/fisheye/analysis/outputs"

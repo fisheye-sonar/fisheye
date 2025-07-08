@@ -43,6 +43,7 @@ weights/
 *.pt
 
 results/
+analysis/figures/
 analysis/gt_files/
 analysis/outputs/
 analysis/generated_results/

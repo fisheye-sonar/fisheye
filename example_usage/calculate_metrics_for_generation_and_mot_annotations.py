@@ -4,6 +4,7 @@ from analysis.compare_2_txt_files import compare_2_txt_files
 from analysis.crop_generated_txt_to_frame_range import crop_txt_to_frame_range
 from analysis.mot_to_txt import mot_to_txt
 
+from tqdm import tqdm
 
 dataset_dir = "/home/mahobley/Data/CFC22/restructured_dataset"
 model_output_dir = "/home/mahobley/Code/fisheye/results"
@@ -20,10 +21,19 @@ annotations_file_name = f"gt.txt"
 analysis_output_dir = "/home/mahobley/Code/fisheye/analysis/outputs"
 
 locations = ["nushagak"]
+locations = ["kenai-rightbank"]
 locations = ["kenai-val"]
 locations = ["elwha"]
+locations = [
+    "nushagak",
+    "elwha",
+    "kenai-rightbank",
+    "kenai-val",
+    "kenai-train",
+    "kenai-channel",
+]
 
-for location in locations:
+for location in tqdm(locations):
 
     os.makedirs(os.path.join(gt_dir, location), exist_ok=True)
     os.makedirs(os.path.join(model_output_dir, location), exist_ok=True)
@@ -32,8 +42,9 @@ for location in locations:
 
     clips = os.listdir(os.path.join(annotations_dir, location))
     # clips = ["RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000_900_1200"]
+    # clips = ["Elwha_2018_OM_ARIS_2018_07_26_2018-07-26_050000_37_488"]
 
-    for clip_name in clips:
+    for clip_name in tqdm(clips, leave=False):
         aris_name = "_".join(clip_name.split("_")[:-2])
         info_name = aris_name
 
@@ -55,11 +66,27 @@ for location in locations:
         output_filepath = os.path.join(analysis_output_dir, location, clip_name)
 
         # convert the MOT annotations to a txt file with the same format as the Fisheye generated txt file
-        x = mot_to_txt(annotations_path, info_path, start_frame, output_gt_path)
+        x = mot_to_txt(
+            annotations_path,
+            info_path,
+            start_frame,
+            output_gt_path,
+        )
 
         if os.path.exists(input_path):
             # crop the Fisheye generated txt file to the frame range
             crop_txt_to_frame_range(input_path, start_frame, end_frame, output_path)
+            if not os.path.exists(output_gt_path):
+                print(
+                    f"\n\033[33mNo gt_file file found for {clip_name} {output_gt_path}\033[0m"
+                )
+                continue
+            if not os.path.exists(output_path):
+                print(
+                    f"\n\033[33mNo pred_file file found for {clip_name} {output_path}\033[0m"
+                )
+
+                continue
 
             # compare the Fisheye generated txt file to the MOT annotations
 

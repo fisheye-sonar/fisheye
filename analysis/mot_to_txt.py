@@ -53,7 +53,7 @@ def detect_centerline_crossings(x_coords, frame_ids, center_line, x_center, y_ce
 
         if prev_x == (center_line + 0.1):
             print(
-                f"\033[91mWARNING: a point lands bang on the center line {prev_x=} == center_line={center_line+0.1} this shouldnt be a problem as we have nudged the centerline by 0.1\033[0m"
+                f"\033[33mWARNING: a point lands bang on the center line {prev_x=} == center_line={center_line+0.1} this shouldnt be a problem as we have nudged the centerline by 0.1\033[0m"
             )
 
         # Check if crossing occurred
@@ -164,52 +164,52 @@ def mot_to_txt(mot_path, info_path, start_frame, output_path=None, verbose=False
             print()
 
     if verbose:
-        print(f"Number of crossings: {num_crossings}")
+        print(f"Number of crossings: {num_crossings} {all_crossings}")
 
     # Save crossings to text file in the same format as manual marking
-    if all_crossings:
-        with open(output_path, "w") as f:
-            # Write header
-            f.write("*** Centerline Crossings ***\n\n")
+    # if all_crossings:
+    with open(output_path, "w") as f:
+        # Write header
+        f.write("*** Centerline Crossings ***\n\n")
 
-            headers = [
-                "File",
-                "Total",
-                "Frame#",
-                "Dir",
-                "R (m)",
-                "Theta",
-                "L(cm)",
-                "dR(cm)",
-                "L/dR",
-                "Aspect",
-                "Time",
-                "Date",
-                "Latitude",
-                "Longitude",
-                "Pan",
-                "Tilt",
-                "Roll",
-                "Species",
-                "Motion",
-                "Q",
-                "N",
-                "Comment",
-            ]
+        headers = [
+            "File",
+            "Total",
+            "Frame#",
+            "Dir",
+            "R (m)",
+            "Theta",
+            "L(cm)",
+            "dR(cm)",
+            "L/dR",
+            "Aspect",
+            "Time",
+            "Date",
+            "Latitude",
+            "Longitude",
+            "Pan",
+            "Tilt",
+            "Roll",
+            "Species",
+            "Motion",
+            "Q",
+            "N",
+            "Comment",
+        ]
 
-            col_width = 10
-            header_line = "".join(f"{h:<{col_width}}" for h in headers)
-            separator_line = "-" * len(header_line)
-            f.write(header_line + "\n")
-            f.write(separator_line + "\n")
+        col_width = 10
+        header_line = "".join(f"{h:<{col_width}}" for h in headers)
+        separator_line = "-" * len(header_line)
+        f.write(header_line + "\n")
+        f.write(separator_line + "\n")
 
-            # distance = 0.0
-            # print(f"{all_crossings=}")
-            # Write each crossing
-            for i, crossing in enumerate(all_crossings, 1):
-                # Format: File Total Frame# Dir R(m) Theta L(cm) dR(cm) L/dR Aspect Time Date Lat Long Pan Tilt Roll Species Motion Q N Comment
-                line = f"{1:<10} {i:<10} {crossing['frame_id']+start_frame:<10} {crossing['direction']:<10} {crossing['distance']:<10.2f} {crossing['theta']: <10.1f} {0.0:<10.1f} {0.0:<10.1f} {0.0:<10.1f} {0.0:<10.1f} {'00:00:00':<10} {'2018-07-02':<10} {'N 00 d  0.00000 m':<18} {'E 000 d  0.00000 m':<18} {0.0:<10.1f} {0.0:<10.1f} {0.0:<10.1f} {'Unknown':<10} {'Running':<12} {5:<3} {1:<3} {'Centerlinecrossing'}trackid{crossing['track_id']}\n"
-                f.write(line)
+        # distance = 0.0
+        # print(f"{all_crossings=}")
+        # Write each crossing
+        for i, crossing in enumerate(all_crossings, 1):
+            # Format: File Total Frame# Dir R(m) Theta L(cm) dR(cm) L/dR Aspect Time Date Lat Long Pan Tilt Roll Species Motion Q N Comment
+            line = f"{1:<10} {i:<10} {crossing['frame_id']+start_frame:<10} {crossing['direction']:<10} {crossing['distance']:<10.2f} {crossing['theta']: <10.1f} {0.0:<10.1f} {0.0:<10.1f} {0.0:<10.1f} {0.0:<10.1f} {'00:00:00':<10} {'2018-07-02':<10} {'N 00 d  0.00000 m':<18} {'E 000 d  0.00000 m':<18} {0.0:<10.1f} {0.0:<10.1f} {0.0:<10.1f} {'Unknown':<10} {'Running':<12} {5:<3} {1:<3} {'Centerlinecrossing'}trackid{crossing['track_id']}\n"
+            f.write(line)
 
         print(f"Crossings saved to: {output_path}")
 
@@ -220,13 +220,16 @@ def mot_to_txt(mot_path, info_path, start_frame, output_path=None, verbose=False
 
 
 if __name__ == "__main__":
+    # /home/mahobley/Data/CFC22/restructured_dataset/annotations/elwha/Elwha_2018_OM_ARIS_2018_07_10_2018-07-10_040000_6750_7201/ MISSING AN ANNOTATED FISH
+    # Elwha_2018_OM_ARIS_2018_07_27_2018-07-27_030000_897_1348_r_m we are detecting an extra fish here
     output_dir = "/home/mahobley/Code/fisheye/"
-    input_dir = "/home/mahobley/Data/CFC22/annotations/elwha/Elwha_2018_OM_ARIS_2018_07_22_2018-07-22_050000_2859_3310/"
+    input_dir = "/home/mahobley/Data/CFC22/restructured_dataset/annotations/elwha/Elwha_2018_OM_ARIS_2018_07_10_2018-07-10_040000_6750_7201/"
     info_dir = "/home/mahobley/Code/fisheye/analysis/gt_files"
-    info_dir = "/home/mahobley/Data/CFC22/restructured_dataset/info/elwha/Elwha_2018_OM_ARIS_2018_07_22_2018-07-22_050000/"
+    info_dir = "/home/mahobley/Data/CFC22/restructured_dataset/info/elwha/FCe_Elwha_2018_OM_ARIS_2018_07_10_2018-07-10_040000/"
+    info_dir = "/home/mahobley/Data/CFC22/restructured_dataset/info/elwha/Elwha_2018_OM_ARIS_2018_07_10_2018-07-10_040000/"
     # info_path = "/home/mahobley/Code/fisheye/analysis/gt_files/RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000_info.json"
     # info_fn = "2018-05-26-JD146_LeftFar_Stratum1_Set1_LO_2018-05-26_080004.json"
-    info_fn = "Elwha_2018_OM_ARIS_2018_07_22_2018-07-22_050000.json"
+    info_fn = "Elwha_2018_OM_ARIS_2018_07_10_2018-07-10_040000.json"
     # mot_fn = (
     #     "2018-05-26-JD146_LeftFar_Stratum1_Set1_LO_2018-05-26_080004_285_885_gt.txt"
     # )
@@ -236,7 +239,7 @@ if __name__ == "__main__":
     # mot_fn = "RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000_3900_4200_gt.txt"
     # mot_fn = "RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000_6000_6300_gt.txt"
     # output_fn = mot_fn.replace("_gt.txt", "_crossings_generated_from_annotations.txt")
-    output_fn = "Elwha_2018_OM_ARIS_2018_07_22_2018-07-22_050000_2859_3310_crossings_generated_from_annotations_test.txt"
+    output_fn = "Elwha_2018_OM_ARIS_2018_07_22_2018-07-22_050000_6750_7201_crossings_generated_from_annotations_test.txt"
 
     info_path = os.path.join(info_dir, info_fn)
     mot_path = os.path.join(input_dir, mot_fn)
