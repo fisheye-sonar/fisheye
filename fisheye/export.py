@@ -132,15 +132,9 @@ def to_txt(data, out_dir):
         return
     flattened_data = [item for sublist in data if sublist for item in sublist]
     if not flattened_data:
-        logger.warning(f"No counts were found in the provided data. Nothing to export.")
-        return
-
-    df = pd.DataFrame(flattened_data)
-
-    if not df["bbox"].isna().all():
-        # Calculate the distance from the sonar camera to the fish in an unwarped frame
-        df["distance"] = df.apply(get_unwarped_distance, axis=1)
-        df["theta"] = df.apply(get_theta, axis=1)
+        logger.warning(
+            f"No counts were found in the provided data. Exporting Blank TXT File."
+        )
 
     title = "*** Manual Marking (Manual Sizing: Q = Quality, N = Repeat Count) ***"
 
@@ -174,6 +168,13 @@ def to_txt(data, out_dir):
     col_width = 10
     header_line = "".join(f"{h:<{col_width}}" for h in headers)
     separator_line = "-" * len(header_line)
+
+    if flattened_data:
+        df = pd.DataFrame(flattened_data)
+        if not df["bbox"].isna().all():
+            # Calculate the distance from the sonar camera to the fish in an unwarped frame
+            df["distance"] = df.apply(get_unwarped_distance, axis=1)
+            df["theta"] = df.apply(get_theta, axis=1)
 
     for file_name, group_df in df.groupby("file_name"):
         match = re.search(r"(\d{4}-\d{2}-\d{2})", file_name)
