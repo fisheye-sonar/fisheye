@@ -26,6 +26,7 @@ def main(
     export_options: List[ExportType],
     output_dir: str,
     map_input_dir_structure_to_output: bool = False,
+    ignore_if_txt_already_exists: bool = False,
 ):
     check_disk_space(path=output_dir)  # Make sure there's enough space to store results
     project_root = Path(__file__).resolve().parents[1]
@@ -44,6 +45,7 @@ def main(
         export_options,
         job_id,
         map_input_dir_structure_to_output=map_input_dir_structure_to_output,
+        ignore_if_txt_already_exists=ignore_if_txt_already_exists,
     )
 
     if ExportType.SUMMARY_CSV in export_options:
@@ -83,6 +85,11 @@ if __name__ == "__main__":
         action=argparse.BooleanOptionalAction,
         help="Map input directory structure to output directory structure.",
     )
+    parser.add_argument(
+        "--ignore_if_txt_already_exists",
+        action=argparse.BooleanOptionalAction,
+        help="Ignore if txt already exists.",
+    )
 
     parser.add_argument(
         "--output_dir",
@@ -106,4 +113,5 @@ if __name__ == "__main__":
         export_types,
         args.output_dir,
         map_input_dir_structure_to_output=args.map_input_dir_structure_to_output,
+        ignore_if_txt_already_exists=args.ignore_if_txt_already_exists,
     )

@@ -19,6 +19,8 @@ from fisheye.export import save_to_disk
 from fisheye.format import tracker_output_to_mot
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
+import os
+from fisheye.export import get_txt_filename
 
 logger = structlog.getLogger(__name__)
 
@@ -42,7 +44,18 @@ class DetectTrackCountPipeline:
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
+        ignore_if_txt_already_exists: bool = False,
     ) -> List:
+        # check if the txt file already exists
+        if ignore_if_txt_already_exists and ExportType.TXT in export_types:
+            out_file = get_txt_filename(output_dir, file)
+            if os.path.exists(out_file):
+                logger.info(
+                    "The TXT Already Exists so skipping this file",
+                    file_path=str(out_file),
+                )
+                return "File Already Exported"
+
         logger.info("file_processing_started", file_path=str(file))
         dataset_cfg = YOLODatasetConfig(filepath=file)
         detector = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg)
@@ -169,6 +182,7 @@ class DetectTrackCountPipeline:
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
         map_input_dir_structure_to_output: bool = False,
+        ignore_if_txt_already_exists: bool = False,
     ) -> Union[List[List[dict]], List[dict]]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
@@ -180,16 +194,32 @@ class DetectTrackCountPipeline:
         Returns:
             dict: Tracking results and counts.
         """
-
         if isinstance(file, (str, Path)):
             path = Path(file)
             if _is_valid_file(path):
-                return [self._run(path, output_dir, export_types)]
+                return [
+                    self._run(
+                        path,
+                        output_dir,
+                        export_types,
+                        ignore_if_txt_already_exists=ignore_if_txt_already_exists,
+                    )
+                ]
 
             elif _is_valid_dir(path):
                 # Process all ARIS or DIDSON files in directory
                 files = [f for f in path.iterdir() if _is_valid_file(f)]
-                return [self._run(f, output_dir, export_types, job_id) for f in files]
+                files = sorted(files)
+                return [
+                    self._run(
+                        f,
+                        output_dir,
+                        export_types,
+                        job_id,
+                        ignore_if_txt_already_exists=ignore_if_txt_already_exists,
+                    )
+                    for f in files
+                ]
 
             elif _is_valid_parent_dir(path):
 
@@ -197,6 +227,7 @@ class DetectTrackCountPipeline:
                 files = [
                     f for f in path.rglob("*") if f.is_file() and _is_valid_file(f)
                 ]
+                files = sorted(files)
                 if map_input_dir_structure_to_output:
                     output_paths = [
                         (output_dir / f.relative_to(path)).parent for f in files
@@ -205,12 +236,25 @@ class DetectTrackCountPipeline:
                         output_path.mkdir(parents=True, exist_ok=True)
 
                     return [
-                        self._run(f, output_path, export_types, job_id)
+                        self._run(
+                            f,
+                            output_path,
+                            export_types,
+                            job_id,
+                            ignore_if_txt_already_exists=ignore_if_txt_already_exists,
+                        )
                         for (f, output_path) in zip(files, output_paths)
                     ]
                 else:
                     return [
-                        self._run(f, output_dir, export_types, job_id) for f in files
+                        self._run(
+                            f,
+                            output_dir,
+                            export_types,
+                            job_id,
+                            ignore_if_txt_already_exists=ignore_if_txt_already_exists,
+                        )
+                        for f in files
                     ]
             else:
                 raise ValueError(f"Invalid file or directory path: {file}")

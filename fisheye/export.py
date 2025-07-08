@@ -26,6 +26,9 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
         out_dir (str): Output directory for CSV files.
         job_id (str): Job ID.
     """
+    if data == ["File Already Exported"]:
+        logger.warning(f"File Already Exported Skipping This File.")
+        return
     timestamp = datetime.now().strftime("%Y-%m-%d")
     job_suffix = f"_{job_id}" if job_id else ""
     out_file = os.path.join(out_dir, f"{timestamp}{job_suffix}")
@@ -51,6 +54,9 @@ def to_summary_csv(data, out_dir, job_id: str = None):
         data (dict): Dictionary of inference results.
         out_dir (str): Output directory for CSV files.
     """
+    if data == ["File Already Exported"]:
+        logger.warning(f"File Already Exported Skipping This File.")
+        return
     timestamp = datetime.now().strftime("%Y-%m-%d")
     job_suffix = f"_{job_id}" if job_id else ""
     out_file = os.path.join(out_dir, f"{timestamp}{job_suffix}_summary.csv")
@@ -121,6 +127,9 @@ def to_txt(data, out_dir):
         data (dict): Dictionary of inference results.
         out_dir (str): Output directory for TXT file(s).
     """
+    if data == ["File Already Exported"]:
+        logger.warning(f"File Already Exported Skipping This File.")
+        return
     flattened_data = [item for sublist in data if sublist for item in sublist]
     if not flattened_data:
         logger.warning(f"No counts were found in the provided data. Nothing to export.")
@@ -197,8 +206,7 @@ def to_txt(data, out_dir):
             "Comment": 1,
         }
 
-        file_stem = Path(file_name).stem
-        out_file = os.path.join(out_dir, f"FCe_{file_stem}_ID_.txt")
+        out_file = get_txt_filename(out_dir, file_name)
 
         with open(out_file, "w") as f:
             f.write(title + "\n\n")
@@ -249,6 +257,12 @@ def to_txt(data, out_dir):
         logger.info(f"exported_txt", output_dir=out_file)
 
 
+def get_txt_filename(out_dir, file_name):
+    file_stem = Path(file_name).stem
+    out_file = os.path.join(out_dir, f"FCe_{file_stem}_ID_.txt")
+    return out_file
+
+
 def to_mot(data, output_dir, filename):
     """Export inference results to MOT file(s). Expects data to be in MOT output already."""
     out_path = os.path.join(output_dir, filename + ".txt")
@@ -296,9 +310,6 @@ def save_to_disk(
     results, output_dir, export_types: Union[List[ExportType], ExportType], job_id: str
 ) -> None:
     """Save results to disk."""
-    if not results or all(len(sublist) == 0 for sublist in results):
-        logger.warning(f"No counts were found in the provided data. Nothing to export.")
-        return
 
     if not isinstance(export_types, list):
         export_types = [export_types]

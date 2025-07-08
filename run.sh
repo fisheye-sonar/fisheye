@@ -8,10 +8,12 @@
 # - a single ARIS/DIDSON file
 # INPUT_DIR=${1:-"/home/mahobley/Data/CFC22/aris_files/nushagak/RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000.aris"}
 INPUT_DIR=${1:-"/home/mahobley/Data/CFC22/aris_files/"}
+# INPUT_DIR=${1:-"/home/mahobley/Data/CFC22/aris_files/kenai-train/2018-06-02-JD153_LeftFar_Stratum2_Set1_LO_2018-06-02_101003.aris"}
 # INPUT_DIR=${1:-"/home/mahobley/Data/CFC22/aris_files/kenai-train/2018-05-26-JD146_LeftFar_Stratum1_Set1_LO_2018-05-26_080004.aris"}
 
 # What to export. Options include: summary_csv, detailed_csv, txt, mot, none. Use "none" to skip exporting.
-EXPORT_OPTIONS=${3:-"summary_csv,detailed_csv,txt"}
+# EXPORT_OPTIONS=${3:-"summary_csv,detailed_csv,txt"}
+EXPORT_OPTIONS=${3:-"detailed_csv,txt"}
 
 # Where to save the output files.
 # You can choose any folder. If you save to the same folder as your ARIS/DIDSON files, ARISFish Software will be able to
@@ -25,6 +27,10 @@ OUTPUT_DIR=${RESULTS_FOLDER:-$INPUT_DIR}
 MAP_INPUT_DIR_STRUCTURE_TO_OUTPUT="--map_input_dir_structure_to_output"
 # Put all results in the same folder.
 # MAP_INPUT_DIR_STRUCTURE_TO_OUTPUT="--no-map_input_dir_structure_to_output"
+# Map input directory structure to output directory structure.
+IGNORE_IF_TXT_ALREADY_EXISTS="--ignore_if_txt_already_exists"
+# Put all results in the same folder.
+# IGNORE_IF_TXT_ALREADY_EXISTS="--no-ignore_if_txt_already_exists"
 
 ### END OF CHANGES ###
 
@@ -34,4 +40,6 @@ poetry run python fisheye/main.py \
   --path "$INPUT_DIR" \
   --export_options "$EXPORT_OPTIONS" \
   --output_dir "$OUTPUT_DIR" \
-  $MAP_INPUT_DIR_STRUCTURE_TO_OUTPUT
+  $MAP_INPUT_DIR_STRUCTURE_TO_OUTPUT \
+  $IGNORE_IF_TXT_ALREADY_EXISTS \
+
