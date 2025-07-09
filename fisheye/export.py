@@ -136,9 +136,7 @@ def to_txt(data, out_dir):
 
     if not df["bbox"].isna().all():
         # Calculate the distance from the sonar camera to the fish in an unwarped frame
-        df[["distance", "theta"]] = df.apply(
-            get_unwarped_distance_and_theta, axis=1, result_type="expand"
-        )
+        df[["distance", "theta"]] = df.apply(get_unwarped_distance_and_theta, axis=1)
 
     title = "*** Manual Marking (Manual Sizing: Q = Quality, N = Repeat Count) ***"
 
@@ -185,7 +183,7 @@ def to_txt(data, out_dir):
             "Frame#": 0,
             "Dir": "",
             "R (m)": 0.0,
-            "Theta": 0.0,
+            "Theta": 0.0,  # TODO (MVH) - update to use our theta estimations
             "L(cm)": 0.0,  # TODO (MVH) - update to use our length estimations
             "dR(cm)": 0.0,
             "L/dR": 0.0,
@@ -207,51 +205,52 @@ def to_txt(data, out_dir):
         file_stem = Path(file_name).stem
         out_file = os.path.join(out_dir, f"FCe_{file_stem}_ID_.txt")
 
+        lines = [title + "\n\n", header_line + "\n", separator_line + "\n"]
+        for _, row in group_df_sorted.iterrows():
+            bbox = row.get("bbox")
+            has_data = (
+                bbox is not None
+                and len(bbox) > 0
+                and "distance" in row
+                and pd.notna(row["distance"])
+            )
+
+            if has_data:
+                row_data = {
+                    "File": 1,
+                    "Total": row_data["Total"] + 1,
+                    "Frame#": row["frame_id"],
+                    "Dir": "Up" if row.get("direction") == "left" else "Down",
+                    "R (m)": row["distance"],
+                    "Theta": row["theta"],
+                    "L(cm)": 0.0,
+                    "dR(cm)": 0.0,
+                    "L/dR": 0.0,
+                    "Aspect": 0.0,
+                    "Time": "00:00:00",
+                    "Date": date,
+                    "Latitude": "N 00 d  0.00000 m",
+                    "Longitude": "E 000 d  0.00000 m",
+                    "Pan": 0.0,
+                    "Tilt": 0.0,
+                    "Roll": 0.0,
+                    "Species": "Unknown",
+                    "Motion": "Running <->",
+                    "Q": 5,
+                    "N": 1,
+                    "Comment": "",
+                }
+
+                row_line = "  ".join(f"{str(row_data[h]):<10}" for h in headers)
+            else:
+                row_line = "  ".join(["" for _ in headers])
+
+            lines.append(row_line + "\n")
+
         with open(out_file, "w") as f:
-            f.write(title + "\n\n")
-            f.write(header_line + "\n")
-            f.write(separator_line + "\n")
-
-            for _, row in group_df_sorted.iterrows():
-                bbox = row.get("bbox")
-                has_data = (
-                    bbox is not None
-                    and len(bbox) > 0
-                    and "distance" in row
-                    and pd.notna(row["distance"])
-                )
-
-                if has_data:
-                    row_data = {
-                        "File": 1,
-                        "Total": row_data["Total"] + 1,
-                        "Frame#": row["frame_id"],
-                        "Dir": "Up" if row.get("direction") == "left" else "Down",
-                        "R (m)": row["distance"],
-                        "Theta": row["theta"],
-                        "L(cm)": 0.0,
-                        "dR(cm)": 0.0,
-                        "L/dR": 0.0,
-                        "Aspect": 0.0,
-                        "Time": "00:00:00",
-                        "Date": date,
-                        "Latitude": "N 00 d  0.00000 m",
-                        "Longitude": "E 000 d  0.00000 m",
-                        "Pan": 0.0,
-                        "Tilt": 0.0,
-                        "Roll": 0.0,
-                        "Species": "Unknown",
-                        "Motion": "Running <->",
-                        "Q": 5,
-                        "N": 1,
-                        "Comment": "",
-                    }
-
-                    row_line = "  ".join(f"{str(row_data[h]):<10}" for h in headers)
-                else:
-                    row_line = "  ".join(["" for _ in headers])
-
-                f.write(row_line + "\n")
+            f.writelines(lines)
+            f.flush()
+            os.fsync(f.fileno())
 
         logger.info(f"exported_txt", output_dir=out_file)
 
