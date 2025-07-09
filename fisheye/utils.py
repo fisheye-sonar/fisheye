@@ -4,6 +4,26 @@ from fisheye.dataloaders.didson import pyARIS
 from fisheye.configs.datasets import BEAM_WIDTH_DIR
 
 
+def calculate_theta(x_pixel, y_pixel, metadata):
+    """
+    x_pixel: horizontal pixel index (int)
+    y_pixel: vertical pixel index (int)
+    metadata: ARISMetadata dataclass
+    Returns: theta in degrees
+    """
+    x_meters = metadata.x_meter_start + x_pixel * metadata.pixel_meter_size
+    y_meters = metadata.y_meter_start - y_pixel * metadata.pixel_meter_size
+
+    # Prevent division by zero
+    if y_meters == 0:
+        return 90.0 if x_meters > 0 else -90.0
+
+    theta_rad = np.arctan(x_meters / y_meters)
+    theta_deg = np.rad2deg(theta_rad)
+
+    return theta_deg
+
+
 def calculate_unwarped_points(points, info, xdim, ydim):
     """
     points: [..., 2] in x,y
