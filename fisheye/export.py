@@ -39,13 +39,20 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
     # Extract ARISMetadata fields and flatten them into each row
     expanded_data = []
     for item in flattened_data:
-        meta = item.pop("metadata", None)
+        new_item = item.copy()
+        meta = new_item.pop("metadata", None)
+
         if isinstance(meta, ARISMetadata):
-            item.update(meta.__dict__)
-        expanded_data.append(item)
+            new_item.update(meta.__dict__)
+
+        expanded_data.append(new_item)
 
     df = pd.DataFrame(expanded_data)
-    df.to_csv(out_file, index=False)
+
+    with open(out_file, "w") as f:
+        df.to_csv(out_file, index=False)
+        f.flush()
+        os.fsync(f.fileno())
 
     logger.info(f"exported_results", output_dir=out_file)
 
@@ -114,7 +121,10 @@ def to_summary_csv(data, out_dir, job_id: str = None):
     )
     final_result = file_counts.reset_index().rename(columns={"index": "file_name"})
 
-    final_result.to_csv(out_file, index=False)
+    with open(out_file, "w") as f:
+        final_result.to_csv(out_file, index=False)
+        f.flush()
+        os.fsync(f.fileno())
 
     logger.info(f"exported_summary", output_dir=out_file)
 
@@ -205,51 +215,52 @@ def to_txt(data, out_dir):
         file_stem = Path(file_name).stem
         out_file = os.path.join(out_dir, f"FCe_{file_stem}_ID_.txt")
 
+        lines = [title + "\n\n", header_line + "\n", separator_line + "\n"]
+        for _, row in group_df_sorted.iterrows():
+            bbox = row.get("bbox")
+            has_data = (
+                bbox is not None
+                and len(bbox) > 0
+                and "distance" in row
+                and pd.notna(row["distance"])
+            )
+
+            if has_data:
+                row_data = {
+                    "File": 1,
+                    "Total": row_data["Total"] + 1,
+                    "Frame#": row["frame_id"],
+                    "Dir": "Up" if row.get("direction") == "left" else "Down",
+                    "R (m)": row["distance"],
+                    "Theta": 0.0,  # Optional: Replace with real theta
+                    "L(cm)": 0.0,
+                    "dR(cm)": 0.0,
+                    "L/dR": 0.0,
+                    "Aspect": 0.0,
+                    "Time": "00:00:00",
+                    "Date": date,
+                    "Latitude": "N 00 d  0.00000 m",
+                    "Longitude": "E 000 d  0.00000 m",
+                    "Pan": 0.0,
+                    "Tilt": 0.0,
+                    "Roll": 0.0,
+                    "Species": "Unknown",
+                    "Motion": "Running <->",
+                    "Q": 5,
+                    "N": 1,
+                    "Comment": "",
+                }
+
+                row_line = "  ".join(f"{str(row_data[h]):<10}" for h in headers)
+            else:
+                row_line = "  ".join(["" for _ in headers])
+
+            lines.append(row_line + "\n")
+
         with open(out_file, "w") as f:
-            f.write(title + "\n\n")
-            f.write(header_line + "\n")
-            f.write(separator_line + "\n")
-
-            for _, row in group_df_sorted.iterrows():
-                bbox = row.get("bbox")
-                has_data = (
-                    bbox is not None
-                    and len(bbox) > 0
-                    and "distance" in row
-                    and pd.notna(row["distance"])
-                )
-
-                if has_data:
-                    row_data = {
-                        "File": 1,
-                        "Total": row_data["Total"] + 1,
-                        "Frame#": row["frame_id"],
-                        "Dir": "Up" if row.get("direction") == "left" else "Down",
-                        "R (m)": row["distance"],
-                        "Theta": 0.0,  # Optional: Replace with real theta
-                        "L(cm)": 0.0,
-                        "dR(cm)": 0.0,
-                        "L/dR": 0.0,
-                        "Aspect": 0.0,
-                        "Time": "00:00:00",
-                        "Date": date,
-                        "Latitude": "N 00 d  0.00000 m",
-                        "Longitude": "E 000 d  0.00000 m",
-                        "Pan": 0.0,
-                        "Tilt": 0.0,
-                        "Roll": 0.0,
-                        "Species": "Unknown",
-                        "Motion": "Running <->",
-                        "Q": 5,
-                        "N": 1,
-                        "Comment": "",
-                    }
-
-                    row_line = "  ".join(f"{str(row_data[h]):<10}" for h in headers)
-                else:
-                    row_line = "  ".join(["" for _ in headers])
-
-                f.write(row_line + "\n")
+            f.writelines(lines)
+            f.flush()
+            os.fsync(f.fileno())
 
         logger.info(f"exported_txt", output_dir=out_file)
 
@@ -274,7 +285,9 @@ def to_mot(data, output_dir, filename):
         mot_lines.append(mot_line)
 
     with open(out_path, "w") as f:
-        f.write("\n".join(mot_lines))
+        f.writelines(mot_lines)
+        f.flush()
+        os.fsync(f.fileno())
 
     logger.info(f"exported_mot", output_dir=out_path)
 
