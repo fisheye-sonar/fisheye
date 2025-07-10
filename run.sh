@@ -32,6 +32,10 @@ IGNORE_IF_TXT_ALREADY_EXISTS="--ignore_if_txt_already_exists"
 # Put all results in the same folder.
 # IGNORE_IF_TXT_ALREADY_EXISTS="--no-ignore_if_txt_already_exists"
 
+# Upstream direction of the fish. Must be 'left' or 'right'.
+# UPSTREAM_DIRECTION=${5:-"left"}
+UPSTREAM_DIRECTION=${5:-"right"}
+
 ### END OF CHANGES ###
 
 
@@ -42,4 +46,5 @@ poetry run python fisheye/main.py \
   --output_dir "$OUTPUT_DIR" \
   $MAP_INPUT_DIR_STRUCTURE_TO_OUTPUT \
   $IGNORE_IF_TXT_ALREADY_EXISTS \
+  --upstream_direction "$UPSTREAM_DIRECTION"
 
