@@ -121,8 +121,6 @@ def to_summary_csv(data, out_dir, job_id: str = None):
     )
     final_result = file_counts.reset_index().rename(columns={"index": "file_name"})
 
-    final_result.to_csv(out_file, index=False)
-
     with open(out_file, "w") as f:
         final_result.to_csv(out_file, index=False)
         f.flush()
