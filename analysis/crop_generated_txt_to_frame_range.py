@@ -13,7 +13,7 @@ def parse_frame_id(line):
     # Look for numbers in the line - adjust this pattern based on your actual data format
     numbers = re.findall(r"\d+", line)
     if numbers:
-        # Assuming the first number is the frame ID - adjust as needed
+        # Assuming the third number is the frame ID ('File, Total, Frame#')
         return int(numbers[2])
     return None
 
@@ -71,6 +71,8 @@ def crop_txt_to_frame_range(
                 or line.startswith("File")
                 or line == "\n"
             ):
+                filtered_lines.append(line)
+
                 continue
 
             frame_id = parse_frame_id(line)
@@ -94,7 +96,7 @@ def crop_txt_to_frame_range(
         f.writelines(filtered_lines)
     if verbose:
         print(f"Total lines processed: {total_lines}")
-        print(f"Lines kept: {kept_lines}")
+        print(f"Lines kept: {kept_lines} FR:{start_frame}-{end_frame}")
         print(f"Lines filtered out: {total_lines - kept_lines}")
     print(f"Output saved to: {output_path}")
 

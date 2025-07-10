@@ -3,136 +3,113 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 
-# flip_sign = -1
-# flip_sign = 1
-# Directory with JSON files
-json_parent_dir = "/home/mahobley/Code/fisheye/analysis/outputs"
-# json_dir = "/home/mahobley/Code/fisheye/analysis/outputs/kenai-rightbank"
-# json_dir = "/home/mahobley/Code/fisheye/analysis/outputs/nushagak"
 
-locations_dirs = {
-    "nushagak": 1,
-    "elwha": -1,
-    "kenai-rightbank": 1,
-    "kenai-val": -1,
-    "kenai-train": -1,
-    "kenai-channel": -1,
-}
-
-# location, flip_sign = list(locations_dirs.items())[3]
-for location, flip_sign in locations_dirs.items():
+def read_jsons_for_location(json_parent_dir, location):
     json_dir = os.path.join(json_parent_dir, location)
 
+    dict_list = []
     # Lists to store extracted values
-    gt_net_counts = []
-    pred_net_counts = []
-    net_count_errors = []
-    total_count_errors = []
-    gt_upstream_crossings = []
-    gt_downstream_crossings = []
-    pred_upstream_crossings = []
-    pred_downstream_crossings = []
-    gt_net_crossings = []
-    pred_net_crossings = []
-
-    error_3 = []
 
     # Load data from JSON files
     for filename in os.listdir(json_dir):
         if filename.endswith(".json"):
             with open(os.path.join(json_dir, filename), "r") as f:
                 data = json.load(f)
-                gt = data["data_summary_gt"]["net_counts"]
-                pred = data["data_summary_pred"]["net_counts"]
-                error = data["net_count_error"]
-                error_2 = data["total_count_error"]
+                dict_list.append(data)
 
-                gt_net_counts.append(flip_sign * gt)
-                pred_net_counts.append(flip_sign * pred)
-                net_count_errors.append(error)
-                total_count_errors.append(error_2)
-                error_3.append(
-                    flip_sign
-                    * (
-                        (
-                            data["data_summary_pred"]["cancel_upstream_crossings"]
-                            - data["data_summary_pred"]["cancel_downstream_crossings"]
-                        )
-                        - (
-                            data["data_summary_gt"]["cancel_upstream_crossings"]
-                            - data["data_summary_gt"]["cancel_downstream_crossings"]
-                        )
-                    )
-                )
+    return dict_list
 
-                if flip_sign == -1:
-                    gt_upstream_crossings.append(
-                        data["data_summary_gt"]["cancel_downstream_crossings"]
-                    )
-                    gt_downstream_crossings.append(
-                        data["data_summary_gt"]["cancel_upstream_crossings"]
-                    )
-                    pred_upstream_crossings.append(
-                        data["data_summary_pred"]["cancel_downstream_crossings"]
-                    )
-                    pred_downstream_crossings.append(
-                        data["data_summary_pred"]["cancel_upstream_crossings"]
-                    )
-                else:
-                    gt_upstream_crossings.append(
-                        data["data_summary_gt"]["cancel_upstream_crossings"]
-                    )
-                    gt_downstream_crossings.append(
-                        data["data_summary_gt"]["cancel_downstream_crossings"]
-                    )
-                    pred_upstream_crossings.append(
-                        data["data_summary_pred"]["cancel_upstream_crossings"]
-                    )
-                    pred_downstream_crossings.append(
-                        data["data_summary_pred"]["cancel_downstream_crossings"]
-                    )
-                gt_net_crossings.append(data["data_summary_gt"]["net_crossings"])
-                pred_net_crossings.append(data["data_summary_pred"]["net_crossings"])
 
-    overpredicted = (
-        np.array(pred_upstream_crossings) - np.array(pred_downstream_crossings)
-    ) > (np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))
-    underpredicted = (
-        np.array(pred_upstream_crossings) - np.array(pred_downstream_crossings)
-    ) < (np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))
-    num_upstream_clips = sum(
-        np.array(gt_upstream_crossings) > np.array(gt_downstream_crossings)
+def dict_list_to_datas(dict_list):
+    gt_net_counts = []
+    pred_net_counts = []
+    gt_upstream_crossings = []
+    gt_downstream_crossings = []
+    pred_upstream_crossings = []
+    pred_downstream_crossings = []
+    gt_net_crossings = []
+    pred_net_crossings = []
+    for data in dict_list:
+        gt = data["data_summary_gt"]["net_counts"]
+        pred = data["data_summary_pred"]["net_counts"]
+        upstream_net_movement_by_track_gt = data["data_summary_gt"][
+            "upstream_net_movement_by_track"
+        ]
+        downstream_net_movement_by_track_gt = data["data_summary_gt"][
+            "downstream_net_movement_by_track"
+        ]
+        upstream_net_movement_by_track_pred = data["data_summary_pred"][
+            "upstream_net_movement_by_track"
+        ]
+        downstream_net_movement_by_track_pred = data["data_summary_pred"][
+            "downstream_net_movement_by_track"
+        ]
+
+        net_crossings_gt = data["data_summary_gt"]["net_crossings"]
+        net_crossings_pred = data["data_summary_pred"]["net_crossings"]
+
+        gt_net_counts.append(gt)
+        pred_net_counts.append(pred)
+        gt_upstream_crossings.append(upstream_net_movement_by_track_gt)
+        gt_downstream_crossings.append(downstream_net_movement_by_track_gt)
+        pred_upstream_crossings.append(upstream_net_movement_by_track_pred)
+        pred_downstream_crossings.append(downstream_net_movement_by_track_pred)
+        gt_net_crossings.append(net_crossings_gt)
+        pred_net_crossings.append(net_crossings_pred)
+    return (
+        gt_net_counts,
+        pred_net_counts,
+        gt_upstream_crossings,
+        gt_downstream_crossings,
+        pred_upstream_crossings,
+        pred_downstream_crossings,
+        gt_net_crossings,
+        pred_net_crossings,
     )
-    num_downstream_clips = sum(
-        np.array(gt_upstream_crossings) < np.array(gt_downstream_crossings)
-    )
-    if False:
+
+
+def analyse_location(dict_list, location, print_for_latex, plot, save_json_path=""):
+    location_name_str = location[0].upper() + location[1:]
+
+    (
+        gt_net_counts,
+        pred_net_counts,
+        gt_upstream_crossings,
+        gt_downstream_crossings,
+        pred_upstream_crossings,
+        pred_downstream_crossings,
+        gt_net_crossings,
+        pred_net_crossings,
+    ) = dict_list_to_datas(dict_list)
+
+    net_count_errors = list(np.array(pred_net_counts) - np.array(gt_net_counts))
+
+    if print_for_latex:
+        overpredicted = (
+            np.array(pred_upstream_crossings) - np.array(pred_downstream_crossings)
+        ) > (np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))
+        underpredicted = (
+            np.array(pred_upstream_crossings) - np.array(pred_downstream_crossings)
+        ) < (np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))
+        num_upstream_clips = sum(
+            np.array(gt_upstream_crossings) > np.array(gt_downstream_crossings)
+        )
+        num_downstream_clips = sum(
+            np.array(gt_upstream_crossings) < np.array(gt_downstream_crossings)
+        )
         # print for latex table
         print(
             f" & {len(gt_upstream_crossings)} & {sum(gt_upstream_crossings)} & {sum(gt_downstream_crossings)} & \\textbf{{{sum(gt_upstream_crossings) - sum(gt_downstream_crossings)}}} & {sum(pred_upstream_crossings)} & {sum(pred_downstream_crossings)} & \\textbf{{{sum(pred_upstream_crossings) - sum(pred_downstream_crossings)}}}  & {num_upstream_clips} & {num_downstream_clips}  & {sum(overpredicted)} & {sum(underpredicted)}\\\\"
         )
 
-    # print(f" & {num_overpredicted=} & {num_underpredicted=} ")
-
-    # print(
-    #     f"{underpredicted * (np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))}"
-    # )
-
-    Original_metric = sum(
+    nMAE = sum(
         np.abs(np.array(pred_upstream_crossings) - np.array(gt_upstream_crossings))
         + np.abs(
             np.array(pred_downstream_crossings) - np.array(gt_downstream_crossings)
         )
     ) / sum(gt_upstream_crossings + gt_downstream_crossings)
 
-    # print(f"{gt_upstream_crossings=} {gt_downstream_crossings=}")
-    # print(
-    #     f"{sum(np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))=}"
-    # )
-    # print(
-    #     f"{sum(np.abs(np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings)))=}"
-    # )
-    Net_metric = sum(
+    nMNE = sum(
         (np.array(pred_upstream_crossings) - np.array(pred_downstream_crossings))
         - (np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))
     ) / sum(np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))
@@ -142,84 +119,69 @@ for location, flip_sign in locations_dirs.items():
             - (np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))
         )
     ) / sum(np.abs(np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings)))
-    sign = np.where(
+
+    video_dominant_motion_sign = np.where(
         np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings) >= 0, 1, -1
     )
-    error_sign = sign * (
-        (np.array(pred_upstream_crossings) - np.array(pred_downstream_crossings))
-        - (np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))
-    )
-
-    Net_absolute_metric_2 = sum(
-        sign
+    nMANE = sum(
+        video_dominant_motion_sign
         * (
             (np.array(pred_upstream_crossings) - np.array(pred_downstream_crossings))
             - (np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings))
         )
     ) / sum(np.abs(np.array(gt_upstream_crossings) - np.array(gt_downstream_crossings)))
 
-    print(f"'{location}': {{")
-    print(f"'Original_metric': {Original_metric*100:.2f},")
-    print(f"'Net_metric': {Net_metric*100:.2f},")
-    print(f"'Net_absolute_metric': {Net_absolute_metric*100:.2f},")
-    print(f"'Net_absolute_metric_2': {Net_absolute_metric_2*100:.2f},")
-    print(f"}},")
+    metrics = {
+        "nMAE": nMAE,
+        "nMNE": nMNE,
+        "nMANE": nMANE,
+    }
 
-    net_count_errors = [x if x < 1000 else -200 for x in net_count_errors]
-
-    zipped = zip(
-        gt_net_counts,
-        pred_net_counts,
-        net_count_errors,
-        total_count_errors,
-        error_3,
-        error_sign,
-        sign,
+    metrics_str = (
+        f"nMAE: {nMAE*100:.2f}%, nMNE: {nMNE*100:.2f}%, nMANE: {nMANE*100:.2f}%"
     )
-    zipped_sorted = sorted(zipped, key=lambda x: x[0])
-    # Filter out entries where list3 (x[2]) is 0
-    # zipped_sorted = [item for item in zipped_sorted if item[0] != 0]
-    (
-        gt_net_counts,
-        pred_net_counts,
-        net_count_errors,
-        total_count_errors,
-        error_3,
-        error_sign,
-        sign,
-    ) = zip(*zipped_sorted)
-    mean_gt_net_count = np.mean(gt_net_counts)
-    mean_pred_net_count = np.mean(pred_net_counts)
-    mean_abs_net_count_error = np.mean([abs(x) for x in net_count_errors])
-
-    mean_net_count_error = np.mean(net_count_errors)
-    mean_total_count_error = np.mean(total_count_errors)
-    # print(f"{net_count_errors=} {mean_net_count_error=}")
-    # print(f"{pred_net_counts_flip_negative=} {mean_flipped_net_count_error=}")
 
     # print(f"'{location}': {{")
-    # print(f"'mean_gt_net_count': {mean_gt_net_count:.2f},")
-    # print(f"'mean_pred_net_count': {mean_pred_net_count:.2f},")
-    # print(f"'mean_abs_net_count_error_percent': {mean_abs_net_count_error*100:.2f},")
-    # print(f"'mean_net_count_error_percent': {mean_net_count_error*100:.2f},")
-    # print(f"'mean_total_count_error_percent': {mean_total_count_error*100:.2f},")
+    # for metric, value in metrics.items():
+    #     print(f"'{metric}': {value*100:.2f},")
     # print(f"}},")
-    # continue
-    # -------- Plot 1: GT vs Pred net counts --------
-    plot = True
+    if save_json_path:
+        with open(os.path.join(save_json_path, f"{location}.json"), "w") as f:
+            json.dump(metrics, f)
+
     if plot:
-        plt.figure(figsize=(10, 5))
-        plt.grid(True)
+
+        # net_count_errors = [x if x < 1000 else -200 for x in net_count_errors]
+
+        zipped = zip(
+            gt_net_counts,
+            pred_net_counts,
+            net_count_errors,
+        )
+        zipped_sorted = sorted(zipped, key=lambda x: x[0])
+        # Filter out entries where list3 (x[2]) is 0
+        # zipped_sorted = [item for item in zipped_sorted if item[0] != 0]
+        (
+            gt_net_counts,
+            pred_net_counts,
+            net_count_errors,
+        ) = zip(*zipped_sorted)
+
+        # -------- Plot 1: GT vs Pred net counts --------
+
+        fig, ax = plt.subplots()
+        fig.set_size_inches(10, 5)
+        ax.grid(True)
 
         for i in range(len(gt_net_counts)):
-            plt.plot(
+            ax.plot(
                 [i, i],
                 [gt_net_counts[i], pred_net_counts[i]],
                 color="k",
                 alpha=0.5,
                 zorder=1,
             )
-        plt.scatter(
+        ax.scatter(
             range(len(gt_net_counts)),
             gt_net_counts,
             color="blue",
@@ -228,7 +190,7 @@ for location, flip_sign in locations_dirs.items():
             zorder=2,
             # s=10,
         )
-        plt.scatter(
+        ax.scatter(
             range(len(pred_net_counts)),
             pred_net_counts,
             color="red",
@@ -238,97 +200,102 @@ for location, flip_sign in locations_dirs.items():
             s=10,
             zorder=2,
         )
-        # plt.scatter(
-        #     range(len(net_count_errors)),
-        #     net_count_errors,
-        #     color="orange",
-        #     marker="x",
-        #     s=10,
-        #     label="Pred Net Error Perc",
-        #     alpha=1,
-        # )
-        plt.scatter(
-            range(len(error_3)),
-            error_3,
+
+        ax.scatter(
+            range(len(net_count_errors)),
+            net_count_errors,
             color="orange",
-            marker="o",
+            marker="+",
             s=5,
             label="Pred Net Error",
             alpha=0.5,
             zorder=3,
         )
-        # plt.scatter(
-        #     range(len(error_sign)),
-        #     error_sign,
-        #     color="c",
-        #     marker="o",
-        #     s=1,
-        #     label="Pred Net Error 2",
-        #     alpha=1,
-        #     zorder=3,
+
+        ax.set_title(f"{location.capitalize()} GT vs Pred Net Counts\n{metrics_str}")
+        ax.set_xlabel("Clip Index (ordered by GT Net Count)")
+        ax.set_ylabel("Net Counts")
+        ax.legend()
+        plt.tight_layout()
+        ax.set_axisbelow(True)
+
+        plt.savefig(f"analysis/figures/{location}_gt_vs_pred_net_counts.png", dpi=300)
+        plt.close("all")
+
+        # -------- Plot: Histogram of GT Net Counts --------
+        fig, ax = plt.subplots()
+        fig.set_size_inches(10, 5)
+        ax.grid(True)
+        bin_edges = np.arange(min(net_count_errors), max(net_count_errors) + 1, 1)
+        ax.hist(net_count_errors, bins=bin_edges, color="skyblue", edgecolor="black")
+        # log plot
+        ax.set_title(
+            f"{location.capitalize()} Histogram of Net Count Errors\n{metrics_str}"
+        )
+        ax.set_xlabel("Net Count Error")
+        ax.set_ylabel("Frequency")
+        ax.set_axisbelow(True)
+
+        plt.tight_layout()
+        plt.savefig(
+            f"analysis/figures/{location}_histogram_of_net_count_errors.png",
+            dpi=300,
+        )
+        plt.close("all")
+
+        # -------- Plot: Histogram of Net Count Error Percentages --------
+        net_count_errors_percentages = [
+            x / gt for x, gt in zip(net_count_errors, gt_net_counts) if gt != 0
+        ]
+        fig, ax = plt.subplots()
+        fig.set_size_inches(10, 5)
+        # bin_edges = np.arange(
+        #     min(net_count_errors_percentages), max(net_count_errors_percentages) + 1, 1
         # )
 
-        plt.title(f"{location} GT vs Pred Net Counts")
-        plt.xlabel("Clip Index (ordered by GT Net Count)")
-        plt.ylabel("Net Counts")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(f"analysis/figures/{location}_gt_vs_pred_net_counts.png", dpi=300)
-
-        # -------- Plot 2: Net Count Error vs GT Count --------
-        plt.figure(figsize=(8, 5))
-        plt.scatter(gt_net_counts, net_count_errors, color="green", alpha=0.25)
-        plt.title(f"{location} Net Count Error vs GT Net Count")
-        plt.xlabel("GT Net Count")
-        plt.ylabel("Net Count Error")
-        plt.grid(True)
-        plt.tight_layout()
-
-        # -------- Plot 3: Histogram of GT Net Counts --------
-        plt.figure(figsize=(8, 5))
-        plt.hist(net_count_errors, bins=20, color="skyblue", edgecolor="black")
-        # log plot
-        plt.title(f"{location} Histogram of Net Count Errors")
-        plt.xlabel("Net Count Error")
-        plt.ylabel("Frequency")
-        plt.grid(True)
-        plt.tight_layout()
-        # print(f"{net_count_errors=}")
-
-        # -------- Plot 3: Histogram of GT Net Counts --------
-        plt.figure(figsize=(8, 5))
-        plt.hist(total_count_errors, bins=20, color="skyblue", edgecolor="black")
-        # log plot
-        plt.title(f"{location} Histogram of Total Count Errors")
-        plt.xlabel("Total Count Error")
-        plt.ylabel("Frequency")
-        plt.grid(True)
-        plt.tight_layout()
-
-        # -------- Plot 2: Net Count Error vs GT Count --------
-        plt.figure(figsize=(8, 5))
-        min_error = min(min(total_count_errors), min(net_count_errors))
-        max_error = max(max(total_count_errors), max(net_count_errors))
-
-        plt.scatter(
-            total_count_errors,
-            [abs(x) for x in net_count_errors],
-            color="green",
-            alpha=0.5,
+        ax.hist(
+            net_count_errors_percentages,
+            bins=50,
+            color="skyblue",
+            edgecolor="black",
         )
-        # get the limits of the plot
-        x_min, x_max = plt.xlim()
-        y_min, y_max = plt.ylim()
-
-        plt.plot([min_error, max_error], [min_error, max_error], color="k", alpha=0.1)
-        # reset the limits of the plot
-        plt.xlim(x_min, x_max)
-        plt.ylim(y_min, y_max)
-
-        plt.title(f"{location} Total Count Error vs Net Count Error")
-        plt.xlabel("Total Count Error")
-        plt.ylabel("|Net Count Error|")
-        plt.grid(True)
+        # log plot
+        ax.set_title(
+            f"{location.capitalize()} Histogram of Net Count Error Percentages\n{metrics_str}"
+        )
+        ax.set_xlabel("Net Count Error Percentage")
+        ax.set_ylabel("Frequency")
+        ax.grid(True)
+        ax.set_yscale("log")
         plt.tight_layout()
+        plt.savefig(
+            f"analysis/figures/{location}_histogram_of_net_count_error_percentages.png",
+            dpi=300,
+        )
         plt.close("all")
         # plt.show()
+
+    return metrics
+
+
+if __name__ == "__main__":
+
+    print_for_latex = False
+    plot = True
+
+    # Directory with JSON files
+    json_parent_dir = "/home/mahobley/Code/fisheye/analysis/outputs"
+    # json_dir = "/home/mahobley/Code/fisheye/analysis/outputs/kenai-rightbank"
+    # json_dir = "/home/mahobley/Code/fisheye/analysis/outputs/nushagak"
+
+    locations = [
+        "nushagak",
+        "elwha",
+        "kenai-rightbank",
+        "kenai-val",
+        "kenai-train",
+        "kenai-channel",
+    ]
+
+    for location in locations:
+        dict_list = read_jsons_for_location(json_parent_dir, location)
