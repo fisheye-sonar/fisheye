@@ -39,13 +39,20 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
     # Extract ARISMetadata fields and flatten them into each row
     expanded_data = []
     for item in flattened_data:
-        meta = item.pop("metadata", None)
+        new_item = item.copy()
+        meta = new_item.pop("metadata", None)
+
         if isinstance(meta, ARISMetadata):
-            item.update(meta.__dict__)
-        expanded_data.append(item)
+            new_item.update(meta.__dict__)
+
+        expanded_data.append(new_item)
 
     df = pd.DataFrame(expanded_data)
-    df.to_csv(out_file, index=False)
+
+    with open(out_file, "w") as f:
+        df.to_csv(out_file, index=False)
+        f.flush()
+        os.fsync(f.fileno())
 
     logger.info(f"exported_results", output_dir=out_file)
 
@@ -115,6 +122,11 @@ def to_summary_csv(data, out_dir, job_id: str = None):
     final_result = file_counts.reset_index().rename(columns={"index": "file_name"})
 
     final_result.to_csv(out_file, index=False)
+
+    with open(out_file, "w") as f:
+        final_result.to_csv(out_file, index=False)
+        f.flush()
+        os.fsync(f.fileno())
 
     logger.info(f"exported_summary", output_dir=out_file)
 
@@ -275,7 +287,9 @@ def to_mot(data, output_dir, filename):
         mot_lines.append(mot_line)
 
     with open(out_path, "w") as f:
-        f.write("\n".join(mot_lines))
+        f.writelines(mot_lines)
+        f.flush()
+        os.fsync(f.fileno())
 
     logger.info(f"exported_mot", output_dir=out_path)
 
