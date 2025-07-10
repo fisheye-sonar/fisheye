@@ -27,6 +27,7 @@ def main(
     output_dir: str,
     map_input_dir_structure_to_output: bool = False,
     ignore_if_txt_already_exists: bool = False,
+    upstream_direction: str = "left",
 ):
     check_disk_space(path=output_dir)  # Make sure there's enough space to store results
     project_root = Path(__file__).resolve().parents[1]
@@ -46,6 +47,7 @@ def main(
         job_id,
         map_input_dir_structure_to_output=map_input_dir_structure_to_output,
         ignore_if_txt_already_exists=ignore_if_txt_already_exists,
+        upstream_direction=upstream_direction,
     )
 
     if ExportType.SUMMARY_CSV in export_options:
@@ -98,6 +100,13 @@ if __name__ == "__main__":
         help="Directory to save results. If results are saved in the same location as ARIS/DIDSON files, they can be "
         "ingested by ARISFish Software from Sound Metrics.",
     )
+    parser.add_argument(
+        "--upstream_direction",
+        required=False,
+        type=str,
+        default="left",
+        help="Upstream direction of the fish. Must be 'left' or 'right'.",
+    )
     args = parser.parse_args()
 
     parts = [v.strip().upper() for v in args.export_options.split(",")]
@@ -114,4 +123,5 @@ if __name__ == "__main__":
         args.output_dir,
         map_input_dir_structure_to_output=args.map_input_dir_structure_to_output,
         ignore_if_txt_already_exists=args.ignore_if_txt_already_exists,
+        upstream_direction=args.upstream_direction,
     )

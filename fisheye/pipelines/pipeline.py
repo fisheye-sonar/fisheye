@@ -45,6 +45,7 @@ class DetectTrackCountPipeline:
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
         ignore_if_txt_already_exists: bool = False,
+        upstream_direction: str = "left",
     ) -> List:
         # check if the txt file already exists
         if ignore_if_txt_already_exists and ExportType.TXT in export_types:
@@ -182,6 +183,7 @@ class DetectTrackCountPipeline:
             output_dir,
             export_types=remaining_export_types,
             job_id=job_id,
+            upstream_direction=upstream_direction,
         )
 
         return formatted_crossings
@@ -194,6 +196,7 @@ class DetectTrackCountPipeline:
         job_id: Optional[str] = None,
         map_input_dir_structure_to_output: bool = False,
         ignore_if_txt_already_exists: bool = False,
+        upstream_direction: str = "left",
     ) -> Union[List[List[dict]], List[dict]]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
@@ -214,6 +217,7 @@ class DetectTrackCountPipeline:
                         output_dir,
                         export_types,
                         ignore_if_txt_already_exists=ignore_if_txt_already_exists,
+                        upstream_direction=upstream_direction,
                     )
                 ]
 
@@ -228,6 +232,7 @@ class DetectTrackCountPipeline:
                         export_types,
                         job_id,
                         ignore_if_txt_already_exists=ignore_if_txt_already_exists,
+                        upstream_direction=upstream_direction,
                     )
                     for f in files
                 ]
@@ -253,6 +258,7 @@ class DetectTrackCountPipeline:
                             export_types,
                             job_id,
                             ignore_if_txt_already_exists=ignore_if_txt_already_exists,
+                            upstream_direction=upstream_direction,
                         )
                         for (f, output_path) in zip(files, output_paths)
                     ]
@@ -264,6 +270,7 @@ class DetectTrackCountPipeline:
                             export_types,
                             job_id,
                             ignore_if_txt_already_exists=ignore_if_txt_already_exists,
+                            upstream_direction=upstream_direction,
                         )
                         for f in files
                     ]
@@ -281,7 +288,10 @@ class DetectTrackCountPipeline:
                 invalid = set(map(str, file)) - set(map(str, valid_files))
                 logger.info("skipping_invalid_file_paths", invalid_paths=list(invalid))
 
-            return [self._run(f, output_dir, export_types, job_id) for f in valid_files]
+            return [
+                self._run(f, output_dir, export_types, job_id, upstream_direction)
+                for f in valid_files
+            ]
 
         else:
             raise ValueError(
