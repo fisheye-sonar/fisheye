@@ -39,7 +39,7 @@ class NMSConfig:
     max_nms: int = 30000  # Maximum number of boxes into torchvision.ops.nms()
     redundant: bool = True  # Require redundant detections
     merge: bool = False  # Use merge-NMS
-    fish_size: FishSizeConfig = FishSizeConfig()
+    fish_size: FishSizeConfig = field(default_factory=FishSizeConfig)
 
 
 @dataclass
