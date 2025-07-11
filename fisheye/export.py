@@ -230,7 +230,7 @@ def to_txt(data, out_dir):
             if has_data:
                 row_data = {
                     "File": 1,
-                    "Total": row_data["Total"] + 1,
+                    "Total": row_data.get("Total", 0) + 1,
                     "Frame#": row.get("frame_id", 0),
                     "Dir": "Up" if row.get("direction") == "left" else "Down",
                     "R (m)": row.get("distance", 0),
