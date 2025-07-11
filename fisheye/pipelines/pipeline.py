@@ -43,7 +43,6 @@ class DetectTrackCountPipeline:
         logger.info("file_processing_started", file_path=str(file))
 
         self.dataset_cfg.filepath = file
-        # dataset_cfg = YOLODatasetConfig(filepath=file)
         detector = ObjectDetectionPipeline(self.detector_cfg, self.dataset_cfg)
         detections = detector()
 
