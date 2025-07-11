@@ -1,0 +1,15 @@
+dataset:
+  batch_size: 16
+  workers: 0
+  use_multithreading: true
+  max_workers: 2
+
+model:
+  weights: weights/cfc_detect_yolov5s_v0.pt
+  device: mps
+  use_multithreading: true
+  max_workers: 2
+
+inference:
+  use_multithreading: true
+  max_workers: 2

@@ -1,0 +1,8 @@
+defaults:
+  - platform: mac
+
+
+# Add CLI-overridable arguments here
+input_path: /Users/madison/Downloads/BETA_TESTING/
+output_dir: /Users/madison/Downloads/BETA_TESTING/
+export_options: ["summary_csv", "detailed_csv", "txt"]
