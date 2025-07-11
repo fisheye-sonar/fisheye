@@ -10,7 +10,7 @@ from fisheye.common.logging import setup_logging
 from fisheye.common.system import check_disk_space, generate_job_id
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.enums import ExportType
-from fisheye.export import save_to_disk
+from fisheye.export import save_to_disk, parse_export_options
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 from fisheye.version import __app_version__, get_version_from_detector
 
@@ -24,18 +24,12 @@ def main(cfg: DictConfig):
     output_dir = cfg.output_dir
     export_options = cfg.export_options
 
-    parts = [v.strip().upper() for v in export_options]
-    export_types = []
-    for p in parts:
-        try:
-            export_types.append(ExportType[p])
-        except KeyError as e:
-            raise argparse.ArgumentTypeError(f"Invalid export type: {e.args[0]}")
+    export_types = parse_export_options(export_options)
 
-    # Get platform specific config
-    base_config = cfg.platform
-    dataset_config = base_config.dataset
-    model_config = base_config.model
+    # Use specific platform config
+    platform_cfg = cfg.platform
+    dataset_config = platform_cfg.dataset
+    model_config = platform_cfg.model
 
     check_disk_space(path=output_dir)  # Make sure there's enough space to store results
     project_root = Path(__file__).resolve().parents[1]
@@ -50,18 +44,16 @@ def main(cfg: DictConfig):
         detector_version=get_version_from_detector(model_path),
     )
 
-    # Get config to run object detector
+    # Build configs
     yolo_cfg = YOLOv5ModelConfig(weights=model_path, device=device)
-    task_config = dict(base_config.inference)
-    task_config["model"] = yolo_cfg
-
-    detection_cfg = ObjectDetectionConfig(**task_config)
+    inference_config = dict(platform_cfg.inference)
+    inference_config["model"] = yolo_cfg
+    detection_cfg = ObjectDetectionConfig(**inference_config)
+    dataset_cfg = YOLODatasetConfig(**dataset_config)
 
     start_time = time.time()
     logger.info("inference_started", start_time=start_time)
 
-    # Dataset prep
-    dataset_cfg = YOLODatasetConfig(**dataset_config)
     results = DetectTrackCountPipeline(
         detector_cfg=detection_cfg, dataset_cfg=dataset_cfg
     ).run(input_path, output_dir, export_types, job_id)

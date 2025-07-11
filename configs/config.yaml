@@ -3,6 +3,6 @@ defaults:
 
 
 # Add CLI-overridable arguments here
-input_path: /Users/madison/Downloads/BETA_TESTING/
-output_dir: /Users/madison/Downloads/BETA_TESTING/
+input_path:
+output_dir:
 export_options: ["summary_csv", "detailed_csv", "txt"]
