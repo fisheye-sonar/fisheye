@@ -231,10 +231,10 @@ def to_txt(data, out_dir):
                 row_data = {
                     "File": 1,
                     "Total": row_data["Total"] + 1,
-                    "Frame#": row["frame_id"],
+                    "Frame#": row.get("frame_id", 0),
                     "Dir": "Up" if row.get("direction") == "left" else "Down",
-                    "R (m)": row["distance"],
-                    "Theta": row["theta"],
+                    "R (m)": row.get("distance", 0),
+                    "Theta": row.get("theta", 0),
                     "L(cm)": 0.0,
                     "dR(cm)": 0.0,
                     "L/dR": 0.0,
