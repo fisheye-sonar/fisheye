@@ -45,18 +45,24 @@ class DIDSON:
             Dictionary of extracted headers and computed sonar values.
 
         """
+
+        info = self.read_header(file)
         self.info, self.write_rows, self.write_cols, self.read_i = (
-            DIDSON.read_and_parse_header(file, beam_width_dir, ixsize)
+            DIDSON.compute_image_metadata(info, beam_width_dir, ixsize)
         )
 
-    @staticmethod
-    def read_and_parse_header(
-        file: Union[str, Path], beam_width_dir: Path = BEAM_WIDTH_DIR, ixsize: int = -1
-    ):
-        """Read and parse the file header of a DIDSON or ARIS file.
+    def read_header(self, file: Union[str, Path]):
+        """Reads the header from a DIDSON or ARIS file.
 
-        Determines the file format version, reads the file and frame headers, computes derived sonar parameters,
-        and precomputes pixel mapping for warping sonar data into to-scale images.
+        Parameters
+        ----------
+        file : file-like object, str, or pathlib.Path
+            Path to the file or open file object.
+
+        Returns
+        -------
+        info : dict
+            Dictionary containing header fields.
         """
         if hasattr(file, "read"):
             file_ctx = contextlib.nullcontext(file)
@@ -72,14 +78,10 @@ class DIDSON:
 
         with file_ctx as fid:
             assert fid.read(3) == b"DDF"
-
             version_id = fid.read(1)[0]
-
             fid.seek(0)
 
-            info = {
-                "pydidson_version": __version__,
-            }
+            info = {"pydidson_version": __version__}
 
             file_attributes, frame_attributes = {
                 0: NotImplementedError,
@@ -121,14 +123,10 @@ class DIDSON:
                 }
             )
 
-            # Recommended to ignore frame count and calculate it yourself
-            # https://github.com/SoundMetrics/aris-file-sdk/blob/master/docs/understanding-aris-data.md
+            file_size = os.path.getsize(filename)
             framesize = info["samplesperchannel"] * info["numbeams"]
             numframes = int(
-                np.floor(
-                    (os.path.getsize(filename) - info["fileheadersize"])
-                    / (info["frameheadersize"] + framesize)
-                )
+                np.floor((file_size - fileheadersize) / (frameheadersize + framesize))
             )
 
             info.update(
@@ -136,209 +134,242 @@ class DIDSON:
                     "numframes": numframes,
                     "framesize": framesize,
                     "filename": filename,
+                    "version_id": version_id,
                 }
             )
 
-            if version_id == 0:
-                raise NotImplementedError
-            elif version_id == 1:
-                raise NotImplementedError
-            elif version_id == 2:
-                raise NotImplementedError
-            elif version_id == 3:
-                # Convert windowlength code to meters
-                info["windowlength"] = {
-                    0b00: [0.83, 2.5, 5, 10, 20, 40],  # DIDSON-S, Extended Windows
-                    0b01: [1.125, 2.25, 4.5, 9, 18, 36],  # DIDSON-S, Classic Windows
-                    0b10: [2.5, 5, 10, 20, 40, 70],  # DIDSON-LR, Extended Window
-                    0b11: [2.25, 4.5, 9, 18, 36, 72],  # DIDSON-LR, Classic Windows
-                }[info["configflags"] & 0b11][
-                    info["windowlength"] + 2 * (1 - info["resolution"])
-                ]
+            return info
 
-                # Windowstart 1 to 31 times 0.75 (Lo) or 0.375 (Hi) or 0.419 for extended
-                info["windowstart"] = {
-                    0b0: 0.419
-                    * info["windowstart"]
-                    * (2 - info["resolution"]),  # meters for extended DIDSON
-                    0b1: 0.375 * info["windowstart"] * (2 - info["resolution"]),
-                    # meters for standard or long range DIDSON
-                }[info["configflags"] & 0b1]
+    @staticmethod
+    def compute_image_metadata(
+        info: dict, beam_width_dir: Path = BEAM_WIDTH_DIR, ixsize: int = -1
+    ):
+        """Computes derived sonar parameters, and precomputes pixel mapping for warping sonar data into to-scale images.
 
-                info["halffov"] = 14.4
-            elif version_id == 4:
-                # Convert windowlength code to meters
-                info["windowlength"] = [1.25, 2.5, 5, 10, 20, 40][
-                    info["windowlength"] + 2 * (1 - info["resolution"])
-                ]
+        Parameters
+        ----------
+        info : dict
+            Parsed header information.
+        beam_width_dir : Path
+            Path to beam width CSV files (for ARIS).
+        ixsize : int
+            Target x-dimension (overrides default if provided).
 
-                # Windowstart 1 to 31 times 0.75 (Lo) or 0.375 (Hi) or 0.419 for extended
-                info["windowstart"] = (
-                    0.419 * info["windowstart"] * (2 - info["resolution"])
-                )
+        Returns
+        -------
+        info : dict
+            Updated info with computed image metadata.
+        write_rows : np.ndarray
+            Row indices for writing warped images.
+        write_cols : np.ndarray
+            Column indices for writing warped images.
+        read_i : np.ndarray
+            Indices into unwarped image array.
+        """
+        version_id = info.get("version_id")
 
-                info["halffov"] = 14.4
-            elif version_id == 5:  # ARIS
-                if info["pingmode"] in [1, 2]:
-                    BeamCount = 48
-                elif info["pingmode"] in [3, 4, 5]:
-                    BeamCount = 96
-                elif info["pingmode"] in [6, 7, 8]:
-                    BeamCount = 64
-                elif info["pingmode"] in [9, 10, 11, 12]:
-                    BeamCount = 128
-                else:
-                    raise
+        if version_id == 0:
+            raise NotImplementedError
 
-                WinStart = info["samplestartdelay"] * 0.000001 * info["soundspeed"] / 2
+        elif version_id == 1:
+            raise NotImplementedError
 
-                info.update(
-                    {
-                        "BeamCount": BeamCount,
-                        "WinStart": WinStart,
-                    }
-                )
+        elif version_id == 2:
+            raise NotImplementedError
 
-                aris_frame = SimpleNamespace(**info)
+        elif version_id == 3:
+            # Convert windowlength code to meters
+            info["windowlength"] = {
+                0b00: [0.83, 2.5, 5, 10, 20, 40],  # DIDSON-S, Extended Windows
+                0b01: [1.125, 2.25, 4.5, 9, 18, 36],  # DIDSON-S, Classic Windows
+                0b10: [2.5, 5, 10, 20, 40, 70],  # DIDSON-LR, Extended Window
+                0b11: [2.25, 4.5, 9, 18, 36, 72],  # DIDSON-LR, Classic Windows
+            }[info["configflags"] & 0b11][
+                info["windowlength"] + 2 * (1 - info["resolution"])
+            ]
 
-                beam_width_data, camera_type = pyARIS.load_beam_width_data(
-                    frame=aris_frame, beam_width_dir=beam_width_dir
-                )
+            # Windowstart 1 to 31 times 0.75 (Lo) or 0.375 (Hi) or 0.419 for extended
+            info["windowstart"] = {
+                0b0: 0.419
+                * info["windowstart"]
+                * (2 - info["resolution"]),  # meters for extended DIDSON
+                0b1: 0.375 * info["windowstart"] * (2 - info["resolution"]),
+                # meters for standard or long range DIDSON
+            }[info["configflags"] & 0b1]
 
-                # What is the meter resolution of the smallest sample?
-                min_pixel_size = pyARIS.get_minimum_pixel_meter_size(
-                    aris_frame, beam_width_data
-                )
+            info["halffov"] = 14.4
 
-                # What is the meter resolution of the sample length?
-                sample_length = (
-                    aris_frame.sampleperiod * 0.000001 * aris_frame.soundspeed / 2
-                )
+        elif version_id == 4:
+            # Convert windowlength code to meters
+            info["windowlength"] = [1.25, 2.5, 5, 10, 20, 40][
+                info["windowlength"] + 2 * (1 - info["resolution"])
+            ]
 
-                # Choose the size of a pixel (or hard code it to some specific value)
-                pixel_meter_size = max(min_pixel_size, sample_length)
+            # Windowstart 1 to 31 times 0.75 (Lo) or 0.375 (Hi) or 0.419 for extended
+            info["windowstart"] = 0.419 * info["windowstart"] * (2 - info["resolution"])
 
-                # Determine the image dimensions
-                xdim, ydim, x_meter_start, y_meter_start, x_meter_stop, y_meter_stop = (
-                    pyARIS.compute_image_bounds(
-                        pixel_meter_size,
-                        aris_frame,
-                        beam_width_data,
-                        additional_pixel_padding_x=0,
-                        additional_pixel_padding_y=0,
-                    )
-                )
-
-                if ixsize != -1:
-                    pixel_meter_size = pixel_meter_size * xdim / ixsize
-                    pixel_meter_size += 1e-5
-                    (
-                        xdim,
-                        ydim,
-                        x_meter_start,
-                        y_meter_start,
-                        x_meter_stop,
-                        y_meter_stop,
-                    ) = pyARIS.compute_image_bounds(
-                        pixel_meter_size,
-                        aris_frame,
-                        beam_width_data,
-                        additional_pixel_padding_x=0,
-                        additional_pixel_padding_y=0,
-                    )
-
-                read_rows, read_cols, write_rows, write_cols = (
-                    pyARIS.compute_mapping_from_sample_to_image(
-                        pixel_meter_size,
-                        xdim,
-                        ydim,
-                        x_meter_start,
-                        y_meter_start,
-                        aris_frame,
-                        beam_width_data,
-                    )
-                )
-
-                read_i = read_rows * info["numbeams"] + info["numbeams"] - read_cols - 1
-
-                pixel_meter_width = pixel_meter_size
-                pixel_meter_height = pixel_meter_size
-
-                info.update(
-                    {
-                        "camera_type": camera_type,
-                        "min_pixel_size": min_pixel_size,
-                        "sample_length": sample_length,
-                        "x_meter_start": x_meter_start,
-                        "y_meter_start": y_meter_start,
-                        "x_meter_stop": x_meter_stop,
-                        "y_meter_stop": y_meter_stop,
-                        "beam_width_dir": os.path.abspath(beam_width_dir),
-                    }
-                )
+            info["halffov"] = 14.4
+        elif version_id == 5:  # ARIS
+            if info["pingmode"] in [1, 2]:
+                BeamCount = 48
+            elif info["pingmode"] in [3, 4, 5]:
+                BeamCount = 96
+            elif info["pingmode"] in [6, 7, 8]:
+                BeamCount = 64
+            elif info["pingmode"] in [9, 10, 11, 12]:
+                BeamCount = 128
             else:
                 raise
 
-            if version_id < 5:
-                info["xdim"] = 300 if ixsize == -1 else ixsize
-                ydim, xdim, write_rows, write_cols, read_i = DIDSON.__mapscan(info)
-
-                # widthscale meters/pixels
-                pixel_meter_width = (
-                    2
-                    * (info["windowstart"] + info["windowlength"])
-                    * np.sin(np.radians(14.25))
-                    / xdim
-                )
-                # heightscale meters/pixels
-                pixel_meter_height = (
-                    (info["windowstart"] + info["windowlength"])
-                    - info["windowstart"] * np.cos(np.radians(14.25))
-                ) / ydim
-
-                pixel_meter_size = (pixel_meter_width + pixel_meter_height) / 2
-
-            unwarped_shape = [
-                info["samplesperchannel"],
-                info["numbeams"],
-            ]
-
-            write_rows = write_rows
-            write_cols = write_cols
-            read_i = read_i
+            WinStart = info["samplestartdelay"] * 0.000001 * info["soundspeed"] / 2
 
             info.update(
                 {
-                    "xdim": xdim,
-                    "ydim": ydim,
-                    "pixel_meter_width": pixel_meter_width,
-                    "pixel_meter_height": pixel_meter_height,
-                    "pixel_meter_size": pixel_meter_size,
-                    "unwarped_shape": unwarped_shape,
+                    "BeamCount": BeamCount,
+                    "WinStart": WinStart,
                 }
             )
 
-            # Fix common but critical corruption errors
-            if info["startframe"] > 65535:
-                info["startframe"] = 0
-            if info["endframe"] > 65535:
-                info["endframe"] = 0
+            aris_frame = SimpleNamespace(**info)
 
-            # Record the proportion of measurements that are present in the warp (increases as xdim increases)
-            info["proportion_warp"] = len(np.unique(read_i)) / (
-                info["numbeams"] * info["samplesperchannel"]
+            beam_width_data, camera_type = pyARIS.load_beam_width_data(
+                frame=aris_frame, beam_width_dir=beam_width_dir
             )
 
-            if info["proportion_warp"] > 0.01:
-                warnings.warn(
-                    f'{info["proportion_warp"]*100:.2f}% of sensor readings are not being used'
+            # What is the meter resolution of the smallest sample?
+            min_pixel_size = pyARIS.get_minimum_pixel_meter_size(
+                aris_frame, beam_width_data
+            )
+
+            # What is the meter resolution of the sample length?
+            sample_length = (
+                aris_frame.sampleperiod * 0.000001 * aris_frame.soundspeed / 2
+            )
+
+            # Choose the size of a pixel (or hard code it to some specific value)
+            pixel_meter_size = max(min_pixel_size, sample_length)
+
+            # Determine the image dimensions
+            xdim, ydim, x_meter_start, y_meter_start, x_meter_stop, y_meter_stop = (
+                pyARIS.compute_image_bounds(
+                    pixel_meter_size,
+                    aris_frame,
+                    beam_width_data,
+                    additional_pixel_padding_x=0,
+                    additional_pixel_padding_y=0,
                 )
-            if unwarped_shape[0] < ydim:
-                warnings.warn(
-                    f"The warped image is shorter than the unwarped image {ydim} compared to {unwarped_shape[0]}"
+            )
+
+            if ixsize != -1:
+                pixel_meter_size = pixel_meter_size * xdim / ixsize
+                pixel_meter_size += 1e-5
+                (
+                    xdim,
+                    ydim,
+                    x_meter_start,
+                    y_meter_start,
+                    x_meter_stop,
+                    y_meter_stop,
+                ) = pyARIS.compute_image_bounds(
+                    pixel_meter_size,
+                    aris_frame,
+                    beam_width_data,
+                    additional_pixel_padding_x=0,
+                    additional_pixel_padding_y=0,
                 )
 
-            return info, write_rows, write_cols, read_i
+            read_rows, read_cols, write_rows, write_cols = (
+                pyARIS.compute_mapping_from_sample_to_image(
+                    pixel_meter_size,
+                    xdim,
+                    ydim,
+                    x_meter_start,
+                    y_meter_start,
+                    aris_frame,
+                    beam_width_data,
+                )
+            )
+
+            read_i = read_rows * info["numbeams"] + info["numbeams"] - read_cols - 1
+
+            pixel_meter_width = pixel_meter_size
+            pixel_meter_height = pixel_meter_size
+
+            info.update(
+                {
+                    "camera_type": camera_type,
+                    "min_pixel_size": min_pixel_size,
+                    "sample_length": sample_length,
+                    "x_meter_start": x_meter_start,
+                    "y_meter_start": y_meter_start,
+                    "x_meter_stop": x_meter_stop,
+                    "y_meter_stop": y_meter_stop,
+                    "beam_width_dir": os.path.abspath(beam_width_dir),
+                }
+            )
+        else:
+            raise
+
+        if version_id < 5:
+            info["xdim"] = 300 if ixsize == -1 else ixsize
+            ydim, xdim, write_rows, write_cols, read_i = DIDSON.__mapscan(info)
+
+            # widthscale meters/pixels
+            pixel_meter_width = (
+                2
+                * (info["windowstart"] + info["windowlength"])
+                * np.sin(np.radians(14.25))
+                / xdim
+            )
+            # heightscale meters/pixels
+            pixel_meter_height = (
+                (info["windowstart"] + info["windowlength"])
+                - info["windowstart"] * np.cos(np.radians(14.25))
+            ) / ydim
+
+            pixel_meter_size = (pixel_meter_width + pixel_meter_height) / 2
+
+        unwarped_shape = [
+            info["samplesperchannel"],
+            info["numbeams"],
+        ]
+
+        write_rows = write_rows
+        write_cols = write_cols
+        read_i = read_i
+
+        info.update(
+            {
+                "xdim": xdim,
+                "ydim": ydim,
+                "pixel_meter_width": pixel_meter_width,
+                "pixel_meter_height": pixel_meter_height,
+                "pixel_meter_size": pixel_meter_size,
+                "unwarped_shape": unwarped_shape,
+            }
+        )
+
+        # Fix common but critical corruption errors
+        if info["startframe"] > 65535:
+            info["startframe"] = 0
+        if info["endframe"] > 65535:
+            info["endframe"] = 0
+
+        # Record the proportion of measurements that are present in the warp (increases as xdim increases)
+        info["proportion_warp"] = len(np.unique(read_i)) / (
+            info["numbeams"] * info["samplesperchannel"]
+        )
+
+        if info["proportion_warp"] > 0.01:
+            warnings.warn(
+                f'{info["proportion_warp"]*100:.2f}% of sensor readings are not being used'
+            )
+        if unwarped_shape[0] < ydim:
+            warnings.warn(
+                f"The warped image is shorter than the unwarped image {ydim} compared to {unwarped_shape[0]}"
+            )
+
+        return info, write_rows, write_cols, read_i
 
     @staticmethod
     def __lens_distortion(nbeams: int, theta: np.ndarray):
