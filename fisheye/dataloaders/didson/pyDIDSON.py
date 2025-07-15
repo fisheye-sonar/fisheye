@@ -312,7 +312,7 @@ class DIDSON:
 
         if version_id < 5:
             info["xdim"] = 300 if ixsize == -1 else ixsize
-            ydim, xdim, write_rows, write_cols, read_i = DIDSON.__mapscan(info)
+            ydim, xdim, write_rows, write_cols, read_i = DIDSON.mapscan(info)
 
             # widthscale meters/pixels
             pixel_meter_width = (
@@ -372,7 +372,7 @@ class DIDSON:
         return info, write_rows, write_cols, read_i
 
     @staticmethod
-    def __lens_distortion(nbeams: int, theta: np.ndarray):
+    def lens_distortion(nbeams: int, theta: np.ndarray):
         """Removes Lens distortion determined by empirical work at the barge.
 
         Parameters
@@ -408,7 +408,7 @@ class DIDSON:
         return beamnum
 
     @staticmethod
-    def __mapscan(info: dict):
+    def mapscan(info: dict):
         """Calculate warp mapping from raw to scale images.
 
         Returns
@@ -470,7 +470,7 @@ class DIDSON:
             # beam_num being cast to 0. This line mimics the previous behaviour (clipping the negative values)
             # because they are floats. If they were ints this would take the 2s compliment
             binnum = binnum.astype(np.uint32)  # the rangebin number
-            beamnum = DIDSON.__lens_distortion(
+            beamnum = DIDSON.lens_distortion(
                 nbeams, theta
             )  # remove lens distortion using empirical formula
 
