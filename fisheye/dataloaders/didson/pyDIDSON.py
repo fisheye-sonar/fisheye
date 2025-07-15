@@ -10,6 +10,7 @@ __version__ = "b1.0.2"
 
 import contextlib
 import warnings
+from typing import Union
 
 import numpy as np
 import os
@@ -44,6 +45,19 @@ class DIDSON:
             Dictionary of extracted headers and computed sonar values.
 
         """
+        self.info, self.write_rows, self.write_cols, self.read_i = (
+            DIDSON.read_and_parse_header(file, beam_width_dir, ixsize)
+        )
+
+    @staticmethod
+    def read_and_parse_header(
+        file: Union[str, Path], beam_width_dir: Path = BEAM_WIDTH_DIR, ixsize: int = -1
+    ):
+        """Read and parse the file header of a DIDSON or ARIS file.
+
+        Determines the file format version, reads the file and frame headers, computes derived sonar parameters,
+        and precomputes pixel mapping for warping sonar data into to-scale images.
+        """
         if hasattr(file, "read"):
             file_ctx = contextlib.nullcontext(file)
             filename = getattr(file, "name", None)
@@ -66,7 +80,6 @@ class DIDSON:
             info = {
                 "pydidson_version": __version__,
             }
-            self.info = info
 
             file_attributes, frame_attributes = {
                 0: NotImplementedError,
@@ -268,7 +281,7 @@ class DIDSON:
 
             if version_id < 5:
                 info["xdim"] = 300 if ixsize == -1 else ixsize
-                ydim, xdim, write_rows, write_cols, read_i = self.__mapscan()
+                ydim, xdim, write_rows, write_cols, read_i = DIDSON.__mapscan(info)
 
                 # widthscale meters/pixels
                 pixel_meter_width = (
@@ -290,9 +303,9 @@ class DIDSON:
                 info["numbeams"],
             ]
 
-            self.write_rows = write_rows
-            self.write_cols = write_cols
-            self.read_i = read_i
+            write_rows = write_rows
+            write_cols = write_cols
+            read_i = read_i
 
             info.update(
                 {
@@ -325,7 +338,10 @@ class DIDSON:
                     f"The warped image is shorter than the unwarped image {ydim} compared to {unwarped_shape[0]}"
                 )
 
-    def __lens_distortion(self, nbeams, theta):
+            return info, write_rows, write_cols, read_i
+
+    @staticmethod
+    def __lens_distortion(nbeams: int, theta: np.ndarray):
         """Removes Lens distortion determined by empirical work at the barge.
 
         Parameters
@@ -353,11 +369,15 @@ class DIDSON:
         )
         beamnum = np.clip(
             beamnum, 0, np.iinfo(np.uint32).max
-        )  # MAH 2025-02-14 12:16:51 issue #31: this is required to silence a warning for the negative values in beam_num being cast to 0. This line mimics the previous behaviour (clipping the negative values) because they are floats. If they were ints this would take the 2s compliment
+        )  # MAH 2025-02-14 12:16:51 issue #31: this is required to silence a warning for the negative values in
+        # beam_num being cast to 0. This line mimics the previous behaviour (clipping the negative values) because
+        # they are floats. If they were ints this would take the 2s compliment
         beamnum = beamnum.astype(np.uint32)
+
         return beamnum
 
-    def __mapscan(self):
+    @staticmethod
+    def __mapscan(info: dict):
         """Calculate warp mapping from raw to scale images.
 
         Returns
@@ -375,12 +395,12 @@ class DIDSON:
 
         """
 
-        xdim = self.info["xdim"]
-        rmin = self.info["windowstart"]
-        rmax = rmin + self.info["windowlength"]
-        halffov = self.info["halffov"]
-        nbeams = self.info["numbeams"]
-        nbins = self.info["samplesperchannel"]
+        xdim = info.get("xdim", 0)
+        rmin = info.get("windowstart", 0)
+        rmax = rmin + info.get("windowlength", 0)
+        halffov = info.get("halffov", 0)
+        nbeams = info.get("numbeams", 0)
+        nbins = info.get("samplesperchannel", 0)
 
         degtorad = 3.14159 / 180  # conversion of degrees to radians
         radtodeg = 180 / 3.14159  # conversion of radians to degrees
@@ -415,9 +435,11 @@ class DIDSON:
             binnum = np.rint((r - rmin) * c1 + 1.5)  # the rangebin number
             binnum = np.clip(
                 binnum, 0, np.iinfo(np.uint32).max
-            )  # MAH 2025-02-14 12:16:51 issue #31: this is required to silence a warning for the negative values in beam_num being cast to 0. This line mimics the previous behaviour (clipping the negative values) because they are floats. If they were ints this would take the 2s compliment
+            )  # MAH 2025-02-14 12:16:51 issue #31: this is required to silence a warning for the negative values in
+            # beam_num being cast to 0. This line mimics the previous behaviour (clipping the negative values)
+            # because they are floats. If they were ints this would take the 2s compliment
             binnum = binnum.astype(np.uint32)  # the rangebin number
-            beamnum = self.__lens_distortion(
+            beamnum = DIDSON.__lens_distortion(
                 nbeams, theta
             )  # remove lens distortion using empirical formula
 
@@ -592,7 +614,8 @@ class DIDSON:
             )
             unwarped_frames = unwarped_frames[
                 :, ::-1, ::-1
-            ].copy()  # MAH 2025-02-05 19:11:09 I have no idea why this copy is needed but you get a negative indexing error without it
+            ].copy()  # MAH 2025-02-05 19:11:09 I have no idea why this copy is needed but you get a negative
+            # indexing error without it
         else:
             unwarped_frames = None
         frames = np.zeros(
