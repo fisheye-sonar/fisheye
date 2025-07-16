@@ -2,7 +2,7 @@ dataset:
   batch_size: 1
   workers: 0
   use_multithreading: false
-  max_workers: 2
+  max_workers: 2  # For multithreading
 
 model:
   weights: weights/cfc_detect_yolov5s_v0.pt
@@ -10,4 +10,4 @@ model:
 
 inference:
   use_multithreading: false
-  max_workers: 2
+  max_workers: 2  # For multithreading
