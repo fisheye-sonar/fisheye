@@ -25,10 +25,12 @@ class DetectTrackCountPipeline:
         self,
         detector_cfg: Optional[ObjectDetectionConfig] = None,
         tracker_cfg: Optional[TrackerConfig] = None,
+        dataset_cfg: YOLODatasetConfig = None,
     ):
         self.detector_cfg = detector_cfg if detector_cfg else ObjectDetectionConfig()
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
         self.nms_config = NMSConfig()
+        self.dataset_cfg = dataset_cfg if dataset_cfg else YOLODatasetConfig()
 
     @safe_execution(default_return=[], max_retries=3, delay=2)
     def _run(
@@ -39,8 +41,9 @@ class DetectTrackCountPipeline:
         job_id: Optional[str] = None,
     ) -> List:
         logger.info("file_processing_started", file_path=str(file))
-        dataset_cfg = YOLODatasetConfig(filepath=file)
-        detector = ObjectDetectionPipeline(self.detector_cfg, dataset_cfg)
+
+        self.dataset_cfg.filepath = file
+        detector = ObjectDetectionPipeline(self.detector_cfg, self.dataset_cfg)
         detections = detector()
 
         metadata = detector.metadata
@@ -51,7 +54,7 @@ class DetectTrackCountPipeline:
             detections.pred_bboxes,
             metadata.image_meter_width,
             detections.width,
-            dataset_cfg.batch_size,
+            self.dataset_cfg.batch_size,
             self.nms_config,
         )
 
@@ -61,7 +64,7 @@ class DetectTrackCountPipeline:
             detections.pred_bboxes,
             metadata.image_meter_width,
             detections.width,
-            dataset_cfg.batch_size,
+            self.dataset_cfg.batch_size,
             self.nms_config,
         )
 
@@ -71,14 +74,14 @@ class DetectTrackCountPipeline:
             low_output,
             detections.width,
             detections.height,
-            batch_size=dataset_cfg.batch_size,
+            batch_size=self.dataset_cfg.batch_size,
         )
         high_preds, og_width, og_height = normalize_boxes_for_tracking(
             detections.image_shape,
             high_output,
             detections.width,
             detections.height,
-            batch_size=dataset_cfg.batch_size,
+            batch_size=self.dataset_cfg.batch_size,
         )
 
         tracker_output = run_tracker(

@@ -3,8 +3,6 @@ from pathlib import Path
 import tomli
 from yolov5.models.experimental import attempt_load
 
-from fisheye.common.generic import load_model_config
-
 
 def get_app_version_from_pyproject():
     """Get version from pyproject.toml."""
@@ -29,6 +27,3 @@ def get_version_from_detector(path: str):
 
 
 __app_version__ = get_app_version_from_pyproject()
-__detector_version__ = get_version_from_detector(
-    load_model_config()["detector"]["path"]
-)

@@ -1,0 +1,13 @@
+dataset:
+  batch_size: 16
+  workers: 0  # For dataloader
+  use_multithreading: false
+  max_workers: 2  # For multithreading
+
+model:
+  weights: weights/cfc_detect_yolov5s_v0.pt
+  device: cuda:0
+
+inference:
+  use_multithreading: false
+  max_workers: 2  # For multithreading

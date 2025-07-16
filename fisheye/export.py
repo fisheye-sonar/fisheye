@@ -331,3 +331,14 @@ def save_to_disk(
 
         else:
             exporter(results, output_dir)
+
+
+def parse_export_options(options: List[str]) -> List[ExportType]:
+    export_types = []
+    for option in options:
+        try:
+            export_types.append(ExportType[option.strip().upper()])
+        except KeyError as e:
+            raise ValueError(f"Invalid export type: {e.args[0]}")
+
+    return export_types
