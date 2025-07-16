@@ -4,7 +4,7 @@ defaults:
   - override hydra/job_logging: none
 
 
-# Add CLI-overridable arguments here
-input_path: /Users/madison/Downloads/BETA_TESTING/
-output_dir: /Users/madison/Downloads/BETA_TESTING/
+# Add CLI-overridable arguments here, no need to add paths within quotes
+input_path:
+output_dir:
 export_options: ["summary_csv", "detailed_csv", "txt"]
