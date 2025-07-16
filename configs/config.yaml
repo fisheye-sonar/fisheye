@@ -1,8 +1,10 @@
 defaults:
-  - platform: mac
+  - platform: mac  # Update with different YAML if you have another platform and different optimized configs
+  - override hydra/hydra_logging: none
+  - override hydra/job_logging: none
 
 
 # Add CLI-overridable arguments here
-input_path:
-output_dir:
+input_path: /Users/madison/Downloads/BETA_TESTING/
+output_dir: /Users/madison/Downloads/BETA_TESTING/
 export_options: ["summary_csv", "detailed_csv", "txt"]
