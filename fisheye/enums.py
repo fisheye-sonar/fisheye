@@ -38,3 +38,10 @@ class DeviceType(str, Enum):
 class ValidExtensions(Enum):
     ARIS = ".aris"
     DDF = ".ddf"
+
+
+class UpstreamDirectionTypes(str, Enum):
+    """Types of directions currently supported."""
+
+    LEFT = "left"
+    RIGHT = "right"
