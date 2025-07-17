@@ -1,11 +1,16 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Optional, List, Union
 
 import structlog
 
 from fisheye.boxes import run_nms, normalize_boxes_for_tracking
-from fisheye.common.generic import safe_execution, _is_valid_file, _is_valid_dir
+from fisheye.common.generic import (
+    safe_execution,
+    _is_valid_file,
+    _is_valid_dir,
+    get_all_valid_files_in_dir,
+)
 from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
@@ -41,8 +46,11 @@ class DetectTrackCountPipeline:
         job_id: Optional[str] = None,
     ) -> List:
         logger.info("file_processing_started", file_path=str(file))
+        # Shallow copy of YOLODatasetConfig with updated fields
+        self.dataset_cfg = replace(
+            self.dataset_cfg, filepath=file, start_frame=0, end_frame=0
+        )
 
-        self.dataset_cfg.filepath = file
         detector = ObjectDetectionPipeline(self.detector_cfg, self.dataset_cfg)
         detections = detector()
 
@@ -185,24 +193,32 @@ class DetectTrackCountPipeline:
 
             elif _is_valid_dir(path):
                 # Process all ARIS or DIDSON files in directory
-                files = [f for f in path.iterdir() if _is_valid_file(f)]
+                files = get_all_valid_files_in_dir(path)
                 return [self._run(f, output_dir, export_types, job_id) for f in files]
 
             else:
                 raise ValueError(f"Invalid file or directory path: {file}")
 
         elif isinstance(file, list):
-            valid_files = [
-                Path(f)
-                for f in file
-                if _is_valid_file(Path(f)) or _is_valid_dir(Path(f))
-            ]
+            results = []
+            invalid_paths = []
 
-            if len(valid_files) < len(file):
-                invalid = set(map(str, file)) - set(map(str, valid_files))
-                logger.info("skipping_invalid_file_paths", invalid_paths=list(invalid))
+            for f in file:
+                path = Path(f)
+                if _is_valid_file(path):
+                    results.append(self._run(path, output_dir, export_types, job_id))
+                elif _is_valid_dir(path):
+                    files = get_all_valid_files_in_dir(path)
+                    results.extend(
+                        self._run(p, output_dir, export_types, job_id) for p in files
+                    )
+                else:
+                    invalid_paths.append(str(f))
 
-            return [self._run(f, output_dir, export_types, job_id) for f in valid_files]
+            if invalid_paths:
+                logger.info("skipping_invalid_file_paths", invalid_paths=invalid_paths)
+
+            return results
 
         else:
             raise ValueError(
