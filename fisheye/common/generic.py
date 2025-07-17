@@ -103,7 +103,9 @@ def _is_valid_file(file_path: Path) -> bool:
 
 
 def _is_valid_dir(dir_path: Path) -> bool:
-    """Check if the directory contains valid files."""
-    return dir_path.is_dir() and any(
-        file.suffix in {e.value for e in ValidExtensions} for file in dir_path.iterdir()
-    )
+    """Check if the directory is valid."""
+    return dir_path.is_dir()
+
+
+def get_all_valid_files_in_dir(path: Path) -> List[Path]:
+    return [f for f in path.rglob("*") if _is_valid_file(f)]
