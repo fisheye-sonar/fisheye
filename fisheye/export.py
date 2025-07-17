@@ -92,33 +92,31 @@ def to_summary_csv(data, out_dir, job_id: str = None):
         )
 
         direction_counts = direction_counts.reindex(
-            columns=["left", "right"], fill_value=0
+            columns=["Up", "Down"], fill_value=0
         )
 
-        direction_counts["absolute_left"] = (
-            direction_counts["left"] > direction_counts["right"]
+        direction_counts["absolute_up"] = (
+            direction_counts["Up"] > direction_counts["Down"]
         ).astype(int)
-        direction_counts["absolute_right"] = (
-            direction_counts["right"] > direction_counts["left"]
+        direction_counts["absolute_down"] = (
+            direction_counts["Down"] > direction_counts["Up"]
         ).astype(int)
 
         file_counts = direction_counts.groupby("file_name")[
-            ["absolute_left", "absolute_right"]
+            ["absolute_up", "absolute_down"]
         ].sum()
 
     else:
         file_counts = pd.DataFrame(
-            columns=["absolute_left", "absolute_right"], index=all_files
+            columns=["absolute_up", "absolute_down"], index=all_files
         ).fillna(0)
 
     # Ensure all files are represented
     for file in all_files:
         if file not in file_counts.index:
-            file_counts.loc[file] = {"absolute_left": 0, "absolute_right": 0}
+            file_counts.loc[file] = {"absolute_up": 0, "absolute_down": 0}
 
-    file_counts["net_count"] = (
-        file_counts["absolute_left"] - file_counts["absolute_right"]
-    )
+    file_counts["net_count"] = file_counts["absolute_up"] - file_counts["absolute_down"]
     final_result = file_counts.reset_index().rename(columns={"index": "file_name"})
 
     with open(out_file, "w") as f:
@@ -232,7 +230,7 @@ def to_txt(data, out_dir):
                     "File": 1,
                     "Total": row_data.get("Total", 0) + 1,
                     "Frame#": row.get("frame_id", 0),
-                    "Dir": "Up" if row.get("direction") == "left" else "Down",
+                    "Dir": row.get("direction"),
                     "R (m)": row.get("distance", 0),
                     "Theta": row.get("theta", 0),
                     "L(cm)": 0.0,
@@ -267,7 +265,7 @@ def to_txt(data, out_dir):
         logger.info(f"exported_txt", output_dir=out_file)
 
 
-def to_mot(data, output_dir, filename):
+def to_mot(data, output_dir, filename, *args):
     """Export inference results to MOT file(s). Expects data to be in MOT output already."""
     out_path = os.path.join(output_dir, filename + ".txt")
 

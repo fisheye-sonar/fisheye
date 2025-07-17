@@ -44,6 +44,7 @@ class DetectTrackCountPipeline:
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
+        upstream_direction: Optional[str] = None,
     ) -> List:
         logger.info("file_processing_started", file_path=str(file))
         # Shallow copy of YOLODatasetConfig with updated fields
@@ -122,7 +123,7 @@ class DetectTrackCountPipeline:
             formatted_crossings = [
                 {
                     "fish_id": track,
-                    "direction": "left",
+                    "direction": "Up" if upstream_direction == "left" else "Down",
                     "frame_id": frame,
                     "file_name": Path(file).name,
                     "bbox": bbox,
@@ -132,7 +133,7 @@ class DetectTrackCountPipeline:
             ] + [
                 {
                     "fish_id": track,
-                    "direction": "right",
+                    "direction": "Up" if upstream_direction == "right" else "Down",
                     "frame_id": frame,
                     "file_name": Path(file).name,
                     "bbox": bbox,
@@ -174,6 +175,7 @@ class DetectTrackCountPipeline:
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
+        upstream_direction: Optional[str] = None,
     ) -> Union[List[List[dict]], List[dict]]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
@@ -189,12 +191,15 @@ class DetectTrackCountPipeline:
         if isinstance(file, (str, Path)):
             path = Path(file)
             if _is_valid_file(path):
-                return [self._run(path, output_dir, export_types)]
+                return [self._run(path, output_dir, export_types, upstream_direction)]
 
             elif _is_valid_dir(path):
                 # Process all ARIS or DIDSON files in directory
                 files = get_all_valid_files_in_dir(path)
-                return [self._run(f, output_dir, export_types, job_id) for f in files]
+                return [
+                    self._run(f, output_dir, export_types, job_id, upstream_direction)
+                    for f in files
+                ]
 
             else:
                 raise ValueError(f"Invalid file or directory path: {file}")
@@ -206,12 +211,19 @@ class DetectTrackCountPipeline:
             for f in file:
                 path = Path(f)
                 if _is_valid_file(path):
-                    results.append(self._run(path, output_dir, export_types, job_id))
+                    results.append(
+                        self._run(
+                            path, output_dir, export_types, job_id, upstream_direction
+                        )
+                    )
 
                 elif _is_valid_dir(path):
                     files = get_all_valid_files_in_dir(path)
                     results.extend(
-                        self._run(p, output_dir, export_types, job_id) for p in files
+                        self._run(
+                            p, output_dir, export_types, job_id, upstream_direction
+                        )
+                        for p in files
                     )
 
                 else:
