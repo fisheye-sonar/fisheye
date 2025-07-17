@@ -22,6 +22,7 @@ def main(cfg: DictConfig):
     input_path = cfg.input_path
     output_dir = cfg.output_dir
     export_options = cfg.export_options
+    upstream_direction = cfg.upstream_direction
 
     export_types = parse_export_options(export_options)
 
@@ -55,7 +56,7 @@ def main(cfg: DictConfig):
 
     results = DetectTrackCountPipeline(
         detector_cfg=detection_cfg, dataset_cfg=dataset_cfg
-    ).run(input_path, output_dir, export_types, job_id)
+    ).run(input_path, output_dir, export_types, job_id, upstream_direction)
 
     if ExportType.SUMMARY_CSV in export_types:
         save_to_disk(

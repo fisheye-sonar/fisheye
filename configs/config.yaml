@@ -8,3 +8,4 @@ defaults:
 input_path:
 output_dir:
 export_options: ["summary_csv", "detailed_csv", "txt"]
+upstream_direction: left

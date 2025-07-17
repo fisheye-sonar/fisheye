@@ -14,7 +14,7 @@ from fisheye.common.generic import (
 from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
-from fisheye.enums import ExportType
+from fisheye.enums import ExportType, UpstreamDirectionTypes
 from fisheye.export import save_to_disk
 from fisheye.format import tracker_output_to_mot
 from fisheye.pipelines import ObjectDetectionPipeline
@@ -44,6 +44,7 @@ class DetectTrackCountPipeline:
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
+        upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
     ) -> List:
         logger.info("file_processing_started", file_path=str(file))
         # Shallow copy of YOLODatasetConfig with updated fields
@@ -122,7 +123,7 @@ class DetectTrackCountPipeline:
             formatted_crossings = [
                 {
                     "fish_id": track,
-                    "direction": "left",
+                    "direction": "Up" if upstream_direction == "left" else "Down",
                     "frame_id": frame,
                     "file_name": Path(file).name,
                     "bbox": bbox,
@@ -132,7 +133,7 @@ class DetectTrackCountPipeline:
             ] + [
                 {
                     "fish_id": track,
-                    "direction": "right",
+                    "direction": "Up" if upstream_direction == "right" else "Down",
                     "frame_id": frame,
                     "file_name": Path(file).name,
                     "bbox": bbox,
@@ -174,6 +175,7 @@ class DetectTrackCountPipeline:
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
+        upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
     ) -> Union[List[List[dict]], List[dict]]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
@@ -181,6 +183,8 @@ class DetectTrackCountPipeline:
             file (List[str] | str): File(s) to process. Must be a path to an ARIS file or a directory holding ARIS files
             output_dir (str): Output directory to save results to
             export_types (Optional[List[ExportType]]): List of ExportType objects to export to
+            job_id (Optional[str]): Job ID
+            upstream_direction (Optional[UpstreamDirectionTypes]): Upstream direction
 
         Returns:
             dict: Tracking results and counts.
@@ -189,12 +193,15 @@ class DetectTrackCountPipeline:
         if isinstance(file, (str, Path)):
             path = Path(file)
             if _is_valid_file(path):
-                return [self._run(path, output_dir, export_types)]
+                return [self._run(path, output_dir, export_types, upstream_direction)]
 
             elif _is_valid_dir(path):
                 # Process all ARIS or DIDSON files in directory
                 files = get_all_valid_files_in_dir(path)
-                return [self._run(f, output_dir, export_types, job_id) for f in files]
+                return [
+                    self._run(f, output_dir, export_types, job_id, upstream_direction)
+                    for f in files
+                ]
 
             else:
                 raise ValueError(f"Invalid file or directory path: {file}")
@@ -206,12 +213,19 @@ class DetectTrackCountPipeline:
             for f in file:
                 path = Path(f)
                 if _is_valid_file(path):
-                    results.append(self._run(path, output_dir, export_types, job_id))
+                    results.append(
+                        self._run(
+                            path, output_dir, export_types, job_id, upstream_direction
+                        )
+                    )
 
                 elif _is_valid_dir(path):
                     files = get_all_valid_files_in_dir(path)
                     results.extend(
-                        self._run(p, output_dir, export_types, job_id) for p in files
+                        self._run(
+                            p, output_dir, export_types, job_id, upstream_direction
+                        )
+                        for p in files
                     )
 
                 else:
