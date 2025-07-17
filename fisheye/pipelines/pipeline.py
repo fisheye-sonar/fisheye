@@ -207,11 +207,13 @@ class DetectTrackCountPipeline:
                 path = Path(f)
                 if _is_valid_file(path):
                     results.append(self._run(path, output_dir, export_types, job_id))
+
                 elif _is_valid_dir(path):
                     files = get_all_valid_files_in_dir(path)
                     results.extend(
                         self._run(p, output_dir, export_types, job_id) for p in files
                     )
+
                 else:
                     invalid_paths.append(str(f))
 
