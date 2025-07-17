@@ -265,7 +265,7 @@ def to_txt(data, out_dir):
         logger.info(f"exported_txt", output_dir=out_file)
 
 
-def to_mot(data, output_dir, filename, *args):
+def to_mot(data, output_dir, filename):
     """Export inference results to MOT file(s). Expects data to be in MOT output already."""
     out_path = os.path.join(output_dir, filename + ".txt")
 
