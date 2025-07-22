@@ -7,10 +7,13 @@ from yolov5.models.experimental import attempt_load
 def get_app_version_from_pyproject():
     """Get version from pyproject.toml."""
     pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
-    with open(pyproject_path, "rb") as f:
-        pyproject = tomli.load(f)
+    if pyproject_path.exists():
+        with open(pyproject_path, "rb") as f:
+            pyproject = tomli.load(f)
 
-    return pyproject["tool"]["poetry"]["version"]
+        return pyproject["tool"]["poetry"].get("version")
+
+    return None
 
 
 def get_version_from_detector(path: str):
