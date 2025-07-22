@@ -17,8 +17,7 @@ job_id = generate_job_id()
 setup_logging(file_logging=True, job_id=job_id)
 
 
-@hydra.main(config_path="../configs", config_name="config", version_base="1.3")
-def main(cfg: DictConfig):
+def run_pipeline(cfg: DictConfig):
     input_path = cfg.input_path
     output_dir = cfg.output_dir
     export_options = cfg.export_options
@@ -71,6 +70,11 @@ def main(cfg: DictConfig):
     )
 
     return results
+
+
+@hydra.main(config_path="../configs", config_name="config", version_base="1.3")
+def main(cfg: DictConfig):
+    return run_pipeline(cfg)
 
 
 if __name__ == "__main__":
