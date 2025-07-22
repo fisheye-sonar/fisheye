@@ -7,6 +7,7 @@
 ## Model Details
 - Training date: 2024-06
 - Model type: YOLOv5s
+- Framework: PyTorch
 - License: MIT
 - Model Sources:
   - Repository: [ultralytics/yolov5](https://github.com/ultralytics/yolov5/blob/master/train.py)
