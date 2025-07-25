@@ -45,3 +45,23 @@ class UpstreamDirectionTypes(str, Enum):
 
     LEFT = "left"
     RIGHT = "right"
+
+
+class IgnoredSystemDirs(str, Enum):
+    RECYCLE_BIN = "$RECYCLE.BIN"
+    SYSTEM_VOLUME = "System Volume Information"
+    SPOTLIGHT = ".Spotlight-V100"
+    FSEVENTSD = ".fseventsd"
+    TRASH = ".Trash-1000"
+    TEMP_ITEMS = ".TemporaryItems"
+
+
+class IgnoredFilePrefixes(str, Enum):
+    DS_STORE = ".DS_Store"
+    APPLE_RESOURCE = "._"
+    THUMBS_DB = "Thumbs.db"
+    VOLUME_ICON = ".VolumeIcon.icns"
+
+
+IGNORED_DIR_NAMES = {e.value for e in IgnoredSystemDirs}
+IGNORED_FILE_PREFIXES = {e.value for e in IgnoredFilePrefixes}
