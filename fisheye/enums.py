@@ -36,6 +36,8 @@ class DeviceType(str, Enum):
 
 
 class ValidExtensions(Enum):
+    """Types of valid file extensions currently supported."""
+
     ARIS = ".aris"
     DDF = ".ddf"
 
@@ -45,3 +47,33 @@ class UpstreamDirectionTypes(str, Enum):
 
     LEFT = "left"
     RIGHT = "right"
+
+
+class IgnoredSystemDirs(str, Enum):
+    """Types of system-level directories we do not support.
+
+    Already check for dot-prefixed values in get_all_valid_files_in_dir().
+    """
+
+    RECYCLE_BIN = "$RECYCLE.BIN"
+    SYSTEM_VOLUME = "System Volume Information"
+    VMSNAPSHOTS = "vm_snapshots"
+    CONFIG_MSI = "Config.Msi"
+    RECOVERY = "Recovery"
+    LOST_FOUND = "lost+found"
+    TRASH_1000 = "Trash-1000"
+
+
+class IgnoredFilePrefixes(str, Enum):
+    """Types of files we do not support.
+
+    Already check for dot-prefixed values in get_all_valid_files_in_dir().
+    """
+
+    THUMBS_DB = "Thumbs.db"
+    EHTHUMBS = "ehthumbs.db"
+    DESKTOP_INI = "desktop.ini"
+
+
+IGNORED_DIR_NAMES = {e.value for e in IgnoredSystemDirs}
+IGNORED_FILE_PREFIXES = {e.value for e in IgnoredFilePrefixes}

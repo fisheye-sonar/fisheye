@@ -1,10 +1,11 @@
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
 
 from conftest import ARIS_FILE
-from fisheye.common.generic import safe_execution
+from fisheye.common.generic import safe_execution, get_all_valid_files_in_dir
 from fisheye.configs import (
     ObjectDetectionConfig,
     YOLODatasetConfig,
@@ -279,3 +280,19 @@ def test_exponential_backoff_sleep_called(mock_sleep):
     assert mock_sleep.call_count == 2
     assert mock_sleep.call_args_list[0][0][0] == 0.1  # 1st backoff
     assert mock_sleep.call_args_list[1][0][0] == 0.2  # 2nd backoff (0.1 * 2^1)
+
+
+def test_ignore_hidden_files(tmp_path):
+    # Create visible and hidden files
+    (tmp_path / "visible_file.aris").touch()
+    (tmp_path / ".hidden_file.aris").touch()
+    hidden_subdir = tmp_path / ".hidden_dir"
+    hidden_subdir.mkdir()
+    (hidden_subdir / "another_hidden_file.aris").touch()
+
+    results = get_all_valid_files_in_dir(tmp_path)
+    result_names = [f.name for f in results]
+
+    assert "visible_file.aris" in result_names
+    assert ".hidden_file.aris" not in result_names
+    assert "another_hidden_file.aris" not in result_names

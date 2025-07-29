@@ -1,4 +1,5 @@
 import gc
+import os
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -10,7 +11,7 @@ import numpy as np
 import structlog
 import torch
 
-from fisheye.enums import ValidExtensions
+from fisheye.enums import ValidExtensions, IGNORED_FILE_PREFIXES, IGNORED_DIR_NAMES
 
 logger = structlog.get_logger()
 
@@ -108,4 +109,23 @@ def _is_valid_dir(dir_path: Path) -> bool:
 
 
 def get_all_valid_files_in_dir(path: Path) -> List[Path]:
-    return [f for f in path.rglob("*") if _is_valid_file(f)]
+    """Get all valid files in a directory."""
+    valid_files = []
+    for root, dirs, files in os.walk(path):
+        # Skip ignored system directories
+        dirs[:] = [
+            d for d in dirs if d not in IGNORED_DIR_NAMES and not d.startswith(".")
+        ]
+
+        for file in files:
+            # Skip files with ignored prefixes
+            if file.startswith(".") or any(
+                file.startswith(prefix) for prefix in IGNORED_FILE_PREFIXES
+            ):
+                continue
+
+            file_path = Path(root) / file
+            if _is_valid_file(file_path):
+                valid_files.append(file_path)
+
+    return valid_files
