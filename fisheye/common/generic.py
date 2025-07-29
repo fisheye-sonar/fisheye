@@ -119,7 +119,9 @@ def get_all_valid_files_in_dir(path: Path) -> List[Path]:
 
         for file in files:
             # Skip files with ignored prefixes
-            if any(file.startswith(prefix) for prefix in IGNORED_FILE_PREFIXES):
+            if file.startswith(".") or any(
+                file.startswith(prefix) for prefix in IGNORED_FILE_PREFIXES
+            ):
                 continue
 
             file_path = Path(root) / file
