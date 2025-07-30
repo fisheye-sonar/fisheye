@@ -1,11 +1,11 @@
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
 
 from conftest import ARIS_FILE
-from fisheye.common.generic import safe_execution, get_all_valid_files_in_dir
+from fisheye.common.file_system import get_all_valid_files_in_dir
+from fisheye.common.generic import safe_execution
 from fisheye.configs import (
     ObjectDetectionConfig,
     YOLODatasetConfig,

@@ -1,17 +1,13 @@
 import gc
-import os
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
-from pathlib import Path
 from typing import Callable, List, Any
 
 import numpy as np
 import structlog
 import torch
-
-from fisheye.enums import ValidExtensions, IGNORED_FILE_PREFIXES, IGNORED_DIR_NAMES
 
 logger = structlog.get_logger()
 
@@ -94,38 +90,3 @@ def set_seed(seed=42):
 def cleanup():
     torch.cuda.empty_cache()
     gc.collect()
-
-
-def _is_valid_file(file_path: Path) -> bool:
-    """Check if the file is valid based on extension."""
-    return file_path.is_file() and file_path.suffix in {
-        e.value for e in ValidExtensions
-    }
-
-
-def _is_valid_dir(dir_path: Path) -> bool:
-    """Check if the directory is valid."""
-    return dir_path.is_dir()
-
-
-def get_all_valid_files_in_dir(path: Path) -> List[Path]:
-    """Get all valid files in a directory."""
-    valid_files = []
-    for root, dirs, files in os.walk(path):
-        # Skip ignored system directories
-        dirs[:] = [
-            d for d in dirs if d not in IGNORED_DIR_NAMES and not d.startswith(".")
-        ]
-
-        for file in files:
-            # Skip files with ignored prefixes
-            if file.startswith(".") or any(
-                file.startswith(prefix) for prefix in IGNORED_FILE_PREFIXES
-            ):
-                continue
-
-            file_path = Path(root) / file
-            if _is_valid_file(file_path):
-                valid_files.append(file_path)
-
-    return valid_files

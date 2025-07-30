@@ -57,10 +57,11 @@ def run_pipeline(cfg: DictConfig):
         detector_cfg=detection_cfg, dataset_cfg=dataset_cfg
     ).run(input_path, output_dir, export_types, job_id, upstream_direction)
 
-    if ExportType.SUMMARY_CSV in export_types:
-        save_to_disk(
-            results, output_dir, export_types=ExportType.SUMMARY_CSV, job_id=job_id
-        )
+    if results:
+        if ExportType.SUMMARY_CSV in export_types:
+            save_to_disk(
+                results, output_dir, export_types=ExportType.SUMMARY_CSV, job_id=job_id
+            )
 
     end_time = time.time()
     logger.info(
