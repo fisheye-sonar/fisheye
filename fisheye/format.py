@@ -1,3 +1,6 @@
+from typing import Union
+
+
 def tracker_output_to_dict_rows(data: dict):
     """Convert TrackerOutput to YOLO-formatted dict rows.
 
@@ -30,6 +33,35 @@ def tracker_output_to_dict_rows(data: dict):
     return yolo_rows
 
 
+def yolo_to_mot(bbox: Union[dict, list], img_width, img_height):
+    """Convert YOLO-formatted bbox to MOT format."""
+    if isinstance(bbox, list):
+        x_center, y_center, width, height = bbox
+
+    if isinstance(bbox, dict):
+        x_center, y_center, width, height = (
+            bbox["x_center"],
+            bbox["y_center"],
+            bbox["width"],
+            bbox["height"],
+        )
+
+    bb_left = round((x_center - width / 2) * img_width, 3)
+    bb_top = round((y_center - height / 2) * img_height, 3)
+    bb_width = round(width * img_width, 3)
+    bb_height = round(height * img_height, 3)
+
+    if isinstance(bbox, list):
+        bbox = [bb_left, bb_top, bb_width, bb_height]
+    else:
+        bbox["bb_left"] = bb_left
+        bbox["bb_top"] = bb_top
+        bbox["bb_width"] = bb_width
+        bbox["bb_height"] = bb_height
+
+    return bbox
+
+
 def dict_rows_to_mot_format(rows: list[dict], img_width, img_height) -> list[dict]:
     """Convert tracking row dictionaries (YOLO format) to MOT formatted string.
 
@@ -44,10 +76,12 @@ def dict_rows_to_mot_format(rows: list[dict], img_width, img_height) -> list[dic
     for row in rows:
         row["frame"] = row["frame"] + 1  # MOT is 1-based
         row["id"] = row["id"] + 1  # MOT is 1-based
-        row["bb_left"] = round((row["x_center"] - row["width"] / 2) * img_width, 3)
-        row["bb_top"] = round((row["y_center"] - row["height"] / 2) * img_height, 3)
-        row["bb_width"] = round(row["width"] * img_width, 3)
-        row["bb_height"] = round(row["height"] * img_height, 3)
+
+        row = yolo_to_mot(row, img_width, img_height)
+        # row["bb_left"] = round((row["x_center"] - row["width"] / 2) * img_width, 3)
+        # row["bb_top"] = round((row["y_center"] - row["height"] / 2) * img_height, 3)
+        # row["bb_width"] = round(row["width"] * img_width, 3)
+        # row["bb_height"] = round(row["height"] * img_height, 3)
         row["x"] = -1  # Ignore and fill with -1
         row["y"] = -1  # Ignore and fill with -1
         row["z"] = -1  # Ignore and fill with -1

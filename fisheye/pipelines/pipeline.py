@@ -12,7 +12,11 @@ from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
 from fisheye.export import save_to_disk
-from fisheye.format import tracker_output_to_dict_rows, dict_rows_to_mot_format
+from fisheye.format import (
+    tracker_output_to_dict_rows,
+    dict_rows_to_mot_format,
+    yolo_to_mot,
+)
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
 
@@ -98,6 +102,9 @@ class DetectTrackCountPipeline:
         )
 
         formatted_yolo_tracks = tracker_output_to_dict_rows(asdict(tracker_output))
+        mot_tracks = dict_rows_to_mot_format(
+            formatted_yolo_tracks, metadata.xdim, metadata.ydim
+        )
 
         if export_types is None:
             export_types_list = []
@@ -109,9 +116,6 @@ class DetectTrackCountPipeline:
             export_types_list = export_types
 
         if ExportType.MOT in export_types_list:
-            mot_tracks = dict_rows_to_mot_format(
-                formatted_yolo_tracks, metadata.xdim, metadata.ydim
-            )
 
             save_to_disk(
                 mot_tracks, output_dir, export_types=ExportType.MOT, job_id=job_id
@@ -128,7 +132,7 @@ class DetectTrackCountPipeline:
                     "direction": "Up" if upstream_direction == "left" else "Down",
                     "frame_id": frame,
                     "file_name": Path(file).name,
-                    "bbox": bbox,
+                    "bbox": bbox,  # yolo_to_mot(bbox, metadata.xdim, metadata.ydim),
                     "metadata": metadata,
                 }
                 for track, frame, bbox in crossing_frames["left"]
@@ -138,7 +142,7 @@ class DetectTrackCountPipeline:
                     "direction": "Up" if upstream_direction == "right" else "Down",
                     "frame_id": frame,
                     "file_name": Path(file).name,
-                    "bbox": bbox,
+                    "bbox": bbox,  # yolo_to_mot(bbox, metadata.xdim, metadata.ydim),
                     "metadata": metadata,
                 }
                 for track, frame, bbox in crossing_frames["right"]
