@@ -44,8 +44,12 @@ def get_all_valid_files_in_dir(path: Path) -> List[Path]:
     return valid_files
 
 
-def get_valid_files(inputs: Union[str, Path, List[Union[str, Path]]]) -> List[Path]:
+def get_valid_files(
+    inputs: Union[str, Path, List[Union[str, Path]]],
+    output_dir: Union[str, Path, List[Union[str, Path]]],
+) -> List[Path]:
     """Return all valid files from one or more input paths (file or directory)."""
+    output_dir = Path(output_dir)
     if isinstance(inputs, (str, Path)):
         inputs = [inputs]
 
@@ -62,9 +66,9 @@ def get_valid_files(inputs: Union[str, Path, List[Union[str, Path]]]) -> List[Pa
         else:
             continue
 
-        # Filter out files if they have already been processed
+        # Exclude files if they have already been processed
         for file in candidate_files:
-            expected_output_file = file.parent / f"FCe_{file.stem}_ID_.txt"
+            expected_output_file = output_dir / f"FCe_{file.stem}_ID_.txt"
             if expected_output_file.exists():
                 logger.warning("FC_txt_exists_already", file=file.name)
                 continue

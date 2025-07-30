@@ -168,7 +168,7 @@ class DetectTrackCountPipeline:
     def run(
         self,
         file: Union[str, Path, List[Union[str, Path]]],
-        output_dir: str,
+        output_dir: Union[str, Path, List[Union[str, Path]]],
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
@@ -186,7 +186,7 @@ class DetectTrackCountPipeline:
             dict: Tracking results and counts.
         """
 
-        valid_files = get_valid_files(file)
+        valid_files = get_valid_files(file, output_dir)
         if not valid_files:
             logger.error(
                 f"Unable to process valid files. Please verify that the file path is correct and that the "
