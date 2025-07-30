@@ -188,7 +188,11 @@ class DetectTrackCountPipeline:
 
         valid_files = get_valid_files(file)
         if not valid_files:
-            raise ValueError(f"No valid files found: {file}")
+            logger.error(
+                f"Unable to process valid files. Please verify that the file path is correct and that the "
+                f"file hasn't already been processed."
+            )
+            return []
 
         results = [
             self._run(f, output_dir, export_types, job_id, upstream_direction)

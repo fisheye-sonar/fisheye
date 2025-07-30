@@ -2,7 +2,11 @@ import os
 from pathlib import Path
 from typing import List, Union
 
+import structlog
+
 from fisheye.enums import ValidExtensions, IGNORED_DIR_NAMES, IGNORED_FILE_PREFIXES
+
+logger = structlog.getLogger(__name__)
 
 
 def is_valid_file(file_path: Path) -> bool:
@@ -50,9 +54,21 @@ def get_valid_files(inputs: Union[str, Path, List[Union[str, Path]]]) -> List[Pa
         path = Path(input_path)
 
         if is_valid_file(path):
-            results.append(path)
+            candidate_files = [path]
 
         elif is_valid_dir(path):
-            results.extend(get_all_valid_files_in_dir(path))
+            candidate_files = get_all_valid_files_in_dir(path)
+
+        else:
+            continue
+
+        # Filter out files if they have already been processed
+        for file in candidate_files:
+            expected_output_file = file.parent / f"FCe_{file.stem}_ID_.txt"
+            if expected_output_file.exists():
+                logger.warning("FC_txt_exists_already", file=file.name)
+                continue
+
+            results.append(file)
 
     return results
