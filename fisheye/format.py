@@ -1,27 +1,55 @@
-def tracker_output_to_mot(data: dict):
-    """Convert TrackerOutput to MOT format.
+def tracker_output_to_dict_rows(data: dict):
+    """Convert TrackerOutput to YOLO-formatted dict rows.
 
     Args:
-        data (dict): MOT formatted output.
+        data (dict): Tracker output with bounding boxes.
+
+    Returns:
+        list[dict]: Each row with YOLO-format bbox fields.
     """
-    mot_rows = []
+    yolo_rows = []
     for frame in data["frames"]:
         for fish in frame["fish"]:
             bbox = fish["bbox"]
-            left = bbox[0]
-            top = bbox[1]
-            w = bbox[2] - bbox[0]
-            h = bbox[3] - bbox[1]
+            x_center = bbox[0]
+            y_center = bbox[1]
+            width = bbox[2]
+            height = bbox[3]
 
             row = {
-                "frame": frame["frame_num"] + 1,
-                "id": fish["id"] + 1,
-                "bb_left": round(left, 3),
-                "bb_top": round(top, 3),
-                "bb_width": round(w, 3),
-                "bb_height": round(h, 3),
+                "frame": frame["frame_num"],
+                "id": fish["id"],
+                "x_center": round(x_center, 3),
+                "y_center": round(y_center, 3),
+                "width": round(width, 3),
+                "height": round(height, 3),
                 "conf": round(float(fish["conf"]), 3),
             }
-            mot_rows.append(row)
+            yolo_rows.append(row)
 
-    return mot_rows
+    return yolo_rows
+
+
+def dict_rows_to_mot_format(rows: list[dict], img_width, img_height) -> list[dict]:
+    """Convert tracking row dictionaries (YOLO format) to MOT formatted string.
+
+    Args:
+        rows (list[dict]): List of tracking data rows.
+        img_width (int): Image width.
+        img_height (int): Image height.
+
+    Returns:
+        MOT formated dictionary
+    """
+    for row in rows:
+        row["frame"] = row["frame"] + 1  # MOT is 1-based
+        row["id"] = row["id"] + 1  # MOT is 1-based
+        row["bb_left"] = round((row["x_center"] - row["width"] / 2) * img_width, 3)
+        row["bb_top"] = round((row["y_center"] - row["height"] / 2) * img_height, 3)
+        row["bb_width"] = round(row["width"] * img_width, 3)
+        row["bb_height"] = round(row["height"] * img_height, 3)
+        row["x"] = -1  # Ignore and fill with -1
+        row["y"] = -1  # Ignore and fill with -1
+        row["z"] = -1  # Ignore and fill with -1
+
+    return rows
