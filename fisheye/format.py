@@ -78,12 +78,14 @@ def dict_rows_to_mot_format(rows: list[dict], img_width, img_height) -> list[dic
         row["id"] = row["id"] + 1  # MOT is 1-based
 
         row = yolo_to_mot(row, img_width, img_height)
-        # row["bb_left"] = round((row["x_center"] - row["width"] / 2) * img_width, 3)
-        # row["bb_top"] = round((row["y_center"] - row["height"] / 2) * img_height, 3)
-        # row["bb_width"] = round(row["width"] * img_width, 3)
-        # row["bb_height"] = round(row["height"] * img_height, 3)
+
         row["x"] = -1  # Ignore and fill with -1
         row["y"] = -1  # Ignore and fill with -1
         row["z"] = -1  # Ignore and fill with -1
+
+        row.pop("x_center")
+        row.pop("y_center")
+        row.pop("width")
+        row.pop("height")
 
     return rows

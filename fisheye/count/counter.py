@@ -93,11 +93,14 @@ class Count:
         df = pd.DataFrame(tracks)
         if not df.empty:
             # Calculate the center point of the bounding box
-            df["kp_x"] = df["x_center"] + df["width"] / 2
-            df["kp_y"] = df["y_center"] + df["height"] / 2
+            # df["kp_x"] = df["x_center"] + df["width"] / 2
+            # df["kp_y"] = df["y_center"] + df["height"] / 2
+
+            df["kp_x"] = df["x_center"]
+            df["kp_y"] = df["y_center"]
 
             return self.counter.count(df)
 
-        logger.warning(f"No tracks present.")
+        logger.warning(f"No counts.")
         # If no tracks present (empty dataframe) return 0 for both left and right counts
         return (0, 0), None
