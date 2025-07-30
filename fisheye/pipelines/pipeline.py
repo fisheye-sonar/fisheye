@@ -5,12 +5,8 @@ from typing import Optional, List, Union
 import structlog
 
 from fisheye.boxes import run_nms, normalize_boxes_for_tracking
-from fisheye.common.generic import (
-    safe_execution,
-    _is_valid_file,
-    _is_valid_dir,
-    get_all_valid_files_in_dir,
-)
+from fisheye.common.generic import safe_execution
+from fisheye.common.file_system import get_valid_files
 from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
@@ -171,7 +167,7 @@ class DetectTrackCountPipeline:
 
     def run(
         self,
-        file: Union[List[str], str],
+        file: Union[str, Path, List[Union[str, Path]]],
         output_dir: str,
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
@@ -190,53 +186,13 @@ class DetectTrackCountPipeline:
             dict: Tracking results and counts.
         """
 
-        if isinstance(file, (str, Path)):
-            path = Path(file)
-            if _is_valid_file(path):
-                return [self._run(path, output_dir, export_types, upstream_direction)]
+        valid_files = get_valid_files(file)
+        if not valid_files:
+            raise ValueError(f"No valid files found: {file}")
 
-            elif _is_valid_dir(path):
-                # Process all ARIS or DIDSON files in directory
-                files = get_all_valid_files_in_dir(path)
-                return [
-                    self._run(f, output_dir, export_types, job_id, upstream_direction)
-                    for f in files
-                ]
+        results = [
+            self._run(f, output_dir, export_types, job_id, upstream_direction)
+            for f in valid_files
+        ]
 
-            else:
-                raise ValueError(f"Invalid file or directory path: {file}")
-
-        elif isinstance(file, list):
-            results = []
-            invalid_paths = []
-
-            for f in file:
-                path = Path(f)
-                if _is_valid_file(path):
-                    results.append(
-                        self._run(
-                            path, output_dir, export_types, job_id, upstream_direction
-                        )
-                    )
-
-                elif _is_valid_dir(path):
-                    files = get_all_valid_files_in_dir(path)
-                    results.extend(
-                        self._run(
-                            p, output_dir, export_types, job_id, upstream_direction
-                        )
-                        for p in files
-                    )
-
-                else:
-                    invalid_paths.append(str(f))
-
-            if invalid_paths:
-                logger.info("skipping_invalid_file_paths", invalid_paths=invalid_paths)
-
-            return results
-
-        else:
-            raise ValueError(
-                "Input should be a string or a list of strings representing file paths."
-            )
+        return results
