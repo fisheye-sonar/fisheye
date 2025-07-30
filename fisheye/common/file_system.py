@@ -46,7 +46,7 @@ def get_all_valid_files_in_dir(path: Path) -> List[Path]:
 
 def get_valid_files(
     inputs: Union[str, Path, List[Union[str, Path]]],
-    output_dir: Union[str, Path, List[Union[str, Path]]],
+    output_dir: Union[str, Path],
 ) -> List[Path]:
     """Return all valid files from one or more input paths (file or directory)."""
     output_dir = Path(output_dir)

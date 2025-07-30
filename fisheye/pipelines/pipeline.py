@@ -37,7 +37,7 @@ class DetectTrackCountPipeline:
     def _run(
         self,
         file: Union[Path, List[Path]],
-        output_dir: str,
+        output_dir: Union[str, Path],
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
@@ -168,7 +168,7 @@ class DetectTrackCountPipeline:
     def run(
         self,
         file: Union[str, Path, List[Union[str, Path]]],
-        output_dir: Union[str, Path, List[Union[str, Path]]],
+        output_dir: Union[str, Path],
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
