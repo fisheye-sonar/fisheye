@@ -30,7 +30,21 @@ def norm(bbox, w, h):
 def normalize_boxes_for_tracking(
     image_shapes, outputs, width, height, batch_size, gp=None, verbose=False
 ):
-    """Normalize boxes for tracking input format - xyxy with confidence score."""
+    """Normalize boxes for tracking input format - xyxy with confidence score.
+
+    Args:
+        image_shapes (list): List of image shapes.
+        outputs (list): Predicted bounding boxes in xyxy format in YOLO pixel space.
+        width (float): Image width.
+        height (float): Image height.
+        batch_size (int): Batch size.
+        gp (dict): Grid parameters.
+        verbose (bool): Verbose.
+
+    Returns:
+        Predictions containing bounding boxes in xyxy format in original image pixel space and original image width
+        and height.
+    """
     original_width = image_shapes[0][0][1][0][1]
     original_height = image_shapes[0][0][1][0][0]
 
@@ -57,11 +71,11 @@ def normalize_boxes_for_tracking(
                 (image_shape, original_shape) = batch_shapes[si]
                 # Clip boxes to image bounds and resize to input shape
                 clip_boxes(pred, (height, width))
-                box = pred[:, :4].clone()  # xyxy
+                box = pred[:, :4].clone()  # xyxy in yolo pixel space
                 confs = pred[:, 4].clone().tolist()
-                scale_boxes(
+                box = scale_boxes(
                     image_shape, box, original_shape[0], original_shape[1]
-                )  # to original shape
+                )  # xyxy in original pixel space
 
                 # confidence score currently not used by tracker; set to 1.0
                 boxes = None
@@ -156,9 +170,10 @@ def non_max_suppression(
 
     NOTE: SIMPLIFIED FOR SINGLE CLASS DETECTION. Modified from yolov5/utils/general.py
 
-    :arg
-        prediction: Inference results
-        pix2width: Pixel size
+    Args:
+        prediction: Inference results containing bounding boxes in xyxy format relative to YOLO pixel space
+        pix2width: Pixel-to-meter conversion factor. Used to filter out bounding boxes that are too small or represent
+            fish below a size threshold.
         conf: NMS confidence score
         iou: NMS iou score
         max_length: Maximum fish length
@@ -168,7 +183,7 @@ def non_max_suppression(
         merge: Use merge-NMS
 
     Returns:
-         list of detections, on (n,6) tensor per image [xyxy, conf, cls]
+         list of detections, on (n,6) tensor per image [xyxy, conf, cls] where xyxy is relative to YOLO pixel space
     """
 
     # Checks
@@ -261,7 +276,17 @@ def run_nms(
     gp=None,
     verbose=False,
 ):
-    """Run NMS on inference results to reject overlapping detections."""
+    """Run NMS on inference results to reject overlapping detections.
+
+    Args:
+        pred_bboxes: Inference results containing bounding boxes in xyxy format relative to YOLO pixel space.
+        image_meter_width: Width of image in meters.
+        image_pixel_width: Width of image in pixels.
+        batch_size: Batch size.
+        nms_config: NMSConfig
+        gp: GPU parameters
+        verbose: bool
+    """
 
     # width filter
     pix2width = image_meter_width / image_pixel_width

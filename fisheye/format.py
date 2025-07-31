@@ -2,22 +2,34 @@ from typing import Union
 
 
 def tracker_output_to_dict_rows(data: dict):
-    """Convert TrackerOutput to YOLO-formatted dict rows.
+    """Convert tracker output containing bounding boxes from original image space in [x1, y1, x2, y2] format to
+    YOLO-style dict rows containing bounding boxes in [x_center, y_center, width, height] relative to the original image
+    space.
 
     Args:
-        data (dict): Tracker output with bounding boxes.
+        data (dict): Tracker output with bounding boxes in xyxy format relative to the original image pixel space.
 
     Returns:
-        list[dict]: Each row with YOLO-format bbox fields.
+        list[dict]: A list of dictionaries, each containing:
+            - frame (int): Frame number.
+            - id (int): Unique track ID
+            - x_center (float): X center of bounding box relative to the original image space.
+            - y_center (float): Y center of bounding box relative to the original image space.
+            - width (float): Width of bounding box relative to the original image space.
+            - height (float): Height of bounding box relative to the original image space.
+            - conf (float): Confidence score of the detection.
     """
     yolo_rows = []
     for frame in data["frames"]:
         for fish in frame["fish"]:
             bbox = fish["bbox"]
-            x_center = bbox[0]
-            y_center = bbox[1]
-            width = bbox[2]
-            height = bbox[3]
+            left = bbox[0]
+            top = bbox[1]
+            width = bbox[2] - left
+            height = bbox[3] - top
+
+            x_center = left + width / 2
+            y_center = top + height / 2
 
             row = {
                 "frame": frame["frame_num"],
@@ -34,7 +46,22 @@ def tracker_output_to_dict_rows(data: dict):
 
 
 def yolo_to_mot(bbox: Union[dict, list], img_width, img_height):
-    """Convert YOLO-formatted bbox to MOT format."""
+    """Convert a YOLO-formatted bounding box to MOT format.
+
+    YOLO format: [x_center, y_center, width, height]
+    MOT format: [bb_left, bb_top, bb_width, bb_height]
+
+    Args:
+        bbox (list or dict): Bounding box in YOLO format, either as a list or a dict
+                             with keys 'x_center', 'y_center', 'width', 'height'.
+        img_width (int or float): Width of the original image.
+        img_height (int or float): Height of the original image.
+
+    Returns:
+        list or dict: Bounding box in MOT format. If input was a list, returns a list
+                      [bb_left, bb_top, bb_width, bb_height]. If input was a dict,
+                      adds keys 'bb_left', 'bb_top', 'bb_width', 'bb_height' and returns the dict.
+    """
     if isinstance(bbox, list):
         x_center, y_center, width, height = bbox
 
@@ -63,15 +90,17 @@ def yolo_to_mot(bbox: Union[dict, list], img_width, img_height):
 
 
 def dict_rows_to_mot_format(rows: list[dict], img_width, img_height) -> list[dict]:
-    """Convert tracking row dictionaries (YOLO format) to MOT formatted string.
+    """Convert tracking row dictionaries (YOLO format) to MOT formatted list of dictionaries.
 
     Args:
-        rows (list[dict]): List of tracking data rows.
-        img_width (int): Image width.
-        img_height (int): Image height.
+        rows (list[dict]): List of tracking data rows containing bounding boxes in [x_center, y_center, width,
+        height] relative to original image space.
+        img_width (int): Original image width.
+        img_height (int): Original image height.
 
     Returns:
-        MOT formated dictionary
+        MOT formated dictionary containing bounding boxes in MOT format relative to original image space.
+        frame, id, bb_left, bb_top, bb_width, bb_height, conf, x, y, z
     """
     for row in rows:
         row["frame"] = row["frame"] + 1  # MOT is 1-based
@@ -82,10 +111,5 @@ def dict_rows_to_mot_format(rows: list[dict], img_width, img_height) -> list[dic
         row["x"] = -1  # Ignore and fill with -1
         row["y"] = -1  # Ignore and fill with -1
         row["z"] = -1  # Ignore and fill with -1
-
-        row.pop("x_center")
-        row.pop("y_center")
-        row.pop("width")
-        row.pop("height")
 
     return rows

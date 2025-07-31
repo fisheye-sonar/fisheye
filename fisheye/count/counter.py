@@ -22,7 +22,7 @@ class LOICounter(BaseCounter):
         crossing_frames = {"left": [], "right": []}
 
         for track, track_df in grouped_tracks:
-            x_coords = track_df["kp_x"].values
+            x_coords = track_df["x_center"].values
             frames = track_df["frame"].values
             first_x = x_coords[0]
             last_x = x_coords[-1]
@@ -31,7 +31,7 @@ class LOICounter(BaseCounter):
             distances = np.abs(x_coords - line)
             closest_idx = np.argmin(distances)
 
-            x_center = track_df["x_center"].values[closest_idx]
+            x_center = x_coords[closest_idx]
             y_center = track_df["y_center"].values[closest_idx]
             width = track_df["width"].values[closest_idx]
             height = track_df["height"].values[closest_idx]
@@ -83,8 +83,16 @@ class Count:
         """Count fish using the selected protocol.
 
         Args:
-            tracks (dict): Bounding boxes in YOLO format with the following keys: 'frame', 'id', 'x_center', 'y_center',
-            'width', 'height', 'conf'.
+            tracks (dict): Dictionary containing tracking data for detected fish.
+                Each entry should include bounding boxes in [x_center, y_center, width, height] format
+                relative to the original image pixel space, with the following keys:
+                    - 'frame': Frame index
+                    - 'id': Unique track identifier
+                    - 'x_center': X-coordinate of the bounding box center (in pixels)
+                    - 'y_center': Y-coordinate of the bounding box center (in pixels)
+                    - 'width': Bounding box width (in pixels)
+                    - 'height': Bounding box height (in pixels)
+                    - 'conf': Confidence score of the detection
 
         Returns:
             tuple: (absolute_left_count, absolute_right_count), crossing frames.
@@ -92,15 +100,8 @@ class Count:
         logger.info(f"initialized_counter", type=self.protocol)
         df = pd.DataFrame(tracks)
         if not df.empty:
-            # Calculate the center point of the bounding box
-            # df["kp_x"] = df["x_center"] + df["width"] / 2
-            # df["kp_y"] = df["y_center"] + df["height"] / 2
-
-            df["kp_x"] = df["x_center"]
-            df["kp_y"] = df["y_center"]
-
             return self.counter.count(df)
 
-        logger.warning(f"No counts.")
+        logger.warning(f"No tracks available for counting.")
         # If no tracks present (empty dataframe) return 0 for both left and right counts
         return (0, 0), None

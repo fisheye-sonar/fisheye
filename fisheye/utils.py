@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 from fisheye.dataloaders.didson import pyARIS
 from fisheye.configs.datasets import BEAM_WIDTH_DIR
@@ -71,11 +72,18 @@ def calculate_unwarped_points(points, info, xdim, ydim):
     return unwarped_points
 
 
-def get_unwarped_distance_and_theta(row):
+def get_unwarped_distance_and_theta(row: pd.Series):
     """Get the distance and theta to an unwarped point.
 
-    Function requires a DataFrame row where it has bounding boxes [x, y, width, height] and DIDSON header information
-    under the column name `metadata`
+    Args:
+        row (pd.Series): A DataFrame row with keys:
+            - "bbox": Bounding box given as [x_center, y_center, width, height] relative to the original image space
+            - "metadata": Object with ARIS header fields (e.g., dimensions, pixel size)
+
+    Returns:
+        tuple: (distance: float, theta: float)
+            - distance: Distance to the unwarped point in meters
+            - theta: Beam center angle in degrees
     """
     metadata = row["metadata"]
     metadata.beam_width_data, _ = pyARIS.load_beam_width_data(
