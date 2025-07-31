@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from fisheye.configs.datasets import ARISMetadata
-from fisheye.export import to_detailed_csv, to_summary_csv, to_txt
+from fisheye.export import to_detailed_csv, to_summary_csv, to_fc_txt
 
 
 def sample_data():
@@ -108,7 +108,7 @@ def test_summary_csv_creates_file_and_content(tmp_path):
 def test_txt_creates_file_and_lines(tmp_path):
     """Test creating ARISFish TXT per aris file."""
     data = sample_data()
-    to_txt(data, tmp_path)
+    to_fc_txt(data, tmp_path)
 
     out_files = list(tmp_path.glob("*.txt"))
     assert len(out_files) == 1
@@ -142,7 +142,7 @@ def test_summary_csv_empty_data(tmp_path):
 def test_txt_empty_data(tmp_path):
     """Test passing in empty data for txt file."""
     data = []
-    to_txt(data, tmp_path)
+    to_fc_txt(data, tmp_path)
 
     out_files = list(tmp_path.glob("*.txt"))
     assert len(out_files) == 0

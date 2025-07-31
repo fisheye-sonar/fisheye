@@ -23,7 +23,7 @@ class ExportType(str, Enum):
     NONE = "none"
     SUMMARY_CSV = "summary_csv"
     DETAILED_CSV = "detailed_csv"
-    TXT = "txt"
+    FC = "fc"
     MOT = "mot"
 
 
