@@ -265,24 +265,29 @@ def to_txt(data, out_dir):
         logger.info(f"exported_txt", output_dir=out_file)
 
 
-def to_mot(data, output_dir, filename):
+def to_mot_txt(data, output_dir, filename):
     """Export inference results to MOT file(s). Expects data to be in MOT output already."""
     out_path = os.path.join(output_dir, filename + ".txt")
 
     mot_lines = []
     for row in data:
         # Convert frame number to int (if needed) and format row to MOT string
-        frame = int(row["frame"])
-        mot_line = "{},{},{:.3f},{:.3f},{:.3f},{:.3f},{:.3f}".format(
-            frame,
-            row["id"],
-            row["bb_left"],
-            row["bb_top"],
-            row["bb_width"],
-            row["bb_height"],
-            row["conf"],
-        )
-        mot_lines.append(mot_line)
+        if row:
+            mot_line = "{},{},{:.3f},{:.3f},{:.3f},{:.3f},{:.3f}".format(
+                row.get("frame"),
+                row.get("id"),
+                row.get("bb_left"),
+                row.get("bb_top"),
+                row.get("bb_width"),
+                row.get("bb_height"),
+                row.get("conf"),
+                row.get("x"),
+                row.get("y"),
+                row.get("z"),
+            )
+            mot_lines.append(mot_line + "\n")
+        else:
+            mot_lines.append("\n")
 
     with open(out_path, "w") as f:
         f.writelines(mot_lines)
@@ -297,7 +302,7 @@ EXPORT_FUNCTIONS: Dict[ExportType, Callable[[Any, str], None]] = {
     ExportType.DETAILED_CSV: to_detailed_csv,
     ExportType.SUMMARY_CSV: to_summary_csv,
     ExportType.TXT: to_txt,
-    ExportType.MOT: to_mot,
+    ExportType.MOT: to_mot_txt,
 }
 
 

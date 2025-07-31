@@ -15,14 +15,14 @@ class LOICounter(BaseCounter):
     type = CountingMethod.LOI
     """Count fish by crossing the Line of Interest (LOI)."""
 
-    def count(self, mot_df: pd.DataFrame, line: float = 0.5):
+    def count(self, df: pd.DataFrame, line: float = 0.5):
         """Count fish that cross the LOI. Defaults to using center line."""
-        grouped_tracks = mot_df.sort_values(by=["frame"], ascending=True).groupby("id")
+        grouped_tracks = df.sort_values(by=["frame"], ascending=True).groupby("id")
         track_counts = defaultdict(lambda: {"left": 0, "right": 0})
         crossing_frames = {"left": [], "right": []}
 
         for track, track_df in grouped_tracks:
-            x_coords = track_df["kp_x"].values
+            x_coords = track_df["x_center"].values
             frames = track_df["frame"].values
             first_x = x_coords[0]
             last_x = x_coords[-1]
@@ -31,14 +31,12 @@ class LOICounter(BaseCounter):
             distances = np.abs(x_coords - line)
             closest_idx = np.argmin(distances)
 
-            bb_left = track_df["bb_left"].values[closest_idx]
-            bb_top = track_df["bb_top"].values[closest_idx]
-            bb_width = track_df["bb_width"].values[closest_idx]
-            bb_height = track_df["bb_height"].values[closest_idx]
-            closest_frame = (
-                int(frames[closest_idx]) - 1
-            )  # Subtract 1 since it was for MOT format
-            bbox = [bb_left, bb_top, bb_width, bb_height]
+            x_center = x_coords[closest_idx]
+            y_center = track_df["y_center"].values[closest_idx]
+            width = track_df["width"].values[closest_idx]
+            height = track_df["height"].values[closest_idx]
+            closest_frame = int(frames[closest_idx])
+            bbox = [x_center, y_center, width, height]
 
             # Determine initial and final positions
             if last_x <= line < first_x:
@@ -83,21 +81,25 @@ class Count:
         """Count fish using the selected protocol.
 
         Args:
-            tracks (dict): Tracks in MOT format with the following keys: 'frame', 'id', 'bb_left', 'bb_top',
-            'bb_height', 'conf'.
+            tracks (dict): Dictionary containing tracking data for detected fish.
+                Each entry should include bounding boxes in [x_center, y_center, width, height] format
+                relative to the original image pixel space, with the following keys:
+                    - 'frame': Frame index
+                    - 'id': Unique track identifier
+                    - 'x_center': X-coordinate of the bounding box center (in pixels)
+                    - 'y_center': Y-coordinate of the bounding box center (in pixels)
+                    - 'width': Bounding box width (in pixels)
+                    - 'height': Bounding box height (in pixels)
+                    - 'conf': Confidence score of the detection
 
         Returns:
-            tuple: (absolute_left_count, absolute_right_count)
+            tuple: (absolute_left_count, absolute_right_count), crossing frames.
         """
         logger.info(f"initialized_counter", type=self.protocol)
-        mot_df = pd.DataFrame(tracks)
-        if not mot_df.empty:
-            # Calculate the center point of the bounding box
-            mot_df["kp_x"] = mot_df["bb_left"] + mot_df["bb_width"] / 2
-            mot_df["kp_y"] = mot_df["bb_top"] + mot_df["bb_height"] / 2
+        df = pd.DataFrame(tracks)
+        if not df.empty:
+            return self.counter.count(df)
 
-            return self.counter.count(mot_df)
-
-        logger.warning(f"No tracks present.")
+        logger.warning(f"No tracks available for counting.")
         # If no tracks present (empty dataframe) return 0 for both left and right counts
         return (0, 0), None
