@@ -35,9 +35,7 @@ class LOICounter(BaseCounter):
             y_center = track_df["y_center"].values[closest_idx]
             width = track_df["width"].values[closest_idx]
             height = track_df["height"].values[closest_idx]
-            closest_frame = (
-                int(frames[closest_idx]) - 1
-            )  # Subtract 1 since it was for MOT format
+            closest_frame = int(frames[closest_idx])
             bbox = [x_center, y_center, width, height]
 
             # Determine initial and final positions
