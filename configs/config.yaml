@@ -7,5 +7,5 @@ defaults:
 # Add CLI-overridable arguments here, no need to add paths within quotes
 input_path:
 output_dir:
-export_options: ["summary_csv", "detailed_csv", "txt"]
+export_options: ["summary_csv", "detailed_csv", "fc"]
 upstream_direction: left

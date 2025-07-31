@@ -55,21 +55,16 @@ Run `chmod +x run.sh`
 
 
 ## How to Run the App
-1. Open the run.sh file in any text editor (like VS Code, Notepad, or TextEdit), and look for lines like this:
+1. Open the YAML file in any text editor (like VS Code, Notepad, or TextEdit), and look for lines like this:
 
-    `DATA_DIR=${1:-"./data"}`
+    `input_path:`
     
-    `MODEL_PATH=${2:-"./models/model.pt"}`    
+    `output_dir: `    
 
-    `EXPORT=${3:-"summary_csv,detailed_csv,txt"}`
- 
-    `OUTPUT_DIR=${4:-"./output"}`
-
-You can change the default values (inside the "") to whatever you want:
+Update to your path locations, e.g.:
     
-    `DATA_DIR=${1:-"/home/fisheye/my-folder"}`
+    input_path: /home/fisheye/
 
-💡 If you’re unsure how to edit .sh files, just right-click the file and open it with any text editor.
 
 2. Once the values are set, open your Terminal. Navigate to the project folder using the cd command. 
 
