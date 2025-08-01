@@ -273,7 +273,7 @@ def to_mot_txt(data, output_dir, filename):
     for row in data:
         # Convert frame number to int (if needed) and format row to MOT string
         if row:
-            mot_line = "{},{},{:.3f},{:.3f},{:.3f},{:.3f},{:.3f}".format(
+            mot_line = "{},{},{:.3f},{:.3f},{:.3f},{:.3f},{:.3f},{},{},{}".format(
                 row.get("frame"),
                 row.get("id"),
                 row.get("bb_left"),
