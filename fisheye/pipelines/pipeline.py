@@ -152,7 +152,7 @@ class DetectTrackCountPipeline:
                 }
             ]
 
-            logger.debug("no_crossings_detected", file_path=str(file))
+            logger.warning("no_counts", file_path=str(file))
 
         remaining_export_types = [
             et
