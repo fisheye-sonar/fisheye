@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 
 
 def tracker_output_to_dict_rows(data: dict):
@@ -89,7 +89,7 @@ def yolo_to_mot(bbox: Union[dict, list], img_width, img_height):
     return bbox
 
 
-def dict_rows_to_mot_format(rows: list[dict], img_width, img_height) -> list[dict]:
+def dict_rows_to_mot_format(rows: List[dict], img_width, img_height) -> List[dict]:
     """Convert tracking row dictionaries (YOLO format) to MOT formatted list of dictionaries.
 
     Args:
