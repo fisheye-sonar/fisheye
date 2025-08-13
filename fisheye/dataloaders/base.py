@@ -47,7 +47,9 @@ class BaseDataset(Dataset):
                 self.num_frames_bg_subtract // self.batch_size * self.batch_size + 1,
             )
             frames_for_bg_subtract, unwarped_frames_for_bg_subtract = self.load_frames(
-                self.start_frame, self.start_frame + num_frames_bg, return_unwarped=True
+                self.start_frame,
+                self.start_frame + num_frames_bg,
+                return_unwarped=self.return_unwarped or self.return_echogram,
             )
 
             if self.return_unwarped or self.return_echogram:
