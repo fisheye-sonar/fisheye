@@ -191,6 +191,7 @@ def run_tracker(
         "initialized_tracker",
         tracker_type=tracking_config.type,
         max_age=tracking_config.max_age,
+        min_hits=tracking_config.min_hits,
         iou_threshold=tracking_config.iou_threshold,
         reverse=tracking_config.reverse,
     )
