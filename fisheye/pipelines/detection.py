@@ -43,6 +43,8 @@ class ObjectDetectionPipeline:
         if not model:
             raise ValueError("A model must be specified in the pipeline configuration.")
 
+        self.dataloader, self.dataset = create_dataloader(dataset_config)
+
         self.model = (
             YOLOv5ObjectDetectionModel(model)
             if isinstance(model.weights, str)
@@ -51,7 +53,7 @@ class ObjectDetectionPipeline:
         logger.info(
             f"initialized_detector", model=type(self.model).__name__, device=self.device
         )
-        self.dataloader, self.dataset = create_dataloader(dataset_config)
+
         self.metadata = self.dataset.metadata
         self.use_multithreading = config.use_multithreading
         self.max_workers = config.max_workers
