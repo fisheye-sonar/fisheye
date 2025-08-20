@@ -26,7 +26,11 @@ def get_version_from_detector(path: str):
     except FileNotFoundError as e:
         raise FileNotFoundError(f"Could not find {path}: {e}")
 
-    return model.fisheye_version if hasattr(model, "fisheye_version") else None
+    return (
+        model.fisheye_version
+        if hasattr(model, "fisheye_version")
+        else Path(model_path).name
+    )
 
 
 __app_version__ = get_app_version_from_pyproject()
