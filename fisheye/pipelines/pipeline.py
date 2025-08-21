@@ -43,7 +43,7 @@ class DetectTrackCountPipeline:
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
     ) -> List:
 
-        if output_dir is None:
+        if not output_dir:
             output_dir = file.parent
 
         logger.info("file_processing_started", file_path=str(file))

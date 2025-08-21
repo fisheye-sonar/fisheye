@@ -52,7 +52,7 @@ def get_valid_files(
     output_dir: Union[str, Path],
 ) -> List[Path]:
     """Return all valid files from one or more input paths (file or directory)."""
-    no_output_dir = output_dir is None
+    missing_output_dir = not output_dir
     if output_dir:
         output_dir = Path(output_dir)
 
@@ -74,7 +74,7 @@ def get_valid_files(
 
         # Exclude files if they have already been processed
         for file in candidate_files:
-            if no_output_dir:
+            if missing_output_dir:
                 output_dir = file.parent
             expected_output_file = output_dir / f"FCe_{file.stem}_ID_.txt"
             if expected_output_file.exists():

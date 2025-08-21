@@ -1,5 +1,5 @@
 defaults:
-  - platform: base  # Update with different YAML if you have another platform and different optimized configs
+  - platform: base  # Update with different YAML if you have another platform or different optimized configs
   - override hydra/hydra_logging: none
   - override hydra/job_logging: none
 
