@@ -16,8 +16,11 @@ def is_valid_file(file_path: Path) -> bool:
     }
 
 
-def is_valid_dir(dir_path: Path) -> bool:
+def is_valid_dir(dir_path: Union[Path, str]) -> bool:
     """Check if the directory is valid."""
+    if isinstance(dir_path, str):
+        dir_path = Path(dir_path)
+
     return dir_path.is_dir()
 
 
@@ -49,7 +52,10 @@ def get_valid_files(
     output_dir: Union[str, Path],
 ) -> List[Path]:
     """Return all valid files from one or more input paths (file or directory)."""
-    output_dir = Path(output_dir)
+    no_output_dir = output_dir is None
+    if output_dir:
+        output_dir = Path(output_dir)
+
     if isinstance(inputs, (str, Path)):
         inputs = [inputs]
 
@@ -68,6 +74,8 @@ def get_valid_files(
 
         # Exclude files if they have already been processed
         for file in candidate_files:
+            if no_output_dir:
+                output_dir = file.parent
             expected_output_file = output_dir / f"FCe_{file.stem}_ID_.txt"
             if expected_output_file.exists():
                 logger.warning("FC_txt_exists_already", file=file.name)

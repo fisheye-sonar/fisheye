@@ -42,6 +42,10 @@ class DetectTrackCountPipeline:
         job_id: Optional[str] = None,
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
     ) -> List:
+
+        if output_dir is None:
+            output_dir = file.parent
+
         logger.info("file_processing_started", file_path=str(file))
         # Shallow copy of YOLODatasetConfig with updated fields
         self.dataset_cfg = replace(
