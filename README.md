@@ -55,18 +55,34 @@ Run `chmod +x run.sh`
 
 
 ## How to Run the App
-1. Open the YAML file in any text editor (like VS Code, Notepad, or TextEdit), and look for lines like this:
+1. Open the config file located at `configs/config.yaml` in any text editor (like VS Code, Notepad, or TextEdit), and look for lines like this:
 
-    `input_path:`
-    
-    `output_dir: `    
+```
+    input_path:
+    output_dir:  
+```    
 
-Update to your path locations, e.g.:
-    
+2. Update to your path locations
+   - `input_path` can point to either:
+     - A directory contianing multiple ARIS files
+     - A single ARIS file
+   - `output_dir` (optional):
+     - If not specified, output files will be written to the same directory where the ARIS file(s) are located
+     - If specified, all output files are written directly to that location
+
+   Example:
+    ```
     input_path: /home/fisheye/
+    output_dir:
+   ```
+    Or
+    ```
+    input_path: /home/fisheye/
+    output_dir: /home/fisheye/outputs/
+    ```
+        
 
-
-2. Once the values are set, open your Terminal. Navigate to the project folder using the cd command. 
+3. Once the values are set, open your Terminal. Navigate to the project folder using the cd command. 
 
     `cd ~/home/fisheye/code/fisheye/`
 

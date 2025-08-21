@@ -5,6 +5,7 @@ import hydra
 import structlog
 from omegaconf import DictConfig
 
+from fisheye.common.file_system import is_valid_dir
 from fisheye.common.logging import setup_logging
 from fisheye.common.system import check_disk_space, generate_job_id
 from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig, YOLODatasetConfig
@@ -30,7 +31,10 @@ def run_pipeline(cfg: DictConfig):
     dataset_config = platform_cfg.dataset
     model_config = platform_cfg.model
 
-    check_disk_space(path=output_dir)  # Make sure there's enough space to store results
+    check_disk_space(
+        path=output_dir if output_dir else input_path
+    )  # Make sure there's enough space to store
+    # results
     project_root = Path(__file__).resolve().parents[1]
 
     weights, device = model_config.weights, model_config.device
@@ -59,6 +63,13 @@ def run_pipeline(cfg: DictConfig):
 
     if results:
         if ExportType.SUMMARY_CSV in export_types:
+            if not output_dir:
+                output_dir = (
+                    Path(input_path)
+                    if is_valid_dir(input_path)
+                    else Path(input_path).parent
+                )
+
             save_to_disk(
                 results, output_dir, export_types=ExportType.SUMMARY_CSV, job_id=job_id
             )
