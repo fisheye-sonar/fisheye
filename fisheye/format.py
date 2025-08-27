@@ -1,7 +1,7 @@
-from typing import Union
+from typing import Union, Dict, List
 
 
-def tracker_output_to_dict_rows(data: dict):
+def tracker_output_to_dict_rows(data: Dict):
     """Convert tracker output containing bounding boxes from original image space in [x1, y1, x2, y2] format to
     YOLO-style dict rows containing bounding boxes in [x_center, y_center, width, height] relative to the original image
     space.
@@ -45,7 +45,7 @@ def tracker_output_to_dict_rows(data: dict):
     return yolo_rows
 
 
-def yolo_to_mot(bbox: Union[dict, list], img_width, img_height):
+def yolo_to_mot(bbox: Union[Dict, List], img_width, img_height):
     """Convert a YOLO-formatted bounding box to MOT format.
 
     YOLO format: [x_center, y_center, width, height]
@@ -89,7 +89,7 @@ def yolo_to_mot(bbox: Union[dict, list], img_width, img_height):
     return bbox
 
 
-def dict_rows_to_mot_format(rows: list[dict], img_width, img_height) -> list[dict]:
+def dict_rows_to_mot_format(rows: List[Dict], img_width, img_height) -> List[Dict]:
     """Convert tracking row dictionaries (YOLO format) to MOT formatted list of dictionaries.
 
     Args:
