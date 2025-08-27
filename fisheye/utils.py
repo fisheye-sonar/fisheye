@@ -107,7 +107,10 @@ def get_unwarped_distance_and_theta(row: pd.Series):
 
     distance = round(distance, 2)
     theta = round(
-        metadata.beam_width_data.iloc[points_xy_unwarped[0]]["beam_center"], 2
+        metadata.beam_width_data.iloc[
+            min(points_xy_unwarped[0], metadata.BeamCount - 1)
+        ]["beam_center"],
+        2,
     )
 
     return distance, theta
