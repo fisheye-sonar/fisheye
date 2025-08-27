@@ -1,7 +1,13 @@
+import warnings
 from pathlib import Path
 
 import tomli
+from torch.serialization import SourceChangeWarning
 from yolov5.models.experimental import attempt_load
+
+
+# Globally suppress SourceChangeWarning to avoid warnings when loading Torch models saved with a different NumPy version
+warnings.filterwarnings("ignore", category=SourceChangeWarning)
 
 
 def get_app_version_from_pyproject():
