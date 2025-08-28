@@ -29,11 +29,11 @@ if [ "$ARCH" = "aarch64" ]; then
 
 elif [[ "$OS" == "Darwin" ]]; then
     echo "Mac detected: installing torch 2.6.0 from PyPI..."
-    pip install "torch==2.6.0"
+    pip install "torch==2.6.0" "torchvision==0.21.0"
 
 else
     echo "Other system detected: installing torch and torchvision from PyPI..."
-    pip install "torch==2.6.0"
+    pip install "torch==2.6.0" "torchvision==0.21.0"
 fi
 
 echo "Installing remaining dependencies via Poetry..."
