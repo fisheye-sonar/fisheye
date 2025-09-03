@@ -21,6 +21,7 @@ class YOLOv5ModelConfig(BaseModelConfig):
     Exposing class variables from YOLOv5's AutoShape.
     """
 
+    type: str = DetectorType.YOLOv5.value
     agnostic: bool = False  # NMS class-agnostic
     multi_label: bool = False  # NMS multiple labels per box
     classes: Optional[List[int]] = (
@@ -30,8 +31,19 @@ class YOLOv5ModelConfig(BaseModelConfig):
     amp: bool = False  # Automatic Mixed Precision (AMP) inference
 
 
+@dataclass
+class YOLOv11ModelConfig(BaseModelConfig):
+    """YOLOv11 model config.
+
+    Exposing class variables from YOLOv5's AutoShape.
+    """
+
+    type: str = DetectorType.YOLOv11.value
+
+
 DETECTOR_CONFIG_REGISTRY: Dict[DetectorType, Type[BaseModelConfig]] = {
     DetectorType.YOLOv5: YOLOv5ModelConfig,
+    DetectorType.YOLOv11: YOLOv5ModelConfig,
 }
 
 
