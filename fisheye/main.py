@@ -8,8 +8,12 @@ from omegaconf import DictConfig
 from fisheye.common.file_system import is_valid_dir
 from fisheye.common.logging import setup_logging
 from fisheye.common.system import check_disk_space, generate_job_id
-from fisheye.configs import YOLOv5ModelConfig, ObjectDetectionConfig, YOLODatasetConfig
-from fisheye.enums import ExportType
+from fisheye.configs import (
+    ObjectDetectionConfig,
+    YOLODatasetConfig,
+    get_detector_config,
+)
+from fisheye.enums import ExportType, DetectorType
 from fisheye.export import save_to_disk, parse_export_options
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 from fisheye.version import __app_version__, get_version_from_detector
@@ -38,27 +42,30 @@ def run_pipeline(cfg: DictConfig):
     project_root = Path(__file__).resolve().parents[1]
 
     weights, device = model_config.weights, model_config.device
-    model_path = str((project_root / weights).resolve())
+    resolved_weights_path = str((project_root / weights).resolve())
 
     # Bind job ID, app, and detector version to logger
     logger = structlog.get_logger().bind(
         job_id=job_id,
         app_version=__app_version__,
-        detector_version=get_version_from_detector(model_path),
+        detector_version=get_version_from_detector(resolved_weights_path),
     )
 
-    # Build configs
-    yolo_cfg = YOLOv5ModelConfig(weights=model_path, device=device)
+    # Build model config
+    detector_type = DetectorType(platform_cfg.model.type)
+    detector_cfg = get_detector_config(detector_type, **platform_cfg.model)
+    detector_cfg.weights = resolved_weights_path
+
+    # Build inference + dataset configs
     inference_config = dict(platform_cfg.inference)
-    inference_config["model"] = yolo_cfg
-    detection_cfg = ObjectDetectionConfig(**inference_config)
+    inference_config["model"] = detector_cfg
     dataset_cfg = YOLODatasetConfig(**dataset_config)
 
     start_time = time.time()
     logger.info("inference_started", start_time=start_time)
 
     results = DetectTrackCountPipeline(
-        detector_cfg=detection_cfg, dataset_cfg=dataset_cfg
+        detector_cfg=ObjectDetectionConfig(**inference_config), dataset_cfg=dataset_cfg
     ).run(input_path, output_dir, export_types, job_id, upstream_direction)
 
     if results:

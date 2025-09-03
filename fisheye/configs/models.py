@@ -1,14 +1,15 @@
 from dataclasses import dataclass
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Type, Dict
 
 from fisheye.detect.base import BaseModel
-from fisheye.enums import DeviceType
+from fisheye.enums import DeviceType, DetectorType
 
 
 @dataclass
 class BaseModelConfig:
     """Base model configuration."""
 
+    type: Optional[str] = None
     weights: Union[str, BaseModel] = None
     device: str = DeviceType.MPS.value
 
@@ -27,3 +28,22 @@ class YOLOv5ModelConfig(BaseModelConfig):
     )
     max_det: int = 300  # Maximum number of detections per image
     amp: bool = False  # Automatic Mixed Precision (AMP) inference
+
+
+DETECTOR_CONFIG_REGISTRY: Dict[DetectorType, Type[BaseModelConfig]] = {
+    DetectorType.YOLOv5: YOLOv5ModelConfig,
+}
+
+
+def get_detector_config(
+    model_type: Union[DetectorType, str], **kwargs
+) -> BaseModelConfig:
+    """Return the appropriate config class for the given detector type."""
+    if isinstance(model_type, DetectorType):
+        key = model_type
+    else:
+        key = model_type
+
+    config_cls = DETECTOR_CONFIG_REGISTRY[key]
+
+    return config_cls(**kwargs)

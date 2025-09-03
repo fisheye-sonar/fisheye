@@ -1,6 +1,7 @@
 import gc
 import random
 import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from typing import Callable, List, Any
@@ -38,13 +39,20 @@ def safe_execution(
                     return func(*args, **kwargs)
                 except exceptions as e:
                     last_exception = e
+                    tb = traceback.extract_tb(e.__traceback__)
+                    # Get the last traceback entry (where the error occurred)
+                    last_call = tb[-1] if tb else None
+
                     logger.error(
                         "safe_execution_exception",
                         function=func.__name__,
                         attempt=attempt,
                         error=str(e),
+                        code_line=last_call.line if last_call else None,
+                        file=last_call.filename if last_call else None,
+                        function_name=last_call.name if last_call else None,
+                        line=last_call.lineno if last_call else None,
                     )
-
                     if attempt < max_retries and delay:
                         backoff = delay * (2 ** (attempt - 1))
                         time.sleep(backoff)
