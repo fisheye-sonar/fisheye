@@ -35,7 +35,7 @@ class YOLOv5ModelConfig(BaseModelConfig):
 class YOLOv11ModelConfig(BaseModelConfig):
     """YOLOv11 model config.
 
-    Exposing class variables from YOLOv5's AutoShape.
+    Exposing class variables from Ultralytic's YOLO.
     """
 
     type: str = DetectorType.YOLOv11.value
@@ -43,7 +43,7 @@ class YOLOv11ModelConfig(BaseModelConfig):
 
 DETECTOR_CONFIG_REGISTRY: Dict[DetectorType, Type[BaseModelConfig]] = {
     DetectorType.YOLOv5: YOLOv5ModelConfig,
-    DetectorType.YOLOv11: YOLOv5ModelConfig,
+    DetectorType.YOLOv11: YOLOv11ModelConfig,
 }
 
 
