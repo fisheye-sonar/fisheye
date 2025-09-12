@@ -34,13 +34,14 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
         logger.warning(f"No counts were found in the provided data. Nothing to export.")
         return
 
-    out_file = out_file + "_" + Path(flattened_data[0].get("file_name")).stem + ".csv"
+    out_file = out_file + "_" + Path(flattened_data[0].get("Source.Name")).stem + ".csv"
 
     # Extract ARISMetadata fields and flatten them into each row
     expanded_data = []
     for item in flattened_data:
         new_item = item.copy()
-        meta = new_item.pop("metadata", None)
+        meta = new_item["metadata"]
+        # meta = new_item.pop("metadata", None)
 
         if isinstance(meta, ARISMetadata):
             new_item.update(meta.__dict__)
@@ -48,6 +49,23 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
         expanded_data.append(new_item)
 
     df = pd.DataFrame(expanded_data)
+
+    if not df["bbox"].isna().all():
+        # Calculate the distance from the sonar camera to the fish in an unwarped frame
+        df[["R (m)", "Theta"]] = df.apply(
+            get_unwarped_distance_and_theta, axis=1, result_type="expand"
+        )
+
+    # Reorganize and clean up dataframe
+    df.drop(columns=["metadata"], inplace=True)
+    cols = df.columns.tolist()
+
+    if "R (m)" in cols:
+        cols.insert(3, cols.pop(cols.index("R (m)")))
+    if "Theta" in cols:
+        cols.insert(4, cols.pop(cols.index("Theta")))
+
+    df = df[cols]
 
     with open(out_file, "w") as f:
         df.to_csv(out_file, index=False)
@@ -76,17 +94,17 @@ def to_summary_csv(data, out_dir, job_id: str = None):
 
     df = pd.DataFrame(flattened_data)
     df["fish_id"] = df.get("fish_id", pd.NA)
-    df["direction"] = df.get("direction", pd.NA)
+    df["Dir"] = df.get("Dir", pd.NA)
 
     # Get all unique file names upfront
-    all_files = df["file_name"].unique()
+    all_files = df["Source.Name"].unique()
 
     # Only valid rows for counting
-    valid_rows = df.dropna(subset=["fish_id", "direction"])
+    valid_rows = df.dropna(subset=["fish_id", "Dir"])
 
     if not valid_rows.empty:
         direction_counts = (
-            valid_rows.groupby(["file_name", "fish_id", "direction"])
+            valid_rows.groupby(["Source.Name", "fish_id", "Dir"])
             .size()
             .unstack(fill_value=0)
         )
@@ -102,7 +120,7 @@ def to_summary_csv(data, out_dir, job_id: str = None):
             direction_counts["Down"] > direction_counts["Up"]
         ).astype(int)
 
-        file_counts = direction_counts.groupby("file_name")[
+        file_counts = direction_counts.groupby("Source.Name")[
             ["absolute_up", "absolute_down"]
         ].sum()
 
@@ -117,7 +135,7 @@ def to_summary_csv(data, out_dir, job_id: str = None):
             file_counts.loc[file] = {"absolute_up": 0, "absolute_down": 0}
 
     file_counts["net_count"] = file_counts["absolute_up"] - file_counts["absolute_down"]
-    final_result = file_counts.reset_index().rename(columns={"index": "file_name"})
+    final_result = file_counts.reset_index().rename(columns={"index": "Source.Name"})
 
     with open(out_file, "w") as f:
         final_result.to_csv(out_file, index=False)
@@ -144,7 +162,7 @@ def to_fc_txt(data, out_dir):
 
     if not df["bbox"].isna().all():
         # Calculate the distance from the sonar camera to the fish in an unwarped frame
-        df[["distance", "theta"]] = df.apply(
+        df[["R (m)", "Theta"]] = df.apply(
             get_unwarped_distance_and_theta, axis=1, result_type="expand"
         )
 
@@ -181,11 +199,11 @@ def to_fc_txt(data, out_dir):
     header_line = "  ".join(f"{h:<{col_width}}" for h in headers)
     separator_line = "-" * len(header_line)
 
-    for file_name, group_df in df.groupby("file_name"):
+    for file_name, group_df in df.groupby("Source.Name"):
         match = re.search(r"(\d{4}-\d{2}-\d{2})", file_name)
         # Attempt to get date from filename
         date = match.group(1) if match else datetime.now().strftime("%Y-%m-%d")
-        group_df_sorted = group_df.sort_values(by="frame_id")
+        group_df_sorted = group_df.sort_values(by="Frame#")
 
         row_data = {
             "File": 1,
@@ -221,18 +239,18 @@ def to_fc_txt(data, out_dir):
             has_data = (
                 bbox is not None
                 and len(bbox) > 0
-                and "distance" in row
-                and pd.notna(row["distance"])
+                and "R (m)" in row
+                and pd.notna(row["R (m)"])
             )
 
             if has_data:
                 row_data = {
                     "File": 1,
                     "Total": row_data.get("Total", 0) + 1,
-                    "Frame#": row.get("frame_id", 0),
-                    "Dir": row.get("direction"),
-                    "R (m)": row.get("distance", 0),
-                    "Theta": row.get("theta", 0),
+                    "Frame#": row.get("Frame#", 0),
+                    "Dir": row.get("Dir"),
+                    "R (m)": row.get("R (m)", 0),
+                    "Theta": row.get("Theta", 0),
                     "L(cm)": 0.0,
                     "dR(cm)": 0.0,
                     "L/dR": 0.0,
