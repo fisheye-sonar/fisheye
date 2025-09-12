@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Union, List, Type, Dict
 
 from fisheye.detect.base import BaseModel
@@ -9,7 +9,7 @@ from fisheye.enums import DeviceType, DetectorType
 class BaseModelConfig:
     """Base model configuration."""
 
-    type: Optional[str] = None
+    type: DetectorType = field(init=False)
     weights: Union[str, BaseModel] = None
     device: str = DeviceType.MPS.value
 
@@ -33,10 +33,7 @@ class YOLOv5ModelConfig(BaseModelConfig):
 
 @dataclass
 class YOLOv11ModelConfig(BaseModelConfig):
-    """YOLOv11 model config.
-
-    Exposing class variables from Ultralytic's YOLO.
-    """
+    """YOLOv11 model config."""
 
     type: str = DetectorType.YOLOv11.value
 
@@ -51,11 +48,9 @@ def get_detector_config(
     model_type: Union[DetectorType, str], **kwargs
 ) -> BaseModelConfig:
     """Return the appropriate config class for the given detector type."""
-    if isinstance(model_type, DetectorType):
-        key = model_type
-    else:
-        key = model_type
+    if not isinstance(model_type, DetectorType):
+        model_type = DetectorType(model_type)
 
-    config_cls = DETECTOR_CONFIG_REGISTRY[key]
+    config_cls = DETECTOR_CONFIG_REGISTRY[model_type]
 
     return config_cls(**kwargs)

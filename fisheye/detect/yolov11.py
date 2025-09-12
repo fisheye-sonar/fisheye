@@ -34,19 +34,20 @@ class YOLOv11ObjectDetectionModel(BaseModel):
     @torch.inference_mode()
     def predict(self, images: Union[torch.Tensor, List]):
         """Forward pass for the model."""
+        # returns [B, 5, N] - [x1, y1, x2, y2, conf]
         prediction, _ = self.model(images)
 
         # e.g. shape(1, 84, 6300) to shape(1, 6300, 84)
         prediction = prediction.transpose(-1, -2)
 
-        # Single-class - default to 1 so that it doesn't affect NMS
-        cls_idx = torch.ones(
-            (*prediction.shape[:2], 1),  # [B, N, 1]
-            device=prediction.device,
+        # Concatenate a single-class column (1) directly so that it doesn't affect NMS + filtering
+        # output.shape = [B, N, 6]
+        output = torch.cat(
+            [
+                prediction,
+                torch.ones((*prediction.shape[:2], 1), device=prediction.device),
+            ],
+            dim=2,
         )
-
-        # Concatenate [x1, y1, x2, y2, conf] + cls_idx
-        # [B, N, 6]
-        output = torch.cat([prediction, cls_idx], dim=2)
 
         return output
