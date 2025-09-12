@@ -12,8 +12,10 @@ from fisheye.configs import (
     ObjectDetectionPipelineOutput,
     ObjectDetectionConfig,
 )
+
 from fisheye.dataloaders import create_dataloader
-from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
+from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
+from fisheye.enums import DetectorType
 
 # Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
@@ -45,11 +47,12 @@ class ObjectDetectionPipeline:
 
         self.dataloader, self.dataset = create_dataloader(dataset_config)
 
+        detector_type = DetectorType(model.type)
+        model_cls = DETECTOR_CLASS_REGISTRY[detector_type]
         self.model = (
-            YOLOv5ObjectDetectionModel(model)
-            if isinstance(model.weights, str)
-            else model.weights
+            model_cls(model) if isinstance(model.weights, str) else model.weights
         )
+
         logger.info(
             f"initialized_detector", model=type(self.model).__name__, device=self.device
         )

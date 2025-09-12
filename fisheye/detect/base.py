@@ -29,6 +29,7 @@ class BaseModel:
         """Sets up the model instance."""
         self.model = self._load_model(model_path, device)
         self.model.eval()
+        self.model.to(device)
 
     def _load_model(self, model_path, device):
         """Load model weights from a given file path.
@@ -42,6 +43,7 @@ class BaseModel:
         """
         raise NotImplementedError("`_load_model` must be implemented.")
 
+    @torch.inference_mode()
     def predict(self, x, *args, **kwargs) -> torch.Tensor:
         """Forward pass for the model.
 
@@ -51,5 +53,4 @@ class BaseModel:
         Returns:
             torch.Tensor: The model's output.
         """
-        with torch.no_grad():
-            return self.model(x, *args, **kwargs)
+        return self.model(x, *args, **kwargs)

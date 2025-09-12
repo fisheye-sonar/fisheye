@@ -75,5 +75,12 @@ class IgnoredFilePrefixes(str, Enum):
     DESKTOP_INI = "desktop.ini"
 
 
+class DetectorType(Enum):
+    """Types of detectors currently supported."""
+
+    YOLOv5 = "yolov5"
+    YOLOv11 = "yolov11"
+
+
 IGNORED_DIR_NAMES = {e.value for e in IgnoredSystemDirs}
 IGNORED_FILE_PREFIXES = {e.value for e in IgnoredFilePrefixes}

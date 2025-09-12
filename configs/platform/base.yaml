@@ -5,6 +5,7 @@ dataset:
   max_workers: 2  # For multithreading
 
 model:
+  type: yolov5
   weights: weights/cfc_detect_yolov5s_v0.pt
   device: cpu
 

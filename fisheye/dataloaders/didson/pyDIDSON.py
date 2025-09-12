@@ -305,6 +305,7 @@ class DIDSON:
                     "x_meter_stop": x_meter_stop,
                     "y_meter_stop": y_meter_stop,
                     "beam_width_dir": os.path.abspath(beam_width_dir),
+                    "beam_width_data": beam_width_data,
                 }
             )
         else:
