@@ -12,7 +12,7 @@ def sample_data():
             {
                 "Source.Name": "2025-06-13_000000.aris",
                 "Frame#": 1,
-                "fish_id": 1,
+                "ID": 1,
                 "Dir": "left",
                 "R (m)": 17,
                 "Theta": 1.7,
@@ -45,7 +45,7 @@ def sample_data():
             {
                 "Source.Name": "2025-06-13_000000.aris",
                 "Frame#": 2,
-                "fish_id": 1,
+                "ID": 1,
                 "Dir": "right",
                 "R (m)": 17,
                 "Theta": 1.7,

@@ -129,7 +129,7 @@ class DetectTrackCountPipeline:
                     "Source.Name": Path(file).name,
                     "Frame#": frame,
                     "Dir": "Up" if upstream_direction == "left" else "Down",
-                    "fish_id": track,
+                    "ID": track,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
                 }
@@ -139,7 +139,7 @@ class DetectTrackCountPipeline:
                     "Source.Name": Path(file).name,
                     "Frame#": frame,
                     "Dir": "Up" if upstream_direction == "right" else "Down",
-                    "fish_id": track,
+                    "ID": track,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
                 }
@@ -151,7 +151,7 @@ class DetectTrackCountPipeline:
                     "Source.Name": Path(file).name,
                     "Frame#": None,
                     "Dir": None,
-                    "fish_id": None,
+                    "ID": None,
                     "bbox": None,
                     "metadata": metadata,
                 }
