@@ -41,7 +41,6 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
     for item in flattened_data:
         new_item = item.copy()
         meta = new_item["metadata"]
-        # meta = new_item.pop("metadata", None)
 
         if isinstance(meta, ARISMetadata):
             new_item.update(meta.__dict__)
@@ -93,18 +92,18 @@ def to_summary_csv(data, out_dir, job_id: str = None):
         return
 
     df = pd.DataFrame(flattened_data)
-    df["fish_id"] = df.get("fish_id", pd.NA)
+    df["ID"] = df.get("ID", pd.NA)
     df["Dir"] = df.get("Dir", pd.NA)
 
     # Get all unique file names upfront
     all_files = df["Source.Name"].unique()
 
     # Only valid rows for counting
-    valid_rows = df.dropna(subset=["fish_id", "Dir"])
+    valid_rows = df.dropna(subset=["ID", "Dir"])
 
     if not valid_rows.empty:
         direction_counts = (
-            valid_rows.groupby(["Source.Name", "fish_id", "Dir"])
+            valid_rows.groupby(["Source.Name", "ID", "Dir"])
             .size()
             .unstack(fill_value=0)
         )
