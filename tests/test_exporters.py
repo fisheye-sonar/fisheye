@@ -10,10 +10,12 @@ def sample_data():
     return [
         [
             {
-                "file_name": "2025-06-13_000000.aris",
-                "frame_id": 1,
-                "fish_id": 1,
-                "direction": "left",
+                "Source.Name": "2025-06-13_000000.aris",
+                "Frame#": 1,
+                "ID": 1,
+                "Dir": "left",
+                "R (m)": 17,
+                "Theta": 1.7,
                 "bbox": [
                     np.float64(0.471),
                     np.float64(0.374),
@@ -41,10 +43,12 @@ def sample_data():
                 ),
             },
             {
-                "file_name": "2025-06-13_000000.aris",
-                "frame_id": 2,
-                "fish_id": 1,
-                "direction": "right",
+                "Source.Name": "2025-06-13_000000.aris",
+                "Frame#": 2,
+                "ID": 1,
+                "Dir": "right",
+                "R (m)": 17,
+                "Theta": 1.7,
                 "bbox": [
                     np.float64(0.471),
                     np.float64(0.374),
@@ -84,7 +88,7 @@ def test_detailed_csv_creates_file_and_content(tmp_path):
     assert len(out_files) == 1
 
     df = pd.read_csv(out_files[0])
-    assert "file_name" in df.columns
+    assert "Source.Name" in df.columns
     assert df.shape[0] == 2  # 2 rows exported
 
 
@@ -97,7 +101,7 @@ def test_summary_csv_creates_file_and_content(tmp_path):
     assert len(out_files) == 1
 
     df = pd.read_csv(out_files[0])
-    assert "file_name" in df.columns
+    assert "Source.Name" in df.columns
     assert "net_count" in df.columns
     assert df.shape[0] == 1  # 1 unique file_name
 

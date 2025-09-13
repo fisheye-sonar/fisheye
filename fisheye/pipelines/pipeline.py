@@ -123,22 +123,23 @@ class DetectTrackCountPipeline:
         )
 
         if crossing_frames and (left_count or right_count):
+            # Using the same naming conventions in ARISFish Software
             formatted_crossings = [
                 {
-                    "fish_id": track,
-                    "direction": "Up" if upstream_direction == "left" else "Down",
-                    "frame_id": frame,
-                    "file_name": Path(file).name,
+                    "Source.Name": Path(file).name,
+                    "Frame#": frame,
+                    "Dir": "Up" if upstream_direction == "left" else "Down",
+                    "ID": track,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
                 }
                 for track, frame, bbox in crossing_frames["left"]
             ] + [
                 {
-                    "fish_id": track,
-                    "direction": "Up" if upstream_direction == "right" else "Down",
-                    "frame_id": frame,
-                    "file_name": Path(file).name,
+                    "Source.Name": Path(file).name,
+                    "Frame#": frame,
+                    "Dir": "Up" if upstream_direction == "right" else "Down",
+                    "ID": track,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
                 }
@@ -147,10 +148,10 @@ class DetectTrackCountPipeline:
         else:
             formatted_crossings = [
                 {
-                    "fish_id": None,
-                    "direction": None,
-                    "frame_id": None,
-                    "file_name": Path(file).name,
+                    "Source.Name": Path(file).name,
+                    "Frame#": None,
+                    "Dir": None,
+                    "ID": None,
                     "bbox": None,
                     "metadata": metadata,
                 }
