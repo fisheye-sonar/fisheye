@@ -13,8 +13,10 @@ from fisheye.configs import (
     YOLODatasetConfig,
     get_detector_config,
 )
+from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
 from fisheye.enums import ExportType, DetectorType
 from fisheye.export import save_to_disk, parse_export_options
+from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 from fisheye.version import __app_version__, get_version_from_detector
 
@@ -51,22 +53,30 @@ def run_pipeline(cfg: DictConfig):
         detector_version=get_version_from_detector(resolved_weights_path),
     )
 
-    # Build model config
+    # Build config + model for detection
     detector_type = DetectorType(platform_cfg.model.type)
     detector_cfg = get_detector_config(detector_type, **platform_cfg.model)
     detector_cfg.weights = resolved_weights_path
+    detector = DETECTOR_CLASS_REGISTRY[detector_type](detector_cfg)
 
-    # Build inference + dataset configs
-    inference_config = dict(platform_cfg.inference)
-    inference_config["model"] = detector_cfg
+    # Build runtime configs
+    runtime_config = dict(platform_cfg.inference)
+    runtime_config["model"] = detector_cfg
+
+    # Build dataset configs
     dataset_cfg = YOLODatasetConfig(**dataset_config)
+
+    # Build out individual pipeline(s)
+    detector_pipe = ObjectDetectionPipeline(
+        model=detector, config=ObjectDetectionConfig(**runtime_config)
+    )
 
     start_time = time.time()
     logger.info("inference_started", start_time=start_time)
 
-    results = DetectTrackCountPipeline(
-        detector_cfg=ObjectDetectionConfig(**inference_config), dataset_cfg=dataset_cfg
-    ).run(input_path, output_dir, export_types, job_id, upstream_direction)
+    results = DetectTrackCountPipeline(detector_pipe, dataset_cfg=dataset_cfg).run(
+        input_path, output_dir, export_types, job_id, upstream_direction
+    )
 
     if results:
         if ExportType.SUMMARY_CSV in export_types:

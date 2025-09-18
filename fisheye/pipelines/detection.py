@@ -14,8 +14,7 @@ from fisheye.configs import (
 )
 
 from fisheye.dataloaders import create_dataloader
-from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
-from fisheye.enums import DetectorType
+from fisheye.detect.base import BaseModel
 
 # Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
@@ -33,31 +32,26 @@ class ObjectDetectionPipeline:
 
     def __init__(
         self,
+        model: Optional[BaseModel] = None,
         config: ObjectDetectionConfig = ObjectDetectionConfig(),
-        dataset_config: Optional[YOLODatasetConfig] = None,
         postprocessing_params: Dict[str, Any] = None,
         *args,
         **kwargs,
     ):
-        model = config.model
-        self.device = model.device
-
         if not model:
             raise ValueError("A model must be specified in the pipeline configuration.")
 
-        self.dataloader, self.dataset = create_dataloader(dataset_config)
-
-        detector_type = DetectorType(model.type)
-        model_cls = DETECTOR_CLASS_REGISTRY[detector_type]
-        self.model = (
-            model_cls(model) if isinstance(model.weights, str) else model.weights
-        )
+        self.model = model
+        self.device = model.config.device
 
         logger.info(
             f"initialized_detector", model=type(self.model).__name__, device=self.device
         )
 
-        self.metadata = self.dataset.metadata
+        self.dataloader: Optional[YOLODatasetConfig] = None
+        self.dataset: Optional[Any] = None
+        self.metadata: Optional[Any] = None
+
         self.use_multithreading = config.use_multithreading
         self.max_workers = config.max_workers
         self.postprocessing_steps = (
@@ -90,6 +84,13 @@ class ObjectDetectionPipeline:
     def __call__(self, *args, **kwargs):
         """Executes the detection pipeline."""
         return self.run(*args, **kwargs)
+
+    def load_dataset(self, dataset_config: YOLODatasetConfig):
+        """Initializes the dataloader + dataset for the pipeline."""
+        self.dataloader, self.dataset = create_dataloader(dataset_config)
+        self.metadata = self.dataset.metadata
+
+        return self.dataloader, self.dataset
 
     def preprocess(self, image):
         image = image.to(self.device, non_blocking=True)
