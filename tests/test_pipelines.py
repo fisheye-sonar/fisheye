@@ -25,6 +25,7 @@ def test_preprocess():
 
     # Mock the model to be used in the pipeline
     mock_model = MagicMock()
+    mock_model.config.device = config.model.device
     mock_predict_return = torch.rand((1, 6, 6))
     mock_model.predict.return_value = mock_predict_return
 
@@ -33,7 +34,7 @@ def test_preprocess():
         YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
     ):
 
-        pipeline = ObjectDetectionPipeline(config, dataset_cfg)
+        pipeline = ObjectDetectionPipeline(mock_model, config)
 
         mock_image = torch.rand((1, 3, 640, 640))
         preprocessed_image = pipeline.preprocess(mock_image)
@@ -67,7 +68,8 @@ def test_object_detection_pipeline_no_postprocessing(use_multithreading):
         config = ObjectDetectionConfig(
             model=model_cfg, use_multithreading=use_multithreading
         )
-        pipeline = ObjectDetectionPipeline(config, dataset_cfg)
+        mock_model.config.device = config.model.device
+        pipeline = ObjectDetectionPipeline(mock_model, config)
 
         # Manually override the dataloader with a mock batch to ensure consistent input shape.
         # This is necessary because when `use_multithreading=True`, the pipeline slices the batch
@@ -128,8 +130,8 @@ def test_object_detection_pipeline_w_postprocessing_params(confs, use_multithrea
         config = ObjectDetectionConfig(
             model=model_cfg, use_multithreading=use_multithreading
         )
-
-        pipeline = ObjectDetectionPipeline(config, dataset_cfg, postprocessing_params)
+        mock_model.config.device = config.model.device
+        pipeline = ObjectDetectionPipeline(mock_model, config, postprocessing_params)
 
         # Manually override the dataloader with a mock batch to ensure consistent input shape.
         # This is necessary because when `use_multithreading=True`, the pipeline slices the batch
@@ -140,6 +142,10 @@ def test_object_detection_pipeline_w_postprocessing_params(confs, use_multithrea
         pipeline.dataloader = [(img_batch, None, shapes)]
 
         pipeline.model = mock_model
+        pipeline.metadata = MagicMock()
+        pipeline.metadata.image_meter_width = 1.0
+        pipeline.dataset = MagicMock()
+        pipeline.dataset.batch_size = batch_size
         output = pipeline()
 
         expected_calls = batch_size if use_multithreading else 1
@@ -191,7 +197,8 @@ def test_object_detection_pipeline_diff_postprocessing_structure(
         )
         batch_size = dataset_cfg.batch_size
 
-        pipeline = ObjectDetectionPipeline(config, dataset_cfg, postprocessing_param)
+        mock_model.config.device = config.model.device
+        pipeline = ObjectDetectionPipeline(mock_model, config, postprocessing_param)
 
         # Manually override the dataloader with a mock batch to ensure consistent input shape.
         # This is necessary because when `use_multithreading=True`, the pipeline slices the batch
@@ -202,6 +209,10 @@ def test_object_detection_pipeline_diff_postprocessing_structure(
         pipeline.dataloader = [(img_batch, None, shapes)]
 
         pipeline.model = mock_model
+        pipeline.metadata = MagicMock()
+        pipeline.metadata.image_meter_width = 1.0
+        pipeline.dataset = MagicMock()
+        pipeline.dataset.batch_size = batch_size
         output = pipeline()
 
         expected_calls = batch_size if use_multithreading else 1
@@ -231,7 +242,7 @@ def test_object_detection_pipeline_postprocessing_invalid_params():
         with pytest.raises(
             ValueError, match="Unknown postprocessing step: some_func_name"
         ):
-            ObjectDetectionPipeline(config, dataset_cfg, processing_params)
+            ObjectDetectionPipeline(mock_model, config, processing_params)
 
 
 def test_safe_execution_eventually_succeeds():

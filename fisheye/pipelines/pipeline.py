@@ -7,7 +7,7 @@ import structlog
 from fisheye.boxes import run_nms, normalize_boxes_for_tracking
 from fisheye.common.generic import safe_execution
 from fisheye.common.file_system import get_valid_files
-from fisheye.configs import ObjectDetectionConfig, YOLODatasetConfig
+from fisheye.configs import YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
@@ -24,11 +24,11 @@ class DetectTrackCountPipeline:
 
     def __init__(
         self,
-        detector_cfg: Optional[ObjectDetectionConfig] = None,
+        detect_pipe: Optional[ObjectDetectionPipeline] = None,
         tracker_cfg: Optional[TrackerConfig] = None,
         dataset_cfg: YOLODatasetConfig = None,
     ):
-        self.detector_cfg = detector_cfg if detector_cfg else ObjectDetectionConfig()
+        self.detect_pipe = detect_pipe
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
         self.nms_config = NMSConfig()
         self.dataset_cfg = dataset_cfg if dataset_cfg else YOLODatasetConfig()
@@ -52,10 +52,9 @@ class DetectTrackCountPipeline:
             self.dataset_cfg, filepath=file, start_frame=0, end_frame=0
         )
 
-        detector = ObjectDetectionPipeline(self.detector_cfg, self.dataset_cfg)
-        detections = detector()
-
-        metadata = detector.metadata
+        self.detect_pipe.load_dataset(self.dataset_cfg)
+        detections = self.detect_pipe()
+        metadata = self.detect_pipe.metadata
 
         # Get low confidence for ByteTrack
         self.nms_config.conf = 0.1
