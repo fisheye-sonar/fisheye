@@ -179,6 +179,7 @@ class DetectTrackCountPipeline:
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
+        rerun_and_overwrite_already_processed_files: bool = False,
     ) -> Union[List[List[dict]], List[dict]]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
@@ -193,7 +194,9 @@ class DetectTrackCountPipeline:
             dict: Tracking results and counts.
         """
 
-        valid_files = get_valid_files(file, output_dir)
+        valid_files = get_valid_files(
+            file, output_dir, rerun_and_overwrite_already_processed_files
+        )
         if not valid_files:
             logger.error(
                 f"Unable to process valid files. Please verify that the file path is correct and that the "

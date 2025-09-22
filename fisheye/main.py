@@ -29,6 +29,9 @@ def run_pipeline(cfg: DictConfig):
     output_dir = cfg.output_dir
     export_options = cfg.export_options
     upstream_direction = cfg.upstream_direction
+    rerun_and_overwrite_already_processed_files = (
+        cfg.rerun_and_overwrite_already_processed_files
+    )
 
     export_types = parse_export_options(export_options)
 
@@ -75,7 +78,12 @@ def run_pipeline(cfg: DictConfig):
     logger.info("inference_started", start_time=start_time)
 
     results = DetectTrackCountPipeline(detector_pipe, dataset_cfg=dataset_cfg).run(
-        input_path, output_dir, export_types, job_id, upstream_direction
+        input_path,
+        output_dir,
+        export_types,
+        job_id,
+        upstream_direction,
+        rerun_and_overwrite_already_processed_files,
     )
 
     if results:
