@@ -103,6 +103,7 @@ def run_pipeline(cfg: DictConfig):
 
 @hydra.main(config_path="../configs", config_name="config", version_base="1.3")
 def main(cfg: DictConfig):
+    print(f"{cfg=}")
     return run_pipeline(cfg)
 
 

@@ -1,11 +1,10 @@
 defaults:
-  - platform: base  # Update with different YAML if you have another platform or different optimized configs
+  - platform: cuda # Update with different YAML if you have another platform or different optimized configs
   - override hydra/hydra_logging: none
   - override hydra/job_logging: none
 
-
 # Add CLI-overridable arguments here, no need to add paths within quotes
-input_path:
-output_dir:
+input_path: /home/mahobley/Data/CFC22/aris_files/kenai-train/2018-05-26-JD146_LeftFar_Stratum1_Set1_LO_2018-05-26_080004.aris
+output_dir: /home/mahobley/Code/fisheye/outputs
 export_options: ["summary_csv", "detailed_csv", "fc"]
 upstream_direction: left

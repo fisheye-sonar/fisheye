@@ -118,7 +118,7 @@ class DetectTrackCountPipeline:
             to_mot_txt(mot_tracks, output_dir, file.stem)
 
         (left_count, right_count), crossing_frames = Count().count(
-            formatted_yolo_tracks
+            formatted_yolo_tracks, 0.5, angle=0.0, metadata=metadata
         )
 
         if crossing_frames and (left_count or right_count):

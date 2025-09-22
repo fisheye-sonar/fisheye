@@ -38,6 +38,7 @@ def safe_execution(
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
+                    print(f"safe_execution_exception {e=}")
                     last_exception = e
                     tb = traceback.extract_tb(e.__traceback__)
                     # Get the last traceback entry (where the error occurred)
