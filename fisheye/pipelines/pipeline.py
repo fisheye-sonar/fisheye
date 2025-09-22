@@ -8,7 +8,7 @@ from fisheye.boxes import run_nms, normalize_boxes_for_tracking
 from fisheye.common.generic import safe_execution
 from fisheye.common.file_system import get_valid_files
 from fisheye.configs import YOLODatasetConfig
-from fisheye.configs.inference import TrackerConfig, NMSConfig
+from fisheye.configs.inference import TrackerConfig, NMSConfig, CountConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
 from fisheye.export import save_to_disk, to_mot_txt
@@ -27,11 +27,13 @@ class DetectTrackCountPipeline:
         detect_pipe: Optional[ObjectDetectionPipeline] = None,
         tracker_cfg: Optional[TrackerConfig] = None,
         dataset_cfg: YOLODatasetConfig = None,
+        count_cfg: CountConfig = None,
     ):
         self.detect_pipe = detect_pipe
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
         self.nms_config = NMSConfig()
         self.dataset_cfg = dataset_cfg if dataset_cfg else YOLODatasetConfig()
+        self.count_cfg = count_cfg if count_cfg else CountConfig()
 
     @safe_execution(default_return=[], max_retries=3, delay=2)
     def _run(
@@ -117,9 +119,56 @@ class DetectTrackCountPipeline:
             )
             to_mot_txt(mot_tracks, output_dir, file.stem)
 
-        (left_count, right_count), crossing_frames = Count().count(
-            formatted_yolo_tracks, 0.5, angle=0.0, metadata=metadata
-        )
+        if self.count_cfg.mulitple_angles is not None:
+            left_count_all = []
+            right_count_all = []
+            crossing_frames_all = []
+            for angle in self.count_cfg.mulitple_angles:
+                (left_count, right_count), crossing_frames = Count().count(
+                    formatted_yolo_tracks,
+                    self.count_cfg.line,
+                    angle=angle,
+                    metadata=metadata,
+                )
+                left_count_all.append(left_count)
+                right_count_all.append(right_count)
+                crossing_frames_all.append(crossing_frames)
+            print(f"{self.count_cfg.mulitple_angles=}")
+            print(f"{left_count_all=}")
+            print(f"{right_count_all=}")
+            middle_ind = len(self.count_cfg.mulitple_angles) // 2
+            logger.warning(
+                f"Only saving from middle angle: angle={self.count_cfg.mulitple_angles[middle_ind]} l/r counts={left_count_all[middle_ind]}/{right_count_all[middle_ind]}, min-max l/r counts={min(left_count_all)}-{max(left_count_all)}/{min(right_count_all)}-{max(right_count_all)}",
+                file_path=str(file),
+            )
+
+            left_count = left_count_all[middle_ind]
+            right_count = right_count_all[middle_ind]
+            crossing_frames = crossing_frames_all[middle_ind]
+            if True:
+                import matplotlib.pyplot as plt
+                import matplotlib
+
+                matplotlib.use("TkAgg")  # or "Qt5Agg"
+                plt.ion()  # turn on interactive mode
+                plt.scatter(self.count_cfg.mulitple_angles, left_count_all)
+                plt.xlabel("LOI angles")
+                plt.ylabel("Count")
+                plt.title(
+                    "Count for multiple LOI angles\nRB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000.aris\nFirst 800 frames"
+                )
+                plt.show(
+                    block=True
+                )  # force blocking window            # print(f"{crossing_frames_all=}")
+
+        else:
+
+            (left_count, right_count), crossing_frames = Count().count(
+                formatted_yolo_tracks,
+                self.count_cfg.line,
+                angle=self.count_cfg.angle,
+                metadata=metadata,
+            )
 
         if crossing_frames and (left_count or right_count):
             # Using the same naming conventions in ARISFish Software

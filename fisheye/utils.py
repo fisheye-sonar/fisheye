@@ -235,7 +235,6 @@ def get_xy_from_r_theta(r, theta, info):
     beam_angles = info.beam_width_data
     ang_distances = [abs(ba - theta) for ba in beam_angles["beam_center"]]
     closest_beam_angle_idx = np.argmin(ang_distances)
-    print(f"closest_beam_angle_idx={closest_beam_angle_idx}")
     bin_length = info.sampleperiod * 0.000001 * info.soundspeed / 2.0
     bin_length = (info.y_meter_start - info.y_meter_stop) / info.samplesperbeam
     bin_num = int(info.samplesperbeam - (r - info.y_meter_stop) / bin_length)

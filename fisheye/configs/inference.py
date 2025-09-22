@@ -22,6 +22,20 @@ class TrackerConfig:
 
 
 @dataclass
+class CountConfig:
+    """Configuration for tracking."""
+
+    line: float | tuple = (
+        0.5  # vertical line x = line (matches current behavior; directed upward) or ((x1, y1), (x2, y2)): a line from (x1,y1) -> (x2,y2)
+    )
+    angle: float = 0.16  # angle of the LOI in degrees this overrides the line input
+    # mulitple_angles: list = field(default_factory=lambda: [-10,-9,-8,-7,-6,-5, -4,-3,-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) # multiple angles to count, check against each other, ONLY THE CENTER ANGLE IS SAVED, this overrides the line input and angle
+    mulitple_angles: list = (
+        None  # multiple angles to count, check against each other, ONLY THE CENTER ANGLE IS SAVED, this overrides the line input and angle
+    )
+
+
+@dataclass
 class FishSizeConfig:
     """Configuration for fish size in detection and tracking."""
 

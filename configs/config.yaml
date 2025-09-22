@@ -4,7 +4,7 @@ defaults:
   - override hydra/job_logging: none
 
 # Add CLI-overridable arguments here, no need to add paths within quotes
-input_path: /home/mahobley/Data/CFC22/aris_files/kenai-train/2018-05-26-JD146_LeftFar_Stratum1_Set1_LO_2018-05-26_080004.aris
-output_dir: /home/mahobley/Code/fisheye/outputs
+input_path: 
+output_dir: 
 export_options: ["summary_csv", "detailed_csv", "fc"]
 upstream_direction: left

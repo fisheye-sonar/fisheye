@@ -40,7 +40,6 @@ class LOICounter(BaseCounter):
 
         if angle is specified the 'line' input is ignored
         """
-        print(f"LOICounter count {line=}")
 
         if angle is not None:
             if angle == 0.0:
@@ -48,6 +47,7 @@ class LOICounter(BaseCounter):
                 line = ((0.5, 0), (0.5, 1))
             else:
                 assert metadata is not None
+
                 print(f"USING ANGLE NOT VERTICAL LOI count {angle=}")
                 metadata.beam_width_data, _ = pyARIS.load_beam_width_data(
                     frame=metadata, beam_width_dir=BEAM_WIDTH_DIR
@@ -59,6 +59,26 @@ class LOICounter(BaseCounter):
                 far_point = get_xy_from_r_theta(unwarped_r_max, angle, metadata)
                 line = (far_point, near_point)
 
+        if False:
+            import matplotlib
+            import matplotlib.pyplot as plt
+
+            matplotlib.use("TkAgg")  # or "Qt5Agg"
+
+            plt.ion()  # turn on interactive mode
+            plt.scatter(
+                df["x_center"],
+                df["y_center"],
+                c=df["frame"],  # color by time
+                cmap="Greys",
+            )
+            plt.plot([0.5, 0.5], [0, 1], c="red", linestyle="--", label="center Line")
+            plt.plot([line[0][0], line[1][0]], [line[0][1], line[1][1]], label="LOI")
+            plt.colorbar(label="Time")  # optional colorbar
+            # make y axis go from 1 to 0
+            plt.gca().invert_yaxis()
+
+            plt.show(block=True)  # force blocking window
         # --- normalize the LOI into two points and a direction vector ---
         if isinstance(line, (int, float)):
             x1, y1, x2, y2 = float(line), 0.0, float(line), 1.0  # vertical, pointing up
