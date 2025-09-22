@@ -11,7 +11,7 @@ class BaseModelConfig:
 
     type: DetectorType = field(init=False)
     weights: Union[str, BaseModel] = None
-    device: str = DeviceType.MPS.value
+    device: str = DeviceType.CPU.value
 
 
 @dataclass
