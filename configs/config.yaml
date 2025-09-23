@@ -8,4 +8,4 @@ input_path: /home/mahobley/Data/CFC22/aris_files/nushagak/RB_Nusagak_Sonar_Files
 output_dir: /home/mahobley/Code/fisheye/outputs
 export_options: ["summary_csv", "detailed_csv", "fc"]
 upstream_direction: left
-rerun_and_overwrite_already_processed_files: True
+rerun_and_overwrite_already_processed_files: False
