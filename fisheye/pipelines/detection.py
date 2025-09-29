@@ -131,14 +131,14 @@ class ObjectDetectionPipeline:
             if self.use_multithreading:
                 # per image inference with multithreading
                 img_list = [img[i : i + 1] for i in range(img.shape[0])]
-                inf_out = run_with_threads(
-                    self.model.predict, img_list, self.max_workers
-                )
+                inf_out = run_with_threads(self.model, img_list, self.max_workers)
                 # Concatenate per sample predictions into a batched tensor [B, N, 6]
                 inf_out = torch.cat(inf_out, dim=0)
             else:
                 # Batched inference - [B, N, 6]
-                inf_out = self.model.predict(img)
+                inf_out = self.model(img)
+
+            torch.cuda.empty_cache()
 
             # Save shapes for resizing to original shape
             batch_shape = []

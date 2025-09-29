@@ -31,7 +31,6 @@ class YOLOv11ObjectDetectionModel(BaseModel):
 
         return model
 
-    @torch.inference_mode()
     def predict(self, images: Union[torch.Tensor, List]):
         """Forward pass for the model."""
         # returns [B, 5, N] - [x1, y1, x2, y2, conf]

@@ -66,13 +66,13 @@ def run_pipeline(cfg: DictConfig):
     # Build dataset configs
     dataset_cfg = YOLODatasetConfig(**dataset_config)
 
+    start_time = time.time()
+    logger.info("inference_started", start_time=start_time)
+
     # Build out individual pipeline(s)
     detector_pipe = ObjectDetectionPipeline(
         model=detector, config=ObjectDetectionConfig(**runtime_config)
     )
-
-    start_time = time.time()
-    logger.info("inference_started", start_time=start_time)
 
     results = DetectTrackCountPipeline(detector_pipe, dataset_cfg=dataset_cfg).run(
         input_path, output_dir, export_types, job_id, upstream_direction

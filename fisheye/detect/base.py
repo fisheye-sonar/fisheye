@@ -23,7 +23,8 @@ class BaseModel:
 
     def __call__(self, x, *args, **kwargs):
         """Use model instance to make predictions."""
-        return self.predict(x, *args, **kwargs)
+        with torch.inference_mode():
+            return self.predict(x, *args, **kwargs)
 
     def _get_model_instance(self, model_path, device):
         """Sets up the model instance."""
@@ -43,7 +44,6 @@ class BaseModel:
         """
         raise NotImplementedError("`_load_model` must be implemented.")
 
-    @torch.inference_mode()
     def predict(self, x, *args, **kwargs) -> torch.Tensor:
         """Forward pass for the model.
 
