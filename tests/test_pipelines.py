@@ -54,12 +54,10 @@ def test_object_detection_pipeline_no_postprocessing(use_multithreading):
 
     if use_multithreading:
         # Each call returns shape [1, 30240, 6]
-        mock_model.predict.side_effect = [
-            torch.rand((1, 30240, 6)) for _ in range(batch_size)
-        ]
+        mock_model.side_effect = [torch.rand((1, 30240, 6)) for _ in range(batch_size)]
     else:
         # Single batched output: shape [batch_size, 30240, 6]
-        mock_model.predict.return_value = torch.rand((batch_size, 30240, 6))
+        mock_model.return_value = torch.rand((batch_size, 30240, 6))
 
     with patch.object(
         YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
@@ -83,7 +81,7 @@ def test_object_detection_pipeline_no_postprocessing(use_multithreading):
         output = pipeline()
 
         expected_calls = batch_size if use_multithreading else 1
-        assert mock_model.predict.call_count == expected_calls
+        assert mock_model.call_count == expected_calls
 
         assert len(output.pred_bboxes) == 1  # One batch
         assert isinstance(output.pred_bboxes[0], torch.Tensor)
@@ -117,11 +115,9 @@ def test_object_detection_pipeline_w_postprocessing_params(confs, use_multithrea
 
     mock_model = MagicMock()
     if use_multithreading:
-        mock_model.predict.side_effect = [
-            torch.rand((1, 30240, 6)) for _ in range(batch_size)
-        ]
+        mock_model.side_effect = [torch.rand((1, 30240, 6)) for _ in range(batch_size)]
     else:
-        mock_model.predict.return_value = torch.rand((batch_size, 30240, 6))
+        mock_model.return_value = torch.rand((batch_size, 30240, 6))
 
     with patch.object(
         YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
@@ -149,7 +145,7 @@ def test_object_detection_pipeline_w_postprocessing_params(confs, use_multithrea
         output = pipeline()
 
         expected_calls = batch_size if use_multithreading else 1
-        assert mock_model.predict.call_count == expected_calls
+        assert mock_model.call_count == expected_calls
 
         steps = pipeline.postprocessing_steps
         assert len(output) == len(steps)
@@ -181,11 +177,9 @@ def test_object_detection_pipeline_diff_postprocessing_structure(
 
     mock_model = MagicMock()
     if use_multithreading:
-        mock_model.predict.side_effect = [
-            torch.rand((1, 30240, 6)) for _ in range(batch_size)
-        ]
+        mock_model.side_effect = [torch.rand((1, 30240, 6)) for _ in range(batch_size)]
     else:
-        mock_model.predict.return_value = torch.rand((batch_size, 30240, 6))
+        mock_model.return_value = torch.rand((batch_size, 30240, 6))
 
     with patch.object(
         YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
@@ -216,7 +210,7 @@ def test_object_detection_pipeline_diff_postprocessing_structure(
         output = pipeline()
 
         expected_calls = batch_size if use_multithreading else 1
-        assert mock_model.predict.call_count == expected_calls
+        assert mock_model.call_count == expected_calls
         steps = pipeline.postprocessing_steps
 
         if steps:
