@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Union, List
 
 import numpy as np
 import torch
@@ -8,6 +9,67 @@ from yolov5.utils.general import xywh2xyxy, clip_boxes, scale_boxes
 from yolov5.utils.metrics import box_iou
 
 from fisheye.configs.inference import NMSConfig
+
+
+def get_bbox_widths_from_yolo_to_image(
+    bboxes: Union[torch.Tensor, np.ndarray, List], image_width: int
+) -> torch.Tensor:
+    """
+    Get the bounding box widths in image space from YOLO pixel space.
+
+    Args:
+        bboxes: Bounding boxes in YOLO format [x_center, y_center, width, height], normalized [0,1].
+        image_width: Width of the image in pixels.
+
+    Returns:
+        torch.Tensor: Widths in pixels.
+    """
+    if bboxes is None or (
+        isinstance(bboxes, (list, np.ndarray, torch.Tensor)) and len(bboxes) == 0
+    ):
+        return torch.tensor([])
+
+    # Convert to torch.Tensor
+    if isinstance(bboxes, list):
+        bboxes = torch.from_numpy(np.array(bboxes, dtype=np.float32))
+    elif isinstance(bboxes, np.ndarray):
+        bboxes = torch.from_numpy(bboxes).float()
+    elif not isinstance(bboxes, torch.Tensor):
+        raise TypeError(f"Unsupported type {type(bboxes)}")
+
+    # Handle single bbox (1D)
+    if bboxes.ndim == 1:
+        bboxes = bboxes.unsqueeze(0)
+
+    # Scale YOLO width to pixels
+    return bboxes[:, 2] * image_width
+
+
+def std_bbox_width_yolo_to_image(
+    bboxes: Union[torch.Tensor, np.ndarray, List], image_meter_width: int
+) -> float:
+    """Calculate the standard deviation bounding box width in image space from YOLO pixel space."""
+    bbox_width = get_bbox_widths_from_yolo_to_image(bboxes, image_meter_width)
+
+    return round(bbox_width.std().item(), 2)
+
+
+def median_bbox_width_yolo_to_image(
+    bboxes: Union[torch.Tensor, np.ndarray, List], image_meter_width: int
+) -> float:
+    """Calculate the median bounding box width in image space from YOLO pixel space."""
+    bbox_width = get_bbox_widths_from_yolo_to_image(bboxes, image_meter_width)
+
+    return round(bbox_width.median().item(), 2)
+
+
+def mean_bbox_width_yolo_to_image(
+    bboxes: Union[torch.Tensor, np.ndarray, List], image_meter_width: int
+) -> float:
+    """Calculate the mean bounding box width in image space from YOLO pixel space."""
+    bbox_width = get_bbox_widths_from_yolo_to_image(bboxes, image_meter_width)
+
+    return round(bbox_width.mean().item(), 2)
 
 
 def norm(bbox, w, h):

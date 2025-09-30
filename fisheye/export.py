@@ -74,7 +74,7 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
         f.flush()
         os.fsync(f.fileno())
 
-    logger.info(f"exported_results", output_dir=out_file)
+    logger.info(f"exported_detailed_csv", output_dir=out_file)
 
 
 def to_summary_csv(data, out_dir, job_id: str = None):
@@ -144,7 +144,7 @@ def to_summary_csv(data, out_dir, job_id: str = None):
         f.flush()
         os.fsync(f.fileno())
 
-    logger.info(f"exported_summary", output_dir=out_file)
+    logger.info(f"exported_summary_csv", output_dir=out_file)
 
 
 def to_fc_txt(data, out_dir):
@@ -282,7 +282,7 @@ def to_fc_txt(data, out_dir):
             f.flush()
             os.fsync(f.fileno())
 
-        logger.info(f"exported_txt", output_dir=out_file)
+        logger.info(f"exported_fc_txt", output_dir=out_file)
 
 
 def to_mot_txt(data, output_dir, filename):
@@ -314,7 +314,7 @@ def to_mot_txt(data, output_dir, filename):
         f.flush()
         os.fsync(f.fileno())
 
-    logger.info(f"exported_mot", output_dir=out_path)
+    logger.info(f"exported_mot_txt", output_dir=out_path)
 
 
 # Add any new export functions here

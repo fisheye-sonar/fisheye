@@ -4,7 +4,13 @@ from typing import Optional, List, Union
 
 import structlog
 
-from fisheye.boxes import run_nms, normalize_boxes_for_tracking
+from fisheye.boxes import (
+    run_nms,
+    normalize_boxes_for_tracking,
+    mean_bbox_width_yolo_to_image,
+    median_bbox_width_yolo_to_image,
+    std_bbox_width_yolo_to_image,
+)
 from fisheye.common.generic import safe_execution
 from fisheye.common.file_system import get_valid_files
 from fisheye.configs import YOLODatasetConfig
@@ -144,6 +150,40 @@ class DetectTrackCountPipeline:
                 }
                 for track, frame, bbox in crossing_frames["right"]
             ]
+
+            # TODO (MHV): Try/except is temporary until this logic has been tested more vigorously
+            try:
+                formated_yolo_tracks = None
+                # Extract unique track IDs
+                unique_ids = {row["id"] for row in formatted_yolo_tracks}
+                num_tracks = len(unique_ids)
+
+                # Extract all bboxes from the formatted crossings
+                all_bboxes = [f["bbox"] for f in formatted_crossings]
+                std_bbox_width = std_bbox_width_yolo_to_image(
+                    all_bboxes, metadata.image_meter_width
+                )
+                avg_bbox_width = mean_bbox_width_yolo_to_image(
+                    all_bboxes, metadata.image_meter_width
+                )
+                median_bbox_width = median_bbox_width_yolo_to_image(
+                    all_bboxes, metadata.image_meter_width
+                )
+
+                # Log stats for current ARIS file
+                logger.info(
+                    "processed_file_stats",
+                    num_counts=len(formatted_crossings),
+                    num_tracks=num_tracks,
+                    avg_bbox_width_meters=avg_bbox_width,
+                    median_bbox_width_meters=median_bbox_width,
+                    std_bbox_width_meters=std_bbox_width,
+                )
+
+            except Exception:
+                # Silently skip stats if calculation fails.
+                pass
+
         else:
             formatted_crossings = [
                 {
