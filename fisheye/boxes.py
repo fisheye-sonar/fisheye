@@ -11,96 +11,65 @@ from yolov5.utils.metrics import box_iou
 from fisheye.configs.inference import NMSConfig
 
 
-def median_bbox_width_yolo_to_image(
-    bboxes: Union[torch.Tensor, np.ndarray, List], image_meter_width: int
-) -> float:
+def get_bbox_widths_from_yolo_to_image(
+    bboxes: Union[torch.Tensor, np.ndarray, List], image_width: int
+) -> torch.Tensor:
     """
-    Calculate the median bounding box width in image space from YOLO pixel space.
+    Get the bounding box widths in image space from YOLO pixel space.
 
     Args:
-        bboxes (Union[torch.Tensor, np.ndarray, List]): Bounding boxes in YOLO format
-            (x_center, y_center, width, height), normalized to [0,1].
-            Can be:
-              - single bbox: [x, y, w, h]
-              - multiple bboxes: [[...], [...]]
-              - torch.Tensor
-              - np.ndarray
-        image_meter_width (int): The width of the image in pixels.
+        bboxes: Bounding boxes in YOLO format [x_center, y_center, width, height], normalized [0,1].
+        image_width: Width of the image in pixels.
 
     Returns:
-        float: Median bounding box width in pixels.
+        torch.Tensor: Widths in pixels.
     """
     if bboxes is None or (
         isinstance(bboxes, (list, np.ndarray, torch.Tensor)) and len(bboxes) == 0
     ):
-        return 0.0
+        return torch.tensor([])
 
+    # Convert to torch.Tensor
     if isinstance(bboxes, list):
-        bboxes = np.array(bboxes, dtype=np.float32)
-
-    if isinstance(bboxes, np.ndarray):
+        bboxes = torch.from_numpy(np.array(bboxes, dtype=np.float32))
+    elif isinstance(bboxes, np.ndarray):
         bboxes = torch.from_numpy(bboxes).float()
-
     elif not isinstance(bboxes, torch.Tensor):
         raise TypeError(f"Unsupported type {type(bboxes)}")
 
-    if bboxes.numel() == 0:
-        return 0.0
-
-    # Handle single bbox (1D) case by reshaping
+    # Handle single bbox (1D)
     if bboxes.ndim == 1:
         bboxes = bboxes.unsqueeze(0)
 
-    # YOLO bbox width is normalized [0,1], scale to pixel space
-    widths_px = bboxes[:, 2] * image_meter_width
+    # Scale YOLO width to pixels
+    return bboxes[:, 2] * image_width
 
-    return round(widths_px.median().item(), 2)
+
+def std_bbox_width_yolo_to_image(
+    bboxes: Union[torch.Tensor, np.ndarray, List], image_meter_width: int
+) -> float:
+    """Calculate the standard deviation bounding box width in image space from YOLO pixel space."""
+    bbox_width = get_bbox_widths_from_yolo_to_image(bboxes, image_meter_width)
+
+    return round(bbox_width.std().item(), 2)
+
+
+def median_bbox_width_yolo_to_image(
+    bboxes: Union[torch.Tensor, np.ndarray, List], image_meter_width: int
+) -> float:
+    """Calculate the median bounding box width in image space from YOLO pixel space."""
+    bbox_width = get_bbox_widths_from_yolo_to_image(bboxes, image_meter_width)
+
+    return round(bbox_width.median().item(), 2)
 
 
 def mean_bbox_width_yolo_to_image(
     bboxes: Union[torch.Tensor, np.ndarray, List], image_meter_width: int
 ) -> float:
-    """
-    Calculate the mean bounding box width in image space from YOLO pixel space.
+    """Calculate the mean bounding box width in image space from YOLO pixel space."""
+    bbox_width = get_bbox_widths_from_yolo_to_image(bboxes, image_meter_width)
 
-    Args:
-        bboxes (Union[torch.Tensor, np.ndarray, List]): Bounding boxes in YOLO format
-            (x_center, y_center, width, height), normalized to [0,1].
-            Can be:
-              - single bbox: [x, y, w, h]
-              - multiple bboxes: [[...], [...]]
-              - torch.Tensor
-              - np.ndarray
-        image_meter_width (int): The width of the image in pixels.
-
-    Returns:
-        float: Mean bounding box width in pixels.
-    """
-    if bboxes is None or (
-        isinstance(bboxes, (list, np.ndarray, torch.Tensor)) and len(bboxes) == 0
-    ):
-        return 0.0
-
-    if isinstance(bboxes, list):
-        bboxes = np.array(bboxes, dtype=np.float32)
-
-    if isinstance(bboxes, np.ndarray):
-        bboxes = torch.from_numpy(bboxes).float()
-
-    elif not isinstance(bboxes, torch.Tensor):
-        raise TypeError(f"Unsupported type {type(bboxes)}")
-
-    if bboxes.numel() == 0:
-        return 0.0
-
-    # Handle single bbox (1D) case by reshaping
-    if bboxes.ndim == 1:
-        bboxes = bboxes.unsqueeze(0)
-
-    # YOLO bbox width is normalized [0,1], scale to pixel space
-    widths_px = bboxes[:, 2] * image_meter_width
-
-    return round(widths_px.mean().item(), 2)
+    return round(bbox_width.mean().item(), 2)
 
 
 def norm(bbox, w, h):

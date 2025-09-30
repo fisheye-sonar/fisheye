@@ -9,6 +9,7 @@ from fisheye.boxes import (
     normalize_boxes_for_tracking,
     mean_bbox_width_yolo_to_image,
     median_bbox_width_yolo_to_image,
+    std_bbox_width_yolo_to_image,
 )
 from fisheye.common.generic import safe_execution
 from fisheye.common.file_system import get_valid_files
@@ -158,6 +159,9 @@ class DetectTrackCountPipeline:
 
                 # Extract all bboxes from the formatted crossings
                 all_bboxes = [f["bbox"] for f in formatted_crossings]
+                std_bbox_width = std_bbox_width_yolo_to_image(
+                    all_bboxes, metadata.image_meter_width
+                )
                 avg_bbox_width = mean_bbox_width_yolo_to_image(
                     all_bboxes, metadata.image_meter_width
                 )
@@ -168,10 +172,11 @@ class DetectTrackCountPipeline:
                 # Log stats for current ARIS file
                 logger.info(
                     "processed_file_stats",
-                    num_fish=len(formatted_crossings),
+                    num_counts=len(formatted_crossings),
                     num_tracks=num_tracks,
                     avg_bbox_width=avg_bbox_width,
                     median_bbox_width=median_bbox_width,
+                    std_bbox_width=std_bbox_width,
                 )
 
             except Exception:
