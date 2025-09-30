@@ -153,6 +153,7 @@ class DetectTrackCountPipeline:
 
             # TODO (MHV): Try/except is temporary until this logic has been tested more vigorously
             try:
+                formated_yolo_tracks = None
                 # Extract unique track IDs
                 unique_ids = {row["id"] for row in formatted_yolo_tracks}
                 num_tracks = len(unique_ids)
@@ -174,9 +175,9 @@ class DetectTrackCountPipeline:
                     "processed_file_stats",
                     num_counts=len(formatted_crossings),
                     num_tracks=num_tracks,
-                    avg_bbox_width=avg_bbox_width,
-                    median_bbox_width=median_bbox_width,
-                    std_bbox_width=std_bbox_width,
+                    avg_bbox_width_meters=avg_bbox_width,
+                    median_bbox_width_meters=median_bbox_width,
+                    std_bbox_width_meters=std_bbox_width,
                 )
 
             except Exception:
