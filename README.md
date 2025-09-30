@@ -50,42 +50,67 @@ FishEye simplifies the process of loading, preprocessing, and analyzing sonar da
 ### Step 2: Activate pre-commit hooks
 Run `pre-commit install`.
 
-### Step 4: Make run.sh executable
+### Step 3: Make run.sh executable
 Run `chmod +x run.sh`
 
 
 ## How to Run the App
-1. Open the config file located at `configs/config.yaml` in any text editor (like VS Code, Notepad, or TextEdit), and look for lines like this:
 
-```
-    input_path:
-    output_dir:  
-```    
+1. **Open the main config file**  
+   Open `configs/config.yaml` in any text editor (like VS Code, Notepad, or TextEdit) and locate the following lines:
 
-2. Update to your path locations
+   ```yaml
+   input_path:
+   output_dir:
+
+2. **Update device/platform in the config**
+
+   In configs/config.yaml, find the platform setting under defaults:
+
+   ```defaults:
+     - platform: cpu  # Update with your platform or optimized config
+     - override hydra/hydra_logging: none
+     - override hydra/job_logging: none
+   ```
+    By default, it is set to cpu. The value of platform must match the name of a YAML file in configs/platform/. For example, to use CUDA:
+    `- platform: cuda`.
+
+    💡 Other platform-specific configs are located in configs/platform/. You can switch them or modify them as needed.
+
+    Each platform YAML (e.g. `cuda.yaml`), also defines the model settings:
+    ```
+   model:
+      type: yolov5
+      weights: weights/cfc_detect_yolov5s_v0.pt
+      device: cuda:0
+   ```
+   The weights path is relative to the root of the fisheye project. The model file should live at the project root or in a subdirectory like weights/. Model weights are provided as [downloadable assets in GitHub releases](https://github.com/fisheye-sonar/fisheye/releases). If a new version is released, download the updated weights and place them in the specified path.
+
+3. **Update input and output paths**
    - `input_path` can point to either:
-     - A directory contianing multiple ARIS files
+     - A directory containing multiple ARIS files
      - A single ARIS file
    - `output_dir` (optional):
-     - If not specified, output files will be written to the same directory where the ARIS file(s) are located
+     - If not specified, output files will be written to the same directory as the ARIS file(s).
      - If specified, all output files are written directly to that location
 
-   Example:
+   Examples:
     ```
-    input_path: /home/fisheye/
-    output_dir:
+   input_path: /home/fisheye/
+   output_dir:
    ```
-    Or
+    Or:
     ```
-    input_path: /home/fisheye/
-    output_dir: /home/fisheye/outputs/
-    ```
-        
+   input_path: /home/fisheye/
+   output_dir: /home/fisheye/outputs/
+   ```
 
-3. Once the values are set, open your Terminal. Navigate to the project folder using the cd command. 
+4. **Run the script**.
 
-    `cd ~/home/fisheye/code/fisheye/`
+   Once the values are set, open your Terminal. Navigate to the project folder using the cd command. 
+
+       `cd ~/home/fisheye/code/fisheye/`
 
     Now run the script:
 
-    `./run.sh`
+       `./run.sh`
