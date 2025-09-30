@@ -66,6 +66,9 @@ def to_detailed_csv(data, out_dir, job_id: str = None):
 
     df = df[cols]
 
+    # Sort by frame index in ascending order
+    df = df.sort_values(by="Frame#")
+
     with open(out_file, "w") as f:
         df.to_csv(out_file, index=False)
         f.flush()
