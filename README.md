@@ -59,7 +59,7 @@ Run `chmod +x run.sh`
 1. **Open the main config file**  
    Open `configs/config.yaml` in any text editor (like VS Code, Notepad, or TextEdit) and locate the following lines:
 
-   ```yaml
+   ```
    input_path:
    output_dir:
 
