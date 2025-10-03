@@ -123,37 +123,38 @@ class ObjectDetectionPipeline:
         width = None
         height = None
 
-        for batch_idx, (img, _, shapes) in enumerate(self.dataloader):
-            img = self.preprocess(img)
-            size = tuple(img.shape)
-            nb, _, height, width = size  # batch size, channels, height, width
+        with torch.inference_mode():
+            for batch_idx, (img, _, shapes) in enumerate(self.dataloader):
+                img = self.preprocess(img)
+                size = tuple(img.shape)
+                nb, _, height, width = size  # batch size, channels, height, width
 
-            if self.use_multithreading:
-                # per image inference with multithreading
-                img_list = [img[i : i + 1] for i in range(img.shape[0])]
-                inf_out = run_with_threads(self.model, img_list, self.max_workers)
-                # Concatenate per sample predictions into a batched tensor [B, N, 6]
-                inf_out = torch.cat(inf_out, dim=0)
-            else:
-                # Batched inference - [B, N, 6]
-                inf_out = self.model(img)
+                if self.use_multithreading:
+                    # per image inference with multithreading
+                    img_list = [img[i : i + 1] for i in range(img.shape[0])]
+                    inf_out = run_with_threads(self.model, img_list, self.max_workers)
+                    # Concatenate per sample predictions into a batched tensor [B, N, 6]
+                    inf_out = torch.cat(inf_out, dim=0)
+                else:
+                    # Batched inference - [B, N, 6]
+                    inf_out = self.model(img)
 
-            torch.cuda.empty_cache()
+                torch.cuda.empty_cache()
 
-            # Save shapes for resizing to original shape
-            batch_shape = []
-            for si, pred in enumerate(inf_out):
-                batch_shape.append((img[si].shape[1:], shapes[si]))
+                # Save shapes for resizing to original shape
+                batch_shape = []
+                for si, pred in enumerate(inf_out):
+                    batch_shape.append((img[si].shape[1:], shapes[si]))
 
-            image_shapes.append(batch_shape)
-            inference.append(inf_out)
+                image_shapes.append(batch_shape)
+                inference.append(inf_out.cpu())
 
-            log_progress(
-                logger,
-                batch_idx,
-                len(self.dataloader),
-                prefix="Detector progress | ",
-            )
+                log_progress(
+                    logger,
+                    batch_idx,
+                    len(self.dataloader),
+                    prefix="Detector progress | ",
+                )
 
         return inference, image_shapes, width, height
 
