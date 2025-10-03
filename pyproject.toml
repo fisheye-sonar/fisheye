@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fisheye"
-version = "v1.0.0-beta.3"
+version = "v1.0.0-beta.4"
 description = "Performing inference on sonar data."
 authors = ["Madison Van Horn"]
 readme = "README.md"
