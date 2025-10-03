@@ -1,8 +1,10 @@
+import platform
 import time
 from pathlib import Path
 
 import hydra
 import structlog
+import torch.multiprocessing as mp
 from omegaconf import DictConfig
 
 from fisheye.common.file_system import is_valid_dir
@@ -14,7 +16,7 @@ from fisheye.configs import (
     get_detector_config,
 )
 from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
-from fisheye.enums import ExportType, DetectorType
+from fisheye.enums import ExportType, DetectorType, DeviceType
 from fisheye.export import save_to_disk, parse_export_options
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
@@ -36,6 +38,10 @@ def run_pipeline(cfg: DictConfig):
     platform_cfg = cfg.platform
     dataset_config = platform_cfg.dataset
     model_config = platform_cfg.model
+
+    # Default to using multiprocessing for Windows machine with GPU
+    if model_config.device == DeviceType.CUDA and platform.system() == "Windows":
+        mp.set_start_method("spawn", force=True)
 
     check_disk_space(
         path=output_dir if output_dir else input_path

@@ -15,9 +15,9 @@ class TrackerConfig:
 
     type: TrackingMethod = TrackingMethod.BYTETRACK
     max_age: int = 20
-    min_hits: int = 11
+    min_hits: int = 2
     min_travel: int = 0
-    iou_threshold: float = 0.01
+    iou_threshold: float = 0.001
     reverse: bool = False
 
 
