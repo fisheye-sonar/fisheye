@@ -41,3 +41,6 @@ _debugging_images/
 tests/sample_midlength.aris
 weights/
 *.pt
+
+post_correction_analysis/temp_report_figures
+predicted_vs_corrected_report.pdf
