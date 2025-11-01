@@ -504,7 +504,9 @@ class DIDSON:
             read_i,
         )
 
-    def __FasterDIDSONRead(self, file, start_frame, end_frame):
+    def __FasterDIDSONRead(
+        self, file, start_frame=None, end_frame=None, specific_frames=None
+    ):
         """Load raw frames from DIDSON.
 
         Parameters
@@ -517,14 +519,31 @@ class DIDSON:
             Zero-indexed start of frame range (inclusive).
         end_frame : int
             End of frame range (exclusive).
-
+        specific_frames : list of int, optional
+            List of specific frames to load. Defaults to None.
         Returns
         -------
         raw_frames : (end_frame - start_frame, framesize) ndarray, np.uint8
             Extracted and flattened raw sonar measurements for frame range.
 
         """
-
+        assert specific_frames is None or (
+            isinstance(specific_frames, list)
+            and all(isinstance(frame, int) for frame in specific_frames)
+        ), "specific_frames must be a list of integers"
+        # assert specifc frames are in order
+        assert specific_frames is None or (
+            all(
+                specific_frames[i] < specific_frames[i + 1]
+                for i in range(len(specific_frames) - 1)
+            )
+        ), "specific_frames must be in order"
+        assert specific_frames is None or (
+            start_frame == None and end_frame == None
+        ), "Cant specify specific_frames and start_frame and end_frame at the same time"
+        use_specific_frames = specific_frames is not None
+        start_frame = specific_frames[0] if use_specific_frames else start_frame
+        end_frame = specific_frames[-1] + 1 if use_specific_frames else end_frame
         if hasattr(file, "read"):
             file_ctx = contextlib.nullcontext(file)
         else:
@@ -583,13 +602,17 @@ class DIDSON:
                         f" Exiting loop."
                     )
                     break
-
-                frames.append(np.frombuffer(frame_data[:framesize], dtype=np.uint8))
+                if (
+                    not use_specific_frames
+                    or (frame_count + start_frame) in specific_frames
+                ):
+                    frames.append(np.frombuffer(frame_data[:framesize], dtype=np.uint8))
                 frame_count += 1
-
             return np.array(frames, dtype=np.uint8)
 
-    def load_raw_data(self, file=None, start_frame=-1, end_frame=-1):
+    def load_raw_data(
+        self, file=None, start_frame=-1, end_frame=-1, specific_frames=None
+    ):
         """
         Public interface to self.__FasterDIDSONRead
         """
@@ -601,20 +624,42 @@ class DIDSON:
         else:
             file = Path(file).expanduser().resolve()
             file_ctx = open(file, "rb")
-
+        if start_frame == -1:
+            start_frame = self.info["startframe"]
+        if end_frame == -1:
+            end_frame = self.info["endframe"] or self.info["numframes"]
         with file_ctx as fid:
             fid.seek(0)  # Reset pointer to start
-            svector = None
-            if start_frame == -1:
-                start_frame = self.info["startframe"]
-            if end_frame == -1:
-                end_frame = self.info["endframe"] or self.info["numframes"]
+            if specific_frames is not None:
+                assert isinstance(specific_frames, list) and all(
+                    isinstance(frame, int) for frame in specific_frames
+                ), "specific_frames must be a list of integers"
+                assert all(
+                    frame >= 0 and frame < self.info["numframes"]
+                    for frame in specific_frames
+                ), "specific_frames must be a list of integers within the range of the file"
 
-            data = self.__FasterDIDSONRead(fid, start_frame, end_frame)
-            return data
+                assert all(
+                    frame >= start_frame and frame < end_frame
+                    for frame in specific_frames
+                ), "specific_frames must be a list of integers within the range of the start_frame and end_frame"
+                data = self.__FasterDIDSONRead(fid, specific_frames=specific_frames)
+                return data
+            else:
+                svector = None
+
+                data = self.__FasterDIDSONRead(
+                    fid, start_frame=start_frame, end_frame=end_frame
+                )
+                return data
 
     def load_frames(
-        self, file=None, start_frame=0, end_frame=-1, return_unwarped=False
+        self,
+        file=None,
+        start_frame=0,
+        end_frame=-1,
+        return_unwarped=False,
+        specific_frames=None,
     ):
         """Load and warp DIDSON frames into images.
 
@@ -626,14 +671,23 @@ class DIDSON:
             Zero-indexed start of frame range (inclusive). Defaults to the first available.
         end_frame : int, optional
             End of frame range (exclusive). Defaults to the last available frame.
-
+        specific_frames : list of int, optional
+            List of specific frames to load. Defaults to None.
         Returns
         -------
         frames : (end_frame - start_frame, ydim, xdim) ndarray, np.uint8
             Warped-to-scale sonar image tensor.
 
         """
-        data = self.load_raw_data(file, start_frame, end_frame)
+
+        assert specific_frames is None or (
+            isinstance(specific_frames, list)
+            and all(isinstance(frame, int) for frame in specific_frames)
+        ), "specific_frames must be a list of integers"
+        assert specific_frames is None or (
+            start_frame == 0 and end_frame == -1
+        ), "Cant specify specific_frames and start_frame and end_frame at the same time"
+        data = self.load_raw_data(file, start_frame, end_frame, specific_frames)
         if return_unwarped:
             unwarped_frames_shape = [
                 data.shape[0],

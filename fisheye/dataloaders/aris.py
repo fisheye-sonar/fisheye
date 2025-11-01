@@ -61,12 +61,15 @@ class ARISBatchedDataset(BaseDataset):
             numframes=info.get("numframes", 0),
         )
 
-    def load_frames(self, start_frame, end_frame, return_unwarped=False):
+    def load_frames(
+        self, start_frame, end_frame, return_unwarped=False, specific_frames=None
+    ):
         """Load ARIS frames."""
         return self.didson.load_frames(
             start_frame=start_frame,
             end_frame=end_frame,
             return_unwarped=return_unwarped,
+            specific_frames=specific_frames,
         )
 
     def _validate_frame_range(self, config):

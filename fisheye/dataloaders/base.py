@@ -212,5 +212,5 @@ class BaseDataset(Dataset):
 
         return echogram
 
-    def load_frames(self, idx, final_idx, return_unwarped):
+    def load_frames(self, idx, final_idx, return_unwarped, specific_frames):
         raise NotImplementedError("Subclasses should implement this method.")
