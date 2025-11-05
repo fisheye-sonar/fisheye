@@ -104,8 +104,18 @@ Run `chmod +x run.sh`
    input_path: /home/fisheye/
    output_dir: /home/fisheye/outputs/
    ```
+4. **(Optional) Configure distance offset**
 
-4. **Run the script**.
+    By default, FishEye places markers directly on detected fish in ARISFish. You can configure an optional `distance_offset` value (in meters) to adjust marker placement slightly above or below the fish. In `configs/config.yaml`, modify the following field:
+   ```
+   distance_offset: 0.0  # Offset in meters - can be integer or float 
+   ```
+   
+    If not specified, the default is 0.0 (no offset). 
+   - A positive value (e.g., 1.0) moves the marker 1 meter farther from the sonar camera. 
+   - A negative value (e.g., -1.0) places the marker 1 meter closer, effectively positioning it below the fish in the image.
+
+5. **Run the script**
 
    Once the values are set, open your Terminal. Navigate to the project folder using the cd command. 
 
