@@ -31,6 +31,7 @@ def run_pipeline(cfg: DictConfig):
     output_dir = cfg.output_dir
     export_options = cfg.export_options
     upstream_direction = cfg.upstream_direction
+    distance_offset = cfg.distance_offset
 
     export_types = parse_export_options(export_options)
 
@@ -81,7 +82,12 @@ def run_pipeline(cfg: DictConfig):
     )
 
     results = DetectTrackCountPipeline(detector_pipe, dataset_cfg=dataset_cfg).run(
-        input_path, output_dir, export_types, job_id, upstream_direction
+        input_path,
+        output_dir,
+        export_types,
+        job_id,
+        upstream_direction,
+        distance_offset,
     )
 
     if results:
@@ -94,7 +100,11 @@ def run_pipeline(cfg: DictConfig):
                 )
 
             save_to_disk(
-                results, output_dir, export_types=ExportType.SUMMARY_CSV, job_id=job_id
+                results,
+                output_dir,
+                export_types=ExportType.SUMMARY_CSV,
+                job_id=job_id,
+                distance_offset=distance_offset,
             )
 
     end_time = time.time()
