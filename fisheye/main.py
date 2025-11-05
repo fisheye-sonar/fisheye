@@ -100,7 +100,11 @@ def run_pipeline(cfg: DictConfig):
                 )
 
             save_to_disk(
-                results, output_dir, export_types=ExportType.SUMMARY_CSV, job_id=job_id
+                results,
+                output_dir,
+                export_types=ExportType.SUMMARY_CSV,
+                job_id=job_id,
+                distance_offset=distance_offset,
             )
 
     end_time = time.time()

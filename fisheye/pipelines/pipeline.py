@@ -221,6 +221,7 @@ class DetectTrackCountPipeline:
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
+        distance_offset: Union[int, float] = 0.0,
     ) -> Union[List[List[dict]], List[dict]]:
         """Run preprocessing, detection, tracking, and counting on frames.
 
@@ -244,7 +245,9 @@ class DetectTrackCountPipeline:
             return []
 
         results = [
-            self._run(f, output_dir, export_types, job_id, upstream_direction)
+            self._run(
+                f, output_dir, export_types, job_id, upstream_direction, distance_offset
+            )
             for f in valid_files
         ]
 
