@@ -47,6 +47,7 @@ class DetectTrackCountPipeline:
         export_types: Optional[List[ExportType]] = None,
         job_id: Optional[str] = None,
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
+        distance_offset: Union[int, float] = 0.0,
     ) -> List:
 
         if not output_dir:
@@ -208,6 +209,7 @@ class DetectTrackCountPipeline:
             output_dir,
             export_types=remaining_export_types,
             job_id=job_id,
+            distance_offset=distance_offset,
         )
 
         return formatted_crossings
