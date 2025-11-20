@@ -1,8 +1,11 @@
 import xml.etree.ElementTree as ET
-from typing import Any, Dict
 from pathlib import Path
+from typing import Any, Dict, List
+
+import numpy as np
 
 from fisheye.common.file_system import find_real_files
+from fisheye.dataset.utils import coords_meters_to_pixels, get_bbox_with_padding
 
 
 def etree_to_dict(el: ET.Element) -> Dict[str, Any]:
@@ -48,24 +51,27 @@ def find_matching_aris_xml_files(aris_dir, xml_dir):
 
     Matching pairs are required for building and exporting the dataset.
     """
-    aris_p = Path(aris_dir)
-    xml_p = Path(xml_dir)
-    aris_paths = find_real_files(aris_p, "*.aris")
-    xml_paths = find_real_files(xml_p, "*.xml")
-    xml_fns = [fp.name for fp in xml_paths]
+    aris_dir = Path(aris_dir)
+    xml_dir = Path(xml_dir)
+
+    aris_paths: List[Path] = [Path(p) for p in find_real_files(aris_dir, "*.aris")]
+    xml_paths: List[Path] = [Path(p) for p in find_real_files(xml_dir, "*.xml")]
+
+    # XML file names: paths
+    xml_by_name: Dict[str, Path] = {fp.name: fp for fp in xml_paths}
 
     aris_paths_with_xml = []
     xml_paths_with_aris = []
 
-    for aris_path in map(Path, aris_paths):
+    for aris_path in aris_paths:
         file_name = aris_path.stem
         predicted_xml_fn = f"FCe_{file_name}_ID_.xml"
 
-        if predicted_xml_fn in xml_fns:
-            # get the index of the predicted_xml_fn in xml_fns
-            index = xml_fns.index(predicted_xml_fn)
-            aris_paths_with_xml.append(str(aris_path))
-            xml_paths_with_aris.append(str(xml_paths[index]))
+        xml_path = xml_by_name.get(predicted_xml_fn)
+
+        if xml_path is not None:
+            aris_paths_with_xml.append(aris_path)
+            xml_paths_with_aris.append(xml_path)
 
     unpaired_xml_files = [fp for fp in xml_paths if fp not in xml_paths_with_aris]
     unpaired_aris_files = [fp for fp in aris_paths if fp not in aris_paths_with_xml]
@@ -73,3 +79,50 @@ def find_matching_aris_xml_files(aris_dir, xml_dir):
     aris_paths, xml_paths = aris_paths_with_xml, xml_paths_with_aris
 
     return aris_paths, xml_paths, unpaired_xml_files, unpaired_aris_files
+
+
+def get_box_data_from_xml(fish_data, metadata, padding: float, min_padding_px: int):
+    """Extracts bounding box data (ARIS world coords) from fish data in XML format.
+
+    Returns a list of per-fish dictionaries with:
+      - frame_idx
+      - fish_id
+      - bbox_xy_xy
+      - fish_coords_xyxy
+      - fish_coords_meters
+    """
+    all_bbox_data: List[Dict[str, Any]] = []
+
+    for entry in fish_data:
+        frame_idx = int(entry["@FrameIndex"])
+        fish_id = int(entry["@FishID"])
+        coords = _parse_nodes(entry["FishMeasureNode"])
+        coords_px = coords_meters_to_pixels(coords, metadata)
+        x_start, y_start, x_stop, y_stop = get_bbox_with_padding(
+            coords_px,
+            padding,
+            min_padding_px,
+            (int(metadata["ydim"]), int(metadata["xdim"])),
+        )
+        all_bbox_data.append(
+            {
+                "frame_idx": frame_idx,
+                "fish_id": fish_id,
+                "bbox_xy_xy": [x_start, y_start, x_stop, y_stop],
+                "fish_coords_xyxy": coords_px,
+                "fish_coords_meters": coords,
+            }
+        )
+
+    return all_bbox_data
+
+
+def _parse_nodes(nodes):
+    """Parse FishMeasureNode elements into an (N, 2) array of world coordinates.
+
+    `nodes` may be a dict or a list of dicts depending on the XML shape.
+    """
+    if isinstance(nodes, dict):
+        nodes = [nodes]
+    coords = [(float(n["@WorldPointX"]), float(n["@WorldPointY"])) for n in nodes]
+    return np.array(coords, dtype=float)

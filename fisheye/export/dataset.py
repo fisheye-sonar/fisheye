@@ -13,7 +13,7 @@ class BaseExporter(ABC):
         return self.export(bbox_data, img_name, metadata)
 
     @abstractmethod
-    def export(self, bbox_data: Dict[str, Any], img_name: str, metadata: Dict):
+    def export(self, bbox_data: Dict[str, Any], img_name: str, metadata: Dict) -> None:
         pass
 
 
