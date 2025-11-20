@@ -176,13 +176,3 @@ class DatasetBuilder:
 
             out_ann_file = f"{aris_stem}_{frame_idx:06d}"
             self.exporter(bbox_data, out_ann_file, metadata)
-
-
-builder = DatasetBuilder(
-    aris_dir="/Users/madison/Downloads/Klamath_2024_xml_sample/",
-    xml_dir="/Users/madison/Downloads/Klamath_2024_xml_sample/",
-    out_dir="/Users/madison/Downloads/Klamath_2024_xml_sample/test_out",
-    padding=0.1,
-    min_padding_px=30,
-)
-builder()
