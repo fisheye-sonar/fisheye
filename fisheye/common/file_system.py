@@ -9,6 +9,20 @@ from fisheye.enums import ValidExtensions, IGNORED_DIR_NAMES, IGNORED_FILE_PREFI
 logger = structlog.getLogger(__name__)
 
 
+def find_real_files(base_path: Path, pattern: str):
+    return [
+        fp
+        for fp in base_path.rglob(pattern)
+        if fp.is_file()  # only actual files
+        and not any(
+            part.startswith(".") for part in fp.parts
+        )  # skip hidden folders/files
+        and "$RECYCLE.BIN" not in fp.parts  # skip recycle bin
+        and "System Volume Information" not in fp.parts  # skip system folders
+        and not fp.name.startswith("~")  # skip temp/backup files
+    ]
+
+
 def is_valid_file(file_path: Path) -> bool:
     """Check if the file is valid based on the extension."""
     return file_path.is_file() and file_path.suffix in {

@@ -11,6 +11,26 @@ from yolov5.utils.metrics import box_iou
 from fisheye.configs.inference import NMSConfig
 
 
+def convert_xyxy_to_cxcywh(bbox, image_width, image_height):
+    """Convert [x1, y1, x2, y2] into YOLO format [x_center, y_center, w, h].
+
+    All returned values are normalized to the range [0, 1].
+    """
+    x1, y1, x2, y2 = bbox
+    w = x2 - x1
+    h = y2 - y1
+    x_center = x1 + w / 2
+    y_center = y1 + h / 2
+
+    # Normalize
+    x_center /= image_width
+    y_center /= image_height
+    w /= image_width
+    h /= image_height
+
+    return [x_center, y_center, w, h]
+
+
 def get_bbox_widths_from_yolo_to_image(
     bboxes: Union[torch.Tensor, np.ndarray, List], image_width: int
 ) -> torch.Tensor:
