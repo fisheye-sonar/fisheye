@@ -1,0 +1,11 @@
+# Configuration for dataset creation
+
+# Required paths (must be provided via CLI or overrides)
+aris_dir:
+xml_dir:
+out_dir:
+
+# Dataset export options
+dataset_format: yolo  # See other options in DATASET_EXPORTER_REGISTRY
+padding: 0.1
+min_padding_px: 30
