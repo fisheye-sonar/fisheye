@@ -19,6 +19,11 @@ def to_detailed_csv(data, out_dir, job_id: str = None, **kwargs):
 
     Users can configure the distance offset via kwargs:
         distance_offset: float, default 0.0
+
+    Args:
+        data (dict): Dictionary of inference results.
+        Out_dir (str): Output directory for CSV files.
+        Job_id (str): Job ID.
     """
     timestamp = datetime.now().strftime("%Y-%m-%d")
     job_suffix = f"_{job_id}" if job_id else ""
@@ -43,13 +48,14 @@ def to_detailed_csv(data, out_dir, job_id: str = None, **kwargs):
 
     df = pd.DataFrame(expanded_data)
 
-    # Calculate unwarped distance if bbox exists
+    # Calculate the distance from the sonar camera to the fish in an unwarped frame
     if "bbox" in df.columns and not df["bbox"].isna().all():
         df[["R (m)", "Theta"]] = df.apply(
             get_unwarped_distance_and_theta, axis=1, result_type="expand"
         )
 
     df["R (m)"] += distance_offset
+    df["R (m)"] = df["R (m)"].round(2)
 
     # Extract date from first source name (source names are all the same)
     source_name = df.loc[0, "Source.Name"]
