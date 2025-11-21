@@ -22,8 +22,8 @@ def to_detailed_csv(data, out_dir, job_id: str = None, **kwargs):
 
     Args:
         data (dict): Dictionary of inference results.
-        Out_dir (str): Output directory for CSV files.
-        Job_id (str): Job ID.
+        out_dir (str): Output directory for CSV files.
+        job_id (str): Job ID.
     """
     timestamp = datetime.now().strftime("%Y-%m-%d")
     job_suffix = f"_{job_id}" if job_id else ""
