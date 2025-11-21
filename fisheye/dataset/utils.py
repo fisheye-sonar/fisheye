@@ -1,7 +1,9 @@
 import numpy as np
 
 
-def get_bbox_with_padding(coords_px, padding, min_padding_px, frame_shape):
+def get_bbox_with_padding(
+    coords_px: np.ndarray, padding: float, min_padding_px: int, frame_shape: tuple
+):
     """Get bounding box coordinates with padding given pixel coordinates."""
     x_min = int(coords_px[:, 0].min())
     x_max = int(coords_px[:, 0].max())

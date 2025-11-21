@@ -1,7 +1,7 @@
 """High-level dataset builder that orchestrates the dataset creation and export process."""
 
 from pathlib import Path
-from typing import Union, Iterable, Tuple
+from typing import Union, Iterable, Tuple, Optional
 
 import structlog
 from PIL import Image
@@ -31,8 +31,8 @@ class DatasetBuilder:
         padding: float = 0.1,
         min_padding_px: int = 30,
         extra_frames: int = 2,
-        frame_extractor: FrameExtractor | None = None,
-        exporter: BaseExporter | None = None,
+        frame_extractor: Optional[FrameExtractor] = None,
+        exporter: Optional[BaseExporter] = None,
     ):
         """Initializes the dataset builder."""
         self.aris_dir = Path(aris_dir)

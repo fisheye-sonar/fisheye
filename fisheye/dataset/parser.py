@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import numpy as np
 
@@ -46,7 +46,7 @@ def parse_aris_xml(path: Path):
     return data.get("MarkedFishMeasurements")
 
 
-def find_matching_aris_xml_files(aris_dir, xml_dir):
+def find_matching_aris_xml_files(aris_dir: Union[Path, str], xml_dir: Union[Path, str]):
     """Find ARIS files and their corresponding XML files.
 
     Matching pairs are required for building and exporting the dataset.
@@ -81,7 +81,9 @@ def find_matching_aris_xml_files(aris_dir, xml_dir):
     return aris_paths, xml_paths, unpaired_xml_files, unpaired_aris_files
 
 
-def get_box_data_from_xml(fish_data, metadata, padding: float, min_padding_px: int):
+def get_box_data_from_xml(
+    fish_data: dict, metadata: dict, padding: float, min_padding_px: int
+):
     """Extracts bounding box data (ARIS world coords) from fish data in XML format.
 
     Returns a list of per-fish dictionaries with:
@@ -117,7 +119,7 @@ def get_box_data_from_xml(fish_data, metadata, padding: float, min_padding_px: i
     return all_bbox_data
 
 
-def _parse_nodes(nodes):
+def _parse_nodes(nodes: Union[List, Dict]):
     """Parse FishMeasureNode elements into an (N, 2) array of world coordinates.
 
     `nodes` may be a dict or a list of dicts depending on the XML shape.

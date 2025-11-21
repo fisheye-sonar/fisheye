@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Type
+from typing import Any, Dict, Type, Union
 
 from fisheye.dataset.enums import DatasetFormat
 from fisheye.boxes import convert_xyxy_to_cxcywh
@@ -13,7 +13,12 @@ class BaseExporter(ABC):
         return self.export(bbox_data, img_name, metadata)
 
     @abstractmethod
-    def export(self, bbox_data: Dict[str, Any], img_name: str, metadata: Dict) -> None:
+    def export(
+        self,
+        bbox_data: Dict[str, Any],
+        img_name: Union[Path, str],
+        metadata: Dict[str, Any],
+    ) -> None:
         pass
 
 
@@ -23,7 +28,12 @@ class YOLOExporter(BaseExporter):
     def __init__(self, annotations_dir: Path):
         self.annotations_dir = annotations_dir
 
-    def export(self, bbox_data, img_name, metadata):
+    def export(
+        self,
+        bbox_data: Dict[str, Any],
+        img_name: Union[Path, str],
+        metadata: Dict[str, Any],
+    ):
         bbox_cxcywh = convert_xyxy_to_cxcywh(
             bbox_data["bbox_xy_xy"], metadata["xdim"], metadata["ydim"]
         )
@@ -37,7 +47,12 @@ class YOLOExporter(BaseExporter):
 class COCOExporter(BaseExporter):
     """COCO dataset exporter."""
 
-    def export(self, bbox_data, img_name, metadata):
+    def export(
+        self,
+        bbox_data: Dict[str, Any],
+        img_name: Union[Path, str],
+        metadata: Dict[str, Any],
+    ):
         raise NotImplementedError("COCO export not yet implemented")
 
 
