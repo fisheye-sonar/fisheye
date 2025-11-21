@@ -124,3 +124,27 @@ Run `chmod +x run.sh`
     Now run the script:
 
        `./run.sh`
+
+## Building Training Datasets
+
+The dataset builder creates image/annotation pairs from ARIS/DIDSON recordings and ARISFish XML exports.
+
+`DatasetBuilder` expects the following inputs: 
+
+- `aris_dir`: directory containing `.aris` files.
+- `xml_dir`: directory containing ARISFish XML files. XML files are expected to follow the naming pattern: `FCe_<ARIS_STEM>_ID_.xml`
+- `out_dir`: where images and annotations will be written.
+- Optional: `dataset_format` (default: YOLO), `padding`, `min_padding_px`
+
+ Users can configure the dataset creation in two ways:
+
+ 1. Edit parameters in `configs/dataset.yaml`, then run:
+        `$ python build_dataset.py`
+
+ 2. By overriding parameters on the command line:
+        `$ python build_dataset.py aris_dir=/path/to/aris xml_dir=/path/to/xml out_dir=/path/to/output`
+
+The builder produces:
+
+- `out_dir/images/` – extracted JPEG frames for each bounding‑box frame index.
+- `out_dir/<format>/` – annotations in the chosen `dataset_format` (for example, `out_dir/yolo/`).
