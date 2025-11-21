@@ -17,7 +17,8 @@ logger = structlog.get_logger()
 def to_detailed_csv(data, out_dir, job_id: str = None, **kwargs):
     """Export inference results to CSV file.
 
-    A detailed CSV with where each row is considered a count with additional metadata.
+    Users can configure the distance offset via kwargs:
+        distance_offset: float, default 0.0
 
     Args:
         data (dict): Dictionary of inference results.
@@ -29,53 +30,65 @@ def to_detailed_csv(data, out_dir, job_id: str = None, **kwargs):
     out_file = os.path.join(out_dir, f"{timestamp}{job_suffix}")
 
     flattened_data = [item for sublist in data if sublist for item in sublist]
-
     if not flattened_data:
-        logger.warning(f"No counts were found in the provided data. Nothing to export.")
+        logger.warning("No counts were found in the provided data. Nothing to export.")
         return
 
     out_file = out_file + "_" + Path(flattened_data[0].get("Source.Name")).stem + ".csv"
     distance_offset = kwargs.get("distance_offset", 0.0)
 
-    # Extract ARISMetadata fields and flatten them into each row
+    # Flatten metadata into each row
     expanded_data = []
     for item in flattened_data:
         new_item = item.copy()
         meta = new_item["metadata"]
-
         if isinstance(meta, ARISMetadata):
             new_item.update(meta.__dict__)
-
         expanded_data.append(new_item)
 
     df = pd.DataFrame(expanded_data)
 
-    if not df["bbox"].isna().all():
-        # Calculate the distance from the sonar camera to the fish in an unwarped frame
+    # Calculate the distance from the sonar camera to the fish in an unwarped frame
+    if "bbox" in df.columns and not df["bbox"].isna().all():
         df[["R (m)", "Theta"]] = df.apply(
             get_unwarped_distance_and_theta, axis=1, result_type="expand"
         )
 
-    # Reorganize and clean up dataframe
-    df.drop(columns=["metadata"], inplace=True)
-    cols = df.columns.tolist()
-
-    if "R (m)" in cols:
-        cols.insert(3, cols.pop(cols.index("R (m)")))
-    if "Theta" in cols:
-        cols.insert(4, cols.pop(cols.index("Theta")))
-
-    df = df[cols]
     df["R (m)"] += distance_offset
+    df["R (m)"] = df["R (m)"].round(2)
+
+    # Extract date from first source name (source names are all the same)
+    source_name = df.loc[0, "Source.Name"]
+    m = re.search(r"\d{4}-\d{2}-\d{2}", source_name)
+    formatted_date = (
+        pd.to_datetime(m.group(0), format="%Y-%m-%d").strftime("%m-%d-%Y")
+        if m
+        else None
+    )
+    df["Date"] = formatted_date
+
     # Sort by frame index in ascending order
     df = df.sort_values(by="Frame#")
 
+    # Column ordering
+    base_cols = ["Source.Name", "Frame#", "Dir", "R (m)", "Theta", "Date", "ID"]
+
+    # Columns from ARISMetadata
+    meta_cols = [c for c in df.columns if c not in base_cols and c not in ["bbox"]]
+
+    # Remaining columns (catch-all for any other unexpected fields)
+    remaining_cols = [c for c in df.columns if c not in base_cols + meta_cols]
+
+    final_cols = base_cols + meta_cols + remaining_cols
+    df = df[final_cols]
+    df.drop(columns=["metadata"], inplace=True)
+
     with open(out_file, "w") as f:
-        df.to_csv(out_file, index=False)
+        df.to_csv(f, index=False)
         f.flush()
         os.fsync(f.fileno())
 
-    logger.info(f"exported_detailed_csv", output_dir=out_file)
+    logger.info("exported_detailed_csv", output_dir=out_file)
 
 
 def to_summary_csv(data, out_dir, job_id: str = None, **kwargs):
