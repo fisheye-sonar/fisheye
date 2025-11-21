@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Union
 
 import numpy as np
 
-from fisheye.common.file_system import find_real_files
+from fisheye.common.file_system import find_aris_xml_files
 from fisheye.dataset.utils import coords_meters_to_pixels, get_bbox_with_padding
 
 
@@ -54,8 +54,8 @@ def find_matching_aris_xml_files(aris_dir: Union[Path, str], xml_dir: Union[Path
     aris_dir = Path(aris_dir)
     xml_dir = Path(xml_dir)
 
-    aris_paths: List[Path] = [Path(p) for p in find_real_files(aris_dir, "*.aris")]
-    xml_paths: List[Path] = [Path(p) for p in find_real_files(xml_dir, "*.xml")]
+    aris_paths: List[Path] = [Path(p) for p in find_aris_xml_files(aris_dir, "*.aris")]
+    xml_paths: List[Path] = [Path(p) for p in find_aris_xml_files(xml_dir, "*.xml")]
 
     # XML file names: paths
     xml_by_name: Dict[str, Path] = {fp.name: fp for fp in xml_paths}

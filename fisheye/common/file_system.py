@@ -9,17 +9,35 @@ from fisheye.enums import ValidExtensions, IGNORED_DIR_NAMES, IGNORED_FILE_PREFI
 logger = structlog.getLogger(__name__)
 
 
-def find_real_files(base_path: Path, pattern: str):
+def _should_ignore_path(fp: Path) -> bool:
+    """Return True if the given path should be ignored based on common rules."""
+    parts = fp.parts
+
+    # Skip hidden files or files in hidden directories
+    if any(part.startswith(".") for part in parts):
+        return True
+
+    # Skip paths that go through ignored directories
+    if any(part in IGNORED_DIR_NAMES for part in parts):
+        return True
+
+    # Skip files whose *basename* starts with an ignored prefix
+    if any(fp.name.startswith(prefix) for prefix in IGNORED_FILE_PREFIXES):
+        return True
+
+    # Skip temp/backup files
+    if fp.name.startswith("~"):
+        return True
+
+    return False
+
+
+def find_aris_xml_files(base_path: Path, pattern: str) -> List[Path]:
+    """Find all ARIS XML files in a directory."""
     return [
         fp
         for fp in base_path.rglob(pattern)
-        if fp.is_file()  # only actual files
-        and not any(
-            part.startswith(".") for part in fp.parts
-        )  # skip hidden folders/files
-        and "$RECYCLE.BIN" not in fp.parts  # skip recycle bin
-        and "System Volume Information" not in fp.parts  # skip system folders
-        and not fp.name.startswith("~")  # skip temp/backup files
+        if fp.is_file() and not _should_ignore_path(fp)
     ]
 
 
@@ -43,18 +61,14 @@ def get_all_valid_files_in_dir(path: Path) -> List[Path]:
     valid_files = []
     for root, dirs, files in os.walk(path):
         # Skip ignored system directories
-        dirs[:] = [
-            d for d in dirs if d not in IGNORED_DIR_NAMES and not d.startswith(".")
-        ]
+        dirs[:] = [d for d in dirs if not _should_ignore_path(Path(root) / d)]
 
         for file in files:
-            # Skip files with ignored prefixes
-            if file.startswith(".") or any(
-                file.startswith(prefix) for prefix in IGNORED_FILE_PREFIXES
-            ):
+            file_path = Path(root) / file
+
+            if _should_ignore_path(file_path):
                 continue
 
-            file_path = Path(root) / file
             if is_valid_file(file_path):
                 valid_files.append(file_path)
 
