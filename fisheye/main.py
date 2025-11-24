@@ -22,11 +22,11 @@ from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 from fisheye.version import __app_version__, get_version_from_detector
 
-job_id = generate_job_id()
-setup_logging(file_logging=True, job_id=job_id)
-
 
 def run_pipeline(cfg: DictConfig):
+    job_id = generate_job_id()
+    setup_logging(file_logging=True, job_id=job_id)
+
     input_path = cfg.input_path
     output_dir = cfg.output_dir
     export_options = cfg.export_options
@@ -40,14 +40,9 @@ def run_pipeline(cfg: DictConfig):
     dataset_config = platform_cfg.dataset
     model_config = platform_cfg.model
 
-    # Default to using multiprocessing for Windows machine with GPU
-    if model_config.device == DeviceType.CUDA and platform.system() == "Windows":
-        mp.set_start_method("spawn", force=True)
-
     check_disk_space(
         path=output_dir if output_dir else input_path
-    )  # Make sure there's enough space to store
-    # results
+    )  # Make sure there's enough space to store results
     project_root = Path(__file__).resolve().parents[1]
 
     weights, device = model_config.weights, model_config.device
@@ -123,4 +118,11 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
+    # TODO (MVH): This check is a bit rough since we don't have the config yet, but 'spawn' is generally safer for
+    #  Windows + multiprocessing anyways
+    if platform.system() == "Windows":
+        try:
+            mp.set_start_method("spawn", force=True)
+        except RuntimeError:
+            pass
     main()
