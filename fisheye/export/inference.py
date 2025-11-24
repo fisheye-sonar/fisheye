@@ -92,6 +92,8 @@ class BaseInferenceExporter(ABC):
 
 
 class DetailedCSVExporter(BaseInferenceExporter):
+    """Export counts to detailed CSV format."""
+
     def export(self, data: List[List[Dict]]) -> None:
         df = self._prepare_dataframe(data)
         if df is None or df.empty:
@@ -141,6 +143,8 @@ class DetailedCSVExporter(BaseInferenceExporter):
 
 
 class SummaryCSVExporter(BaseInferenceExporter):
+    """Export counts to summary CSV format."""
+
     def export(self, data: List[List[Dict]]) -> None:
         flattened_data = [item for sublist in data if sublist for item in sublist]
         if not flattened_data:
@@ -206,6 +210,8 @@ class SummaryCSVExporter(BaseInferenceExporter):
 
 
 class FCExporter(BaseInferenceExporter):
+    """Export counts to FC format."""
+
     def export(self, data: List[List[Dict]]) -> None:
         df = self._prepare_dataframe(data)
         if df is None or df.empty:
@@ -319,6 +325,8 @@ class FCExporter(BaseInferenceExporter):
 
 
 class MOTExporter(BaseInferenceExporter):
+    """Export counts to MOT format."""
+
     def __init__(
         self,
         output_dir: str,
@@ -424,6 +432,7 @@ def save_to_disk(
 
 
 def parse_export_options(options: List[str]) -> List[ExportType]:
+    """Parse export options from CLI."""
     export_types = []
     for option in options:
         try:
