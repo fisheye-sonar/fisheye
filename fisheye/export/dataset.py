@@ -6,7 +6,7 @@ from fisheye.dataset.enums import DatasetFormat
 from fisheye.boxes import convert_xyxy_to_cxcywh
 
 
-class BaseExporter(ABC):
+class BaseDatasetExporter(ABC):
     """Abstract base class for dataset exporters."""
 
     def __call__(self, bbox_data, img_name, metadata):
@@ -22,7 +22,7 @@ class BaseExporter(ABC):
         pass
 
 
-class YOLOExporter(BaseExporter):
+class YOLOExporter(BaseDatasetExporter):
     """YOLO dataset exporter."""
 
     def __init__(self, annotations_dir: Path):
@@ -44,7 +44,7 @@ class YOLOExporter(BaseExporter):
             )
 
 
-class COCOExporter(BaseExporter):
+class COCOExporter(BaseDatasetExporter):
     """COCO dataset exporter."""
 
     def export(
@@ -56,7 +56,7 @@ class COCOExporter(BaseExporter):
         raise NotImplementedError("COCO export not yet implemented")
 
 
-DATASET_EXPORTER_REGISTRY: Dict[DatasetFormat, Type[BaseExporter]] = {
+DATASET_EXPORTER_REGISTRY: Dict[DatasetFormat, Type[BaseDatasetExporter]] = {
     DatasetFormat.YOLO: YOLOExporter,
     DatasetFormat.COCO: COCOExporter,
 }

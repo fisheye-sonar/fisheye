@@ -14,7 +14,7 @@ from fisheye.dataset.parser import (
     find_matching_aris_xml_files,
     get_box_data_from_xml,
 )
-from fisheye.export.dataset import DATASET_EXPORTER_REGISTRY, BaseExporter
+from fisheye.export.dataset import DATASET_EXPORTER_REGISTRY, BaseDatasetExporter
 
 logger = structlog.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class DatasetBuilder:
         min_padding_px: int = 30,
         extra_frames: int = 2,
         frame_extractor: Optional[FrameExtractor] = None,
-        exporter: Optional[BaseExporter] = None,
+        exporter: Optional[BaseDatasetExporter] = None,
     ):
         """Initializes the dataset builder."""
         self.aris_dir = Path(aris_dir)
