@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from fisheye.configs.datasets import ARISMetadata
-from fisheye.export import to_detailed_csv, to_summary_csv, to_fc_txt
+from fisheye.export import DetailedCSVExporter, SummaryCSVExporter, FCExporter
 
 
 def sample_data():
@@ -82,20 +82,32 @@ def sample_data():
 def test_detailed_csv_creates_file_and_content(tmp_path):
     """Test creating detailed csv per aris file."""
     data = sample_data()
-    to_detailed_csv(data, tmp_path, job_id="testjob")
+    exporter = DetailedCSVExporter(output_dir=str(tmp_path), job_id="testjob")
+    exporter.export(data)
 
     out_files = list(tmp_path.glob("*.csv"))
     assert len(out_files) == 1
 
     df = pd.read_csv(out_files[0])
     assert "Source.Name" in df.columns
-    assert df.shape[0] == 2  # 2 rows exported
+    assert len(df) == 2
+
+
+def test_detailed_csv_empty_data(tmp_path):
+    """Test passing in empty data for detailed csv."""
+    data = []
+    exporter = DetailedCSVExporter(output_dir=str(tmp_path), job_id="testjob")
+    exporter.export(data)
+
+    out_files = list(tmp_path.glob("*.csv"))
+    assert len(out_files) == 0
 
 
 def test_summary_csv_creates_file_and_content(tmp_path):
     """Test creating summary csv."""
     data = sample_data()
-    to_summary_csv(data, tmp_path, job_id="testjob")
+    exporter = SummaryCSVExporter(output_dir=str(tmp_path), job_id="testjob")
+    exporter.export(data)
 
     out_files = list(tmp_path.glob("*_summary.csv"))
     assert len(out_files) == 1
@@ -103,18 +115,29 @@ def test_summary_csv_creates_file_and_content(tmp_path):
     df = pd.read_csv(out_files[0])
     assert "Source.Name" in df.columns
     assert "net_count" in df.columns
-    assert df.shape[0] == 1  # 1 unique file_name
+    assert len(df) == 1
 
-    # Left and right should cancel out → net_count == 0
+    # Left vs right cancel → 0
     assert df["net_count"].iloc[0] == 0
+
+
+def test_summary_csv_empty_data(tmp_path):
+    """Test passing in empty data for summary csv."""
+    data = []
+    exporter = SummaryCSVExporter(output_dir=str(tmp_path), job_id="testjob")
+    exporter.export(data)
+
+    out_files = list(tmp_path.glob("*_summary.csv"))
+    assert len(out_files) == 0
 
 
 def test_txt_creates_file_and_lines(tmp_path):
     """Test creating ARISFish TXT per aris file."""
     data = sample_data()
-    to_fc_txt(data, tmp_path)
+    exporter = FCExporter(output_dir=str(tmp_path), job_id="testjob")
+    exporter.export(data)
 
-    out_files = list(tmp_path.glob("*.txt"))
+    out_files = list(tmp_path.glob("FCe_*.txt"))
     assert len(out_files) == 1
 
     with open(out_files[0], "r") as f:
@@ -125,28 +148,11 @@ def test_txt_creates_file_and_lines(tmp_path):
     assert len(lines) > 4
 
 
-def test_detailed_csv_empty_data(tmp_path):
-    """Test passing in empty data for detailed csv."""
-    data = []
-    to_detailed_csv(data, tmp_path, job_id="testjob")
-
-    out_files = list(tmp_path.glob("*.csv"))
-    assert len(out_files) == 0
-
-
-def test_summary_csv_empty_data(tmp_path):
-    """Test passing in empty data for summary csv."""
-    data = []
-    to_summary_csv(data, tmp_path, job_id="testjob")
-
-    out_files = list(tmp_path.glob("*_summary.csv"))
-    assert len(out_files) == 0
-
-
 def test_txt_empty_data(tmp_path):
     """Test passing in empty data for txt file."""
     data = []
-    to_fc_txt(data, tmp_path)
+    exporter = FCExporter(output_dir=str(tmp_path), job_id="testjob")
+    exporter.export(data)
 
-    out_files = list(tmp_path.glob("*.txt"))
+    out_files = list(tmp_path.glob("FCe_*.txt"))
     assert len(out_files) == 0

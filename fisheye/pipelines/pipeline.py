@@ -17,7 +17,7 @@ from fisheye.configs import YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, NMSConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
-from fisheye.export import save_to_disk, to_mot_txt
+from fisheye.export import save_to_disk, MOTExporter
 from fisheye.format import tracker_output_to_dict_rows, dict_rows_to_mot_format
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
@@ -122,7 +122,7 @@ class DetectTrackCountPipeline:
             mot_tracks = dict_rows_to_mot_format(
                 formatted_yolo_tracks, metadata.xdim, metadata.ydim
             )
-            to_mot_txt(mot_tracks, output_dir, file.stem)
+            MOTExporter(output_dir=output_dir, filename=file.stem).export(mot_tracks)
 
         (left_count, right_count), crossing_frames = Count().count(
             formatted_yolo_tracks
