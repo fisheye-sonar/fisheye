@@ -127,6 +127,10 @@ class ObjectDetectionPipeline:
         width = None
         height = None
 
+        if use_nms:
+            all_low_preds_updated_batch = {}
+            all_high_preds_updated_batch = {}
+
         with torch.inference_mode():
             for batch_idx, (img, _, shapes) in tqdm(
                 enumerate(self.dataloader),
@@ -157,8 +161,55 @@ class ObjectDetectionPipeline:
                 for si, pred in enumerate(inf_out):
                     batch_shape.append((img[si].shape[1:], shapes[si]))
 
-                image_shapes.append(batch_shape)
-                inference_bboxes.append(inf_out.cpu())
+                print(f"{type(inf_out.cpu())=}")
+                if use_nms:
+                    # Get low confidence for ByteTrack
+                    nms_config.conf = 0.1
+                    low_output = run_nms(
+                        [inf_out.cpu()],  # xyxy format relative to YOLO pixel space
+                        self.metadata.image_meter_width,
+                        width,
+                        self.dataset.batch_size,
+                        nms_config,
+                    )
+
+                    # Get high confidence for ByteTrack
+                    nms_config.conf = 0.3
+                    high_output = run_nms(
+                        [inf_out.cpu()],  # xyxy format relative to YOLO pixel space
+                        self.metadata.image_meter_width,
+                        width,
+                        self.dataset.batch_size,
+                        nms_config,
+                    )
+
+                    # Prepare bounding boxes for tracking pipeline
+                    low_preds, _og_width, _og_height = normalize_boxes_for_tracking(
+                        [batch_shape],
+                        low_output,  # xyxy format relative to YOLO pixel space
+                        width,
+                        height,
+                        batch_size=self.dataset.batch_size,
+                    )
+                    high_preds, _og_width, _og_height = normalize_boxes_for_tracking(
+                        [batch_shape],
+                        high_output,  # xyxy format relative to YOLO pixel space
+                        width,
+                        height,
+                        batch_size=self.dataset.batch_size,
+                    )
+
+                    all_low_preds_updated_batch.update(
+                        {(batch_idx, k[1]): v for k, v in low_preds.items()}
+                    )
+
+                    all_high_preds_updated_batch.update(
+                        {(batch_idx, k[1]): v for k, v in high_preds.items()}
+                    )
+
+                else:
+                    image_shapes.append(batch_shape)
+                    inference_bboxes.append(inf_out.cpu())
 
                 log_progress(
                     logger,
@@ -168,52 +219,7 @@ class ObjectDetectionPipeline:
                 )
 
         if use_nms:
-            # Get low confidence for ByteTrack
-            nms_config.conf = 0.1
-            low_output = run_nms(
-                inference_bboxes,  # xyxy format relative to YOLO pixel space
-                self.metadata.image_meter_width,
-                width,
-                self.dataset.batch_size,
-                nms_config,
-            )
-
-            # Get high confidence for ByteTrack
-            nms_config.conf = 0.3
-            high_output = run_nms(
-                inference_bboxes,  # xyxy format relative to YOLO pixel space
-                self.metadata.image_meter_width,
-                width,
-                self.dataset.batch_size,
-                nms_config,
-            )
-            print(f"{high_output=}")
-
-            print(f"{len(low_output)=}")
-            print(f"{len(high_output)=}")
-            print(f"{len(high_output[0])=}")
-            print(f"{len(high_output[0][0])=}")
-            print(f"{high_output[0][0]=}")
-            for i, high_b in enumerate(high_output):
-                for ii, hb in enumerate(high_b):
-                    print(f"{i}, {ii}: {hb=}")
-
-            # Prepare bounding boxes for tracking pipeline
-            low_preds, _og_width, _og_height = normalize_boxes_for_tracking(
-                image_shapes,
-                low_output,  # xyxy format relative to YOLO pixel space
-                width,
-                height,
-                batch_size=self.dataset.batch_size,
-            )
-            high_preds, _og_width, _og_height = normalize_boxes_for_tracking(
-                image_shapes,
-                high_output,  # xyxy format relative to YOLO pixel space
-                width,
-                height,
-                batch_size=self.dataset.batch_size,
-            )
-            return low_preds, high_preds
+            return all_low_preds_updated_batch, all_high_preds_updated_batch
 
         else:
 

@@ -84,7 +84,7 @@ class DetectTrackCountPipeline:
                     use_nms=True, nms_config=self.nms_config
                 )
             else:
-                detections = self.detect_pipe._forward()
+                detections = self.detect_pipe()
 
                 # detections = self.detect_pipe._forward(nms_config=self.nms_config)
                 print(f"{len(detections.pred_bboxes[0])=}")
