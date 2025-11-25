@@ -17,6 +17,9 @@ from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
 from tqdm import tqdm  # MAH 2025-11-24 15:36:22
 
+
+from fisheye.boxes import run_nms, normalize_boxes_for_tracking
+
 # Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
     "nms": run_nms,
@@ -117,9 +120,9 @@ class ObjectDetectionPipeline:
 
         return processed_output if processed_output else output
 
-    def _forward(self, *args, **kwargs):
+    def _forward(self, use_nms=False, nms_config=None, *args, **kwargs):
         """Performs inference with optional multithreading."""
-        inference = []
+        inference_bboxes = []
         image_shapes = []
         width = None
         height = None
@@ -144,6 +147,9 @@ class ObjectDetectionPipeline:
                     # Batched inference - [B, N, 6]
                     inf_out = self.model(img)
 
+                    # print(f"{inf_out=}")  # MAH 2025-11-24 15:38:28
+                    print(f"{inf_out.shape=}")  # MAH 2025-11
+
                 torch.cuda.empty_cache()
 
                 # Save shapes for resizing to original shape
@@ -152,7 +158,7 @@ class ObjectDetectionPipeline:
                     batch_shape.append((img[si].shape[1:], shapes[si]))
 
                 image_shapes.append(batch_shape)
-                inference.append(inf_out.cpu())
+                inference_bboxes.append(inf_out.cpu())
 
                 log_progress(
                     logger,
@@ -161,7 +167,57 @@ class ObjectDetectionPipeline:
                     prefix="Detector progress | ",
                 )
 
-        return inference, image_shapes, width, height
+        if use_nms:
+            # Get low confidence for ByteTrack
+            nms_config.conf = 0.1
+            low_output = run_nms(
+                inference_bboxes,  # xyxy format relative to YOLO pixel space
+                self.metadata.image_meter_width,
+                width,
+                self.dataset.batch_size,
+                nms_config,
+            )
+
+            # Get high confidence for ByteTrack
+            nms_config.conf = 0.3
+            high_output = run_nms(
+                inference_bboxes,  # xyxy format relative to YOLO pixel space
+                self.metadata.image_meter_width,
+                width,
+                self.dataset.batch_size,
+                nms_config,
+            )
+            print(f"{high_output=}")
+
+            print(f"{len(low_output)=}")
+            print(f"{len(high_output)=}")
+            print(f"{len(high_output[0])=}")
+            print(f"{len(high_output[0][0])=}")
+            print(f"{high_output[0][0]=}")
+            for i, high_b in enumerate(high_output):
+                for ii, hb in enumerate(high_b):
+                    print(f"{i}, {ii}: {hb=}")
+
+            # Prepare bounding boxes for tracking pipeline
+            low_preds, _og_width, _og_height = normalize_boxes_for_tracking(
+                image_shapes,
+                low_output,  # xyxy format relative to YOLO pixel space
+                width,
+                height,
+                batch_size=self.dataset.batch_size,
+            )
+            high_preds, _og_width, _og_height = normalize_boxes_for_tracking(
+                image_shapes,
+                high_output,  # xyxy format relative to YOLO pixel space
+                width,
+                height,
+                batch_size=self.dataset.batch_size,
+            )
+            return low_preds, high_preds
+
+        else:
+
+            return inference_bboxes, image_shapes, width, height
 
     def run(self, *args, **kwargs):
         """Executes the detection pipeline end-to-end.

@@ -7,6 +7,6 @@ defaults:
 # input_path: "/home/mahobley/Data/CFC22/aris_files/nushagak/RB_Nusagak_Sonar_Files_2018_RB_2018-07-02_211000.aris"
 input_path: "/media/mahobley/PortableSSD/klamath_aris/2024-10-17_103000.aris"
 output_dir: "/home/mahobley/Code/fisheye/outputs"
-export_options: ["summary_csv", "detailed_csv", "fc", "mot"]
+export_options: []
 upstream_direction: left
 distance_offset: 0

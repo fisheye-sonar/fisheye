@@ -67,7 +67,7 @@ class DetectTrackCountPipeline:
         start_frame = 0
         end_frame = 0
         start_frame = 315
-        end_frame = 345
+        end_frame = 415
         self.dataset_cfg = replace(
             self.dataset_cfg,
             filepath=file,
@@ -76,45 +76,79 @@ class DetectTrackCountPipeline:
         )
         self.detect_pipe.load_dataset(self.dataset_cfg)
         metadata = self.detect_pipe.metadata
+
         if True:
-            detections = self.detect_pipe()
+            use_nms = True
+            if use_nms:
+                low_preds, high_preds = self.detect_pipe._forward(
+                    use_nms=True, nms_config=self.nms_config
+                )
+            else:
+                detections = self.detect_pipe._forward()
 
-            # Get low confidence for ByteTrack
-            self.nms_config.conf = 0.1
-            low_output = run_nms(
-                detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
-                metadata.image_meter_width,
-                detections.width,
-                self.dataset_cfg.batch_size,
-                self.nms_config,
-            )
+                # detections = self.detect_pipe._forward(nms_config=self.nms_config)
+                print(f"{len(detections.pred_bboxes[0])=}")
+                print(f"{detections.pred_bboxes[0].shape=}")
+                print(f"{len(detections.pred_bboxes[1])=}")
 
-            # Get high confidence for ByteTrack
-            self.nms_config.conf = 0.3
-            high_output = run_nms(
-                detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
-                metadata.image_meter_width,
-                detections.width,
-                self.dataset_cfg.batch_size,
-                self.nms_config,
-            )
+                # Get low confidence for ByteTrack
+                self.nms_config.conf = 0.1
+                low_output = run_nms(
+                    detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
+                    metadata.image_meter_width,
+                    detections.width,
+                    self.dataset_cfg.batch_size,
+                    self.nms_config,
+                )
 
-            # Prepare bounding boxes for tracking pipeline
-            low_preds, og_width, og_height = normalize_boxes_for_tracking(
-                detections.image_shape,
-                low_output,  # xyxy format relative to YOLO pixel space
-                detections.width,
-                detections.height,
-                batch_size=self.dataset_cfg.batch_size,
-            )
-            high_preds, og_width, og_height = normalize_boxes_for_tracking(
-                detections.image_shape,
-                high_output,  # xyxy format relative to YOLO pixel space
-                detections.width,
-                detections.height,
-                batch_size=self.dataset_cfg.batch_size,
-            )
+                # Get high confidence for ByteTrack
+                self.nms_config.conf = 0.3
+                high_output = run_nms(
+                    detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
+                    metadata.image_meter_width,
+                    detections.width,
+                    self.dataset_cfg.batch_size,
+                    self.nms_config,
+                )
+                print(f"{high_output=}")
 
+                print(f"{len(low_output)=}")
+                print(f"{len(high_output)=}")
+                print(f"{len(high_output[0])=}")
+                print(f"{len(high_output[0][0])=}")
+                print(f"{high_output[0][0]=}")
+                for i, high_b in enumerate(high_output):
+                    for ii, hb in enumerate(high_b):
+                        print(f"{i}, {ii}: {hb=}")
+
+                # Prepare bounding boxes for tracking pipeline
+                low_preds, og_width, og_height = normalize_boxes_for_tracking(
+                    detections.image_shape,
+                    low_output,  # xyxy format relative to YOLO pixel space
+                    detections.width,
+                    detections.height,
+                    batch_size=self.dataset_cfg.batch_size,
+                )
+                high_preds, og_width, og_height = normalize_boxes_for_tracking(
+                    detections.image_shape,
+                    high_output,  # xyxy format relative to YOLO pixel space
+                    detections.width,
+                    detections.height,
+                    batch_size=self.dataset_cfg.batch_size,
+                )
+
+            # print(f"{low_preds=}")
+            # print(f"{high_preds=}")
+
+            # print(f"{len(low_preds)=}")
+            print(f"{len(low_preds)=}")
+            print(f"{len(high_preds)=}")
+            print(f"{len(list(high_preds.keys()))=}")
+            for k, v in high_preds.items():
+                if v is not None:
+                    print(f"{k}: {v.shape}")
+                else:
+                    print(f"{k}: {v}")
             tracker_output = run_tracker(
                 low_preds,  # xyxy format relative to the original image pixel space
                 high_preds,  # xyxy format relative to the original image pixel space
@@ -124,67 +158,10 @@ class DetectTrackCountPipeline:
             )
             tracker_output_dict = asdict(tracker_output)
             frames_preds = tracker_output_dict["frames"]
+            print(f"{frames_preds=}")
+            exit()
 
-        if False:
-            frames_preds = [
-                {"frame_num": 0, "fish": []},
-                {"frame_num": 1, "fish": []},
-                {"frame_num": 2, "fish": []},
-                {"frame_num": 3, "fish": []},
-                {"frame_num": 4, "fish": []},
-                {
-                    "frame_num": 5,
-                    "fish": [
-                        {
-                            "id": 0,
-                            "bbox": [
-                                np.float64(0.5092020188020037),
-                                np.float64(0.9260163954921846),
-                                np.float64(0.5456241762355347),
-                                np.float64(0.933396493097553),
-                            ],
-                            "conf": np.float64(0.3547280728816986),
-                        }
-                    ],
-                },
-                {"frame_num": 6, "fish": []},
-                {"frame_num": 7, "fish": []},
-                {"frame_num": 8, "fish": []},
-                {"frame_num": 9, "fish": []},
-                {"frame_num": 10, "fish": []},
-                {"frame_num": 11, "fish": []},
-                {"frame_num": 12, "fish": []},
-                {"frame_num": 13, "fish": []},
-                {"frame_num": 14, "fish": []},
-                {
-                    "frame_num": 15,
-                    "fish": [
-                        {
-                            "id": 0,
-                            "bbox": [
-                                np.float64(0.4623487908559229),
-                                np.float64(0.9284247395933569),
-                                np.float64(0.5225338001864082),
-                                np.float64(0.9377907341005849),
-                            ],
-                            "conf": np.float64(0.38758978247642517),
-                        }
-                    ],
-                },
-                {"frame_num": 16, "fish": []},
-                {"frame_num": 17, "fish": []},
-                {"frame_num": 18, "fish": []},
-                {"frame_num": 19, "fish": []},
-                {"frame_num": 20, "fish": []},
-                {"frame_num": 21, "fish": []},
-                {"frame_num": 22, "fish": []},
-                {"frame_num": 23, "fish": []},
-                {"frame_num": 24, "fish": []},
-                {"frame_num": 25, "fish": []},
-                {"frame_num": 26, "fish": []},
-                {"frame_num": 27, "fish": []},
-                {"frame_num": 28, "fish": []},
-            ]
+        if True:
 
             model_type = "unet"
             unet_double_conv = False

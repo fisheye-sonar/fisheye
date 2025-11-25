@@ -3,13 +3,13 @@ dataset:
   workers: 0
   use_multithreading: false
   use_blur: true
-  max_workers: 2  # For multithreading
+  max_workers: 2 # For multithreading
 
 model:
   type: yolov5
-  weights: weights/cfc_detect_yolov5s_v0.pt
+  weights: weights/cfc_detect_yolov5s_v1.pt
   device: cpu
 
 inference:
   use_multithreading: false
-  max_workers: 2  # For multithreading
+  max_workers: 2 # For multithreading

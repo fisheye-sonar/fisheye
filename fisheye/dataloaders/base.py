@@ -162,6 +162,7 @@ class BaseDataset(Dataset):
                 unwarped_frames = unwarped_frames[:-1]
 
             if self.return_echogram:
+                print(f"# MAH 2025-11-24 17:16:21 calculating echogram")
                 echogram = self._get_echogram(unwarped_frames)
             else:
                 echogram = None

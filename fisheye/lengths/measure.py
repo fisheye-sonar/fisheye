@@ -57,7 +57,26 @@ def get_pred_from_img(
         if img.shape[1] == 3:
             # if given a 3 channel image (prev, current, next) we want to use the current channel
             img = img[:, 1:2, :, :]
-    pred = model(img)
+
+    if True:
+        # whole image
+        pred = model(img)
+    else:
+        # initial crop to have a smaller input image
+        padd_for_receptive_field = 100
+        min_crop_l = max(0, min(crops_l) - padd_for_receptive_field)
+        min_crop_t = max(0, min(crops_t) - padd_for_receptive_field)
+        min_crop_r = max(1, min(crops_r) - padd_for_receptive_field)
+        min_crop_b = max(1, min(crops_b) - padd_for_receptive_field)
+
+        pred = torch.zeros(img.shape[0], 2, img.shape[2], img.shape[3])
+        img_init_crop = img[:, :, min_crop_t:-min_crop_b, min_crop_l:-min_crop_r]
+        print(f"{img.shape=}")
+        print(f"{img_init_crop.shape=}")
+        pred_init_crop = model(img_init_crop)
+        print(f"{pred_init_crop.shape=}")
+        # uncrop the pred
+        pred[:, :, min_crop_t:-min_crop_b, min_crop_l:-min_crop_r] = pred_init_crop
 
     outputs = []
     for crop_l, crop_t, crop_r, crop_b in zip(crops_l, crops_t, crops_r, crops_b):
@@ -82,18 +101,18 @@ def get_pred_from_img(
         print(f"{pred_kpts.shape=}")
         print(f"{pred_kpts=}")
         print(f"{calc_len(pred_kpts)=}")
-        fig, ax = plt.subplots(1, 3)
-        ax[0].imshow(pred_cropped[0, 0].cpu().numpy())
-        ax[1].imshow(pred_cropped[0, 1].cpu().numpy())
-        ax[2].imshow(vis_3_channel_img(img_cropped[0]).cpu().numpy())
-        ax[2].scatter(
-            pred_kpts[:, 0].cpu().numpy(),
-            pred_kpts[:, 1].cpu().numpy(),
-            color="green",
-            marker="x",
-        )
-        plt.savefig(f"pred_kpts_{crop_l}_{crop_t}_{crop_r}_{crop_b}.png")
-        plt.show()
+        # fig, ax = plt.subplots(1, 3)
+        # ax[0].imshow(pred_cropped[0, 0].cpu().numpy())
+        # ax[1].imshow(pred_cropped[0, 1].cpu().numpy())
+        # ax[2].imshow(vis_3_channel_img(img_cropped[0]).cpu().numpy())
+        # ax[2].scatter(
+        #     pred_kpts[:, 0].cpu().numpy(),
+        #     pred_kpts[:, 1].cpu().numpy(),
+        #     color="green",
+        #     marker="x",
+        # )
+        # plt.savefig(f"pred_kpts_{crop_l}_{crop_t}_{crop_r}_{crop_b}.png")
+        # plt.show()
 
         average_brightness_head_to_tail = average_brightness_on_line(
             img_cropped[0, 1].cpu().numpy(),
@@ -188,12 +207,12 @@ def get_pred_from_dir(
             ]
             if frame_num == 0:
                 # MAH 2025-11-24 14:26:35 this isnt ideal as not how its trained, should probably just skip the first and last frames
-
                 frames_to_load = [
                     min(len(dataset) - 1, frame_num + 2),
                     frame_num,
                     min(len(dataset) - 1, frame_num + 1),
                 ]
+
             elif frame_num == len(dataset) - 1:
                 # MAH 2025-11-24 14:26:35 this isnt ideal as not how its trained, should probably just skip the first and last frames
                 frames_to_load = [
@@ -208,6 +227,10 @@ def get_pred_from_dir(
                     min(len(dataset) - 1, frame_num + 1),
                 ]
 
+            print(
+                f"# MAH 2025-11-24 18:49:39 make this more efficient by using a get_item_ that can pull in multiple frames at once"
+            )
+            # MAH 2025-11-24 18:48:13 this should all be batched together to save time a get_item_ that can pull in multiple frames at once
             frame_images_previous, _frame_labels, _unwarped_frames, _echogram = (
                 dataset.__getitem__(frames_to_load[0], postprocess=False)
             )
