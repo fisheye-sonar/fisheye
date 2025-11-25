@@ -78,12 +78,12 @@ class DetectTrackCountPipeline:
         metadata = self.detect_pipe.metadata
 
         if True:
-            use_nms = True
-            if use_nms:
-                low_preds, high_preds = self.detect_pipe._forward(
-                    use_nms=True, nms_config=self.nms_config
-                )
+            if self.detect_pipe.apply_nms_batchwise:
+                print("Applying NMS batchwise")
+                low_preds, high_preds = self.detect_pipe()
             else:
+                print("Applying NMS over all frames")
+
                 detections = self.detect_pipe()
 
                 # detections = self.detect_pipe._forward(nms_config=self.nms_config)
@@ -159,7 +159,6 @@ class DetectTrackCountPipeline:
             tracker_output_dict = asdict(tracker_output)
             frames_preds = tracker_output_dict["frames"]
             print(f"{frames_preds=}")
-            exit()
 
         if True:
 

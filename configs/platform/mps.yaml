@@ -12,4 +12,5 @@ model:
 
 inference:
   use_multithreading: true
+  apply_nms_batchwise: true
   max_workers: 2 # For multithreading

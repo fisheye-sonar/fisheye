@@ -57,6 +57,9 @@ class ObjectDetectionPipeline:
         self.metadata: Optional[Any] = None
 
         self.use_multithreading = config.use_multithreading
+        self.apply_nms_batchwise = config.apply_nms_batchwise
+        self.nms_config = config.nms_config
+
         self.max_workers = config.max_workers
         self.postprocessing_steps = (
             self._build_postprocessing_params(postprocessing_params)
@@ -120,16 +123,16 @@ class ObjectDetectionPipeline:
 
         return processed_output if processed_output else output
 
-    def _forward(self, use_nms=False, nms_config=None, *args, **kwargs):
+    def _forward(self, *args, **kwargs):
         """Performs inference with optional multithreading."""
-        inference_bboxes = []
-        image_shapes = []
-        width = None
-        height = None
-
-        if use_nms:
+        if self.apply_nms_batchwise:
             all_low_preds_updated_batch = {}
             all_high_preds_updated_batch = {}
+        else:
+            inference_bboxes = []
+            image_shapes = []
+            width = None
+            height = None
 
         with torch.inference_mode():
             for batch_idx, (img, _, shapes) in tqdm(
@@ -161,26 +164,25 @@ class ObjectDetectionPipeline:
                 for si, pred in enumerate(inf_out):
                     batch_shape.append((img[si].shape[1:], shapes[si]))
 
-                print(f"{type(inf_out.cpu())=}")
-                if use_nms:
+                if self.apply_nms_batchwise:
                     # Get low confidence for ByteTrack
-                    nms_config.conf = 0.1
+                    self.nms_config.conf = 0.1
                     low_output = run_nms(
                         [inf_out.cpu()],  # xyxy format relative to YOLO pixel space
                         self.metadata.image_meter_width,
                         width,
                         self.dataset.batch_size,
-                        nms_config,
+                        self.nms_config,
                     )
 
                     # Get high confidence for ByteTrack
-                    nms_config.conf = 0.3
+                    self.nms_config.conf = 0.3
                     high_output = run_nms(
                         [inf_out.cpu()],  # xyxy format relative to YOLO pixel space
                         self.metadata.image_meter_width,
                         width,
                         self.dataset.batch_size,
-                        nms_config,
+                        self.nms_config,
                     )
 
                     # Prepare bounding boxes for tracking pipeline
@@ -218,11 +220,10 @@ class ObjectDetectionPipeline:
                     prefix="Detector progress | ",
                 )
 
-        if use_nms:
+        if self.apply_nms_batchwise:
             return all_low_preds_updated_batch, all_high_preds_updated_batch
 
         else:
-
             return inference_bboxes, image_shapes, width, height
 
     def run(self, *args, **kwargs):
@@ -231,6 +232,10 @@ class ObjectDetectionPipeline:
         Returns:
             List[Any]: Processed detection results.
         """
-        output = ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))
+        if self.apply_nms_batchwise:
+            return self._forward(*args, **kwargs)
 
-        return output if not self.postprocessing_steps else self.postprocess(output)
+        else:
+            output = ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))
+
+            return output if not self.postprocessing_steps else self.postprocess(output)
