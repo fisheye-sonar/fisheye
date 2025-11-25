@@ -2,6 +2,7 @@ dataset:
   batch_size: 1
   workers: 0
   use_multithreading: false
+  use_blur: true
   max_workers: 2  # For multithreading
 
 model:

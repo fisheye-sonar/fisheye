@@ -21,6 +21,14 @@ from fisheye.export import save_to_disk, to_mot_txt
 from fisheye.format import tracker_output_to_dict_rows, dict_rows_to_mot_format
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
+from fisheye.lengths.length_models import get_model
+from fisheye.lengths.measure import get_pred_from_dir
+from fisheye.lengths.measure_utils import get_cone_edges
+
+# MAH 2025-11-24 14:48:40 imports that can probably be removed later when this is tidied out of pipeline
+import torch
+from math import floor, ceil
+import numpy as np
 
 logger = structlog.getLogger(__name__)
 
@@ -55,57 +63,229 @@ class DetectTrackCountPipeline:
 
         logger.info("file_processing_started", file_path=str(file))
         # Shallow copy of YOLODatasetConfig with updated fields
+        print(f"MAH put end frame back")
+        start_frame = 0
+        end_frame = 0
+        start_frame = 315
+        end_frame = 345
         self.dataset_cfg = replace(
-            self.dataset_cfg, filepath=file, start_frame=0, end_frame=0
+            self.dataset_cfg,
+            filepath=file,
+            start_frame=start_frame,
+            end_frame=end_frame,
         )
-
         self.detect_pipe.load_dataset(self.dataset_cfg)
-        detections = self.detect_pipe()
         metadata = self.detect_pipe.metadata
+        if True:
+            detections = self.detect_pipe()
 
-        # Get low confidence for ByteTrack
-        self.nms_config.conf = 0.1
-        low_output = run_nms(
-            detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
-            metadata.image_meter_width,
-            detections.width,
-            self.dataset_cfg.batch_size,
-            self.nms_config,
-        )
+            # Get low confidence for ByteTrack
+            self.nms_config.conf = 0.1
+            low_output = run_nms(
+                detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
+                metadata.image_meter_width,
+                detections.width,
+                self.dataset_cfg.batch_size,
+                self.nms_config,
+            )
 
-        # Get high confidence for ByteTrack
-        self.nms_config.conf = 0.3
-        high_output = run_nms(
-            detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
-            metadata.image_meter_width,
-            detections.width,
-            self.dataset_cfg.batch_size,
-            self.nms_config,
-        )
+            # Get high confidence for ByteTrack
+            self.nms_config.conf = 0.3
+            high_output = run_nms(
+                detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
+                metadata.image_meter_width,
+                detections.width,
+                self.dataset_cfg.batch_size,
+                self.nms_config,
+            )
 
-        # Prepare bounding boxes for tracking pipeline
-        low_preds, og_width, og_height = normalize_boxes_for_tracking(
-            detections.image_shape,
-            low_output,  # xyxy format relative to YOLO pixel space
-            detections.width,
-            detections.height,
-            batch_size=self.dataset_cfg.batch_size,
-        )
-        high_preds, og_width, og_height = normalize_boxes_for_tracking(
-            detections.image_shape,
-            high_output,  # xyxy format relative to YOLO pixel space
-            detections.width,
-            detections.height,
-            batch_size=self.dataset_cfg.batch_size,
-        )
+            # Prepare bounding boxes for tracking pipeline
+            low_preds, og_width, og_height = normalize_boxes_for_tracking(
+                detections.image_shape,
+                low_output,  # xyxy format relative to YOLO pixel space
+                detections.width,
+                detections.height,
+                batch_size=self.dataset_cfg.batch_size,
+            )
+            high_preds, og_width, og_height = normalize_boxes_for_tracking(
+                detections.image_shape,
+                high_output,  # xyxy format relative to YOLO pixel space
+                detections.width,
+                detections.height,
+                batch_size=self.dataset_cfg.batch_size,
+            )
 
-        tracker_output = run_tracker(
-            low_preds,  # xyxy format relative to the original image pixel space
-            high_preds,  # xyxy format relative to the original image pixel space
-            metadata.image_meter_width,
-            metadata.image_meter_height,
-            self.tracker_cfg,
-        )
+            tracker_output = run_tracker(
+                low_preds,  # xyxy format relative to the original image pixel space
+                high_preds,  # xyxy format relative to the original image pixel space
+                metadata.image_meter_width,
+                metadata.image_meter_height,
+                self.tracker_cfg,
+            )
+            tracker_output_dict = asdict(tracker_output)
+            frames_preds = tracker_output_dict["frames"]
+
+        if False:
+            frames_preds = [
+                {"frame_num": 0, "fish": []},
+                {"frame_num": 1, "fish": []},
+                {"frame_num": 2, "fish": []},
+                {"frame_num": 3, "fish": []},
+                {"frame_num": 4, "fish": []},
+                {
+                    "frame_num": 5,
+                    "fish": [
+                        {
+                            "id": 0,
+                            "bbox": [
+                                np.float64(0.5092020188020037),
+                                np.float64(0.9260163954921846),
+                                np.float64(0.5456241762355347),
+                                np.float64(0.933396493097553),
+                            ],
+                            "conf": np.float64(0.3547280728816986),
+                        }
+                    ],
+                },
+                {"frame_num": 6, "fish": []},
+                {"frame_num": 7, "fish": []},
+                {"frame_num": 8, "fish": []},
+                {"frame_num": 9, "fish": []},
+                {"frame_num": 10, "fish": []},
+                {"frame_num": 11, "fish": []},
+                {"frame_num": 12, "fish": []},
+                {"frame_num": 13, "fish": []},
+                {"frame_num": 14, "fish": []},
+                {
+                    "frame_num": 15,
+                    "fish": [
+                        {
+                            "id": 0,
+                            "bbox": [
+                                np.float64(0.4623487908559229),
+                                np.float64(0.9284247395933569),
+                                np.float64(0.5225338001864082),
+                                np.float64(0.9377907341005849),
+                            ],
+                            "conf": np.float64(0.38758978247642517),
+                        }
+                    ],
+                },
+                {"frame_num": 16, "fish": []},
+                {"frame_num": 17, "fish": []},
+                {"frame_num": 18, "fish": []},
+                {"frame_num": 19, "fish": []},
+                {"frame_num": 20, "fish": []},
+                {"frame_num": 21, "fish": []},
+                {"frame_num": 22, "fish": []},
+                {"frame_num": 23, "fish": []},
+                {"frame_num": 24, "fish": []},
+                {"frame_num": 25, "fish": []},
+                {"frame_num": 26, "fish": []},
+                {"frame_num": 27, "fish": []},
+                {"frame_num": 28, "fish": []},
+            ]
+
+            model_type = "unet"
+            unet_double_conv = False
+            model_input_channels = 1
+            model_input_channels = 3
+            load_model_path = "/home/mahobley/Code/fisheye-dev/head_tail/checkpoints/crop_after_model/model_150.pth"
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            crop_after_model = True
+            additional_bbox_padding_px = 5
+
+            vel_window_size = 7
+            length_window_size = 7
+            vel_delta_tolerance = None
+            length_delta_tolerance = None
+            min_edge_dist_tolerance = 10
+            min_edge_dist_tolerance = None
+
+            mapTokpt_differentiable = False
+            mapTokpt_round_to_integer = False
+
+            crop_info = []
+            for frame_pred in frames_preds:
+                fn = frame_pred["frame_num"]
+                frame_crop_infos = []
+                for fish_pred in frame_pred["fish"]:
+                    fish_id = fish_pred["id"]
+
+                    pred_bbox = fish_pred["bbox"]
+                    pred_bbox_xyxy = [
+                        floor(pred_bbox[0] * metadata.xdim),
+                        floor(pred_bbox[1] * metadata.ydim),
+                        ceil(pred_bbox[2] * metadata.xdim),
+                        ceil(pred_bbox[3] * metadata.ydim),
+                    ]
+
+                    right_space = metadata.xdim - pred_bbox_xyxy[2]
+                    bottom_space = metadata.ydim - pred_bbox_xyxy[3]
+
+                    crop_l = max(0, pred_bbox_xyxy[0] - additional_bbox_padding_px)
+                    crop_t = max(0, pred_bbox_xyxy[1] - additional_bbox_padding_px)
+                    crop_r = max(1, right_space - additional_bbox_padding_px)
+                    crop_b = max(1, bottom_space - additional_bbox_padding_px)
+
+                    frame_crop_infos.append(
+                        {
+                            "fish_id": fish_id,
+                            "crop_l": crop_l,
+                            "crop_t": crop_t,
+                            "crop_r": crop_r,
+                            "crop_b": crop_b,
+                        }
+                    )
+                crop_info.append(
+                    {
+                        "frame_num": fn,
+                        "frame_crop_infos": frame_crop_infos,
+                    }
+                )
+
+            model = get_model(
+                model_type,
+                model_input_channels,
+                unet_double_conv,
+                load_model_path,
+                device,
+            )
+
+            (
+                _cone_points_left,
+                _cone_points_right,
+                cone_eq_params_left,
+                cone_eq_params_right,
+            ) = get_cone_edges(metadata)
+
+            dataset = self.detect_pipe.dataset
+
+            pred_len_outputs = get_pred_from_dir(
+                crop_info,
+                dataset,
+                model,
+                crop_after_model,
+                pxl_to_cm_scale=metadata.pixel_meter_size * 100,
+                vel_window_size=vel_window_size,
+                length_window_size=length_window_size,
+                device=device,
+                cone_eq_params_left=cone_eq_params_left,
+                cone_eq_params_right=cone_eq_params_right,
+                vel_delta_tolerance=vel_delta_tolerance,
+                length_delta_tolerance=length_delta_tolerance,
+                min_edge_dist_tolerance=min_edge_dist_tolerance,
+                model_input_channels=model_input_channels,
+                mapTokpt_differentiable=mapTokpt_differentiable,
+                mapTokpt_round_to_integer=mapTokpt_round_to_integer,
+            )
+
+            # add start_frame to frame_id_closest_to_mean
+            for fish_id, pred_len_output in pred_len_outputs.items():
+                pred_len_output["frame_id_closest_to_mean"] += start_frame
+
+            print(f"{pred_len_outputs=}")
+            exit()
 
         formatted_yolo_tracks = tracker_output_to_dict_rows(asdict(tracker_output))
 

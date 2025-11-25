@@ -1,8 +1,9 @@
 dataset:
   batch_size: 16
-  workers: 0  # For dataloader
+  workers: 0 # For dataloader
   use_multithreading: true
-  max_workers: 2  # For multithreading
+  use_blur: true
+  max_workers: 2 # For multithreading
 
 model:
   type: yolov5
@@ -11,4 +12,4 @@ model:
 
 inference:
   use_multithreading: true
-  max_workers: 2  # For multithreading
+  max_workers: 2 # For multithreading

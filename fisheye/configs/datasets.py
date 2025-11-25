@@ -26,6 +26,7 @@ class BaseDatasetConfig:
     return_unwarped: bool = False
     return_echogram: bool = False
     use_multithreading: bool = True  # For dataloader threading
+    use_blur: bool = True  # For background subtraction blurring
     max_workers: int = 2
 
 
@@ -53,6 +54,8 @@ class ARISMetadata:
     thesystemtype: int
     numframes: int
     largelens: int
+    unwarped_shape: tuple
+    beam_width_data: dict
 
 
 @dataclass

@@ -60,5 +60,4 @@ class ImageDataset(BaseDataset):
 
         if self.do_bg_subtract:
             frames = self._apply_bg_subtraction(np.array(frames))
-
         return frames

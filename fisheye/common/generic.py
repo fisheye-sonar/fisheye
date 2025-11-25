@@ -35,6 +35,8 @@ def safe_execution(
         def wrapper(*args, **kwargs):
             last_exception = None
             for attempt in range(1, max_retries + 1):
+                # MAH 2025-11-24 12:30:34 TODO put back in try/except
+                print(f"MAH TODO put back in try/except")
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:

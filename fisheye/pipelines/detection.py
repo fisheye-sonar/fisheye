@@ -15,6 +15,7 @@ from fisheye.configs import (
 
 from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
+from tqdm import tqdm  # MAH 2025-11-24 15:36:22
 
 # Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
@@ -124,7 +125,11 @@ class ObjectDetectionPipeline:
         height = None
 
         with torch.inference_mode():
-            for batch_idx, (img, _, shapes) in enumerate(self.dataloader):
+            for batch_idx, (img, _, shapes) in tqdm(
+                enumerate(self.dataloader),
+                total=len(self.dataloader),
+                desc="Running detection",
+            ):
                 img = self.preprocess(img)
                 size = tuple(img.shape)
                 nb, _, height, width = size  # batch size, channels, height, width
