@@ -156,7 +156,7 @@ class LengthEstimator:
             pred_kpts_global[:, 1] += crop_t
 
             output = {
-                "pred_kpts": pred_kpts.cpu().numpy(),
+                # "pred_kpts": pred_kpts.cpu().numpy(),
                 "pred_kpts_global_px": pred_kpts_global,
             }
             if False:

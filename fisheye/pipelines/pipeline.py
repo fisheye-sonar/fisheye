@@ -24,6 +24,9 @@ from fisheye.track.tracker import run_tracker
 from fisheye.lengths.length_models import get_model
 from fisheye.lengths.measure import get_pred_from_dir
 from fisheye.lengths.measure_utils import get_cone_edges, calc_len
+from fisheye.lengths.measure_utils import get_min_edge_distances_pxl
+from fisheye.lengths.measure_utils import get_change_in_length
+from fisheye.lengths.measure_utils import get_velocity_dev
 
 # MAH 2025-11-24 14:48:40 imports that can probably be removed later when this is tidied out of pipeline
 import torch
@@ -158,7 +161,7 @@ class DetectTrackCountPipeline:
                     for v2 in v:
                         print(f"    {v2}")
                         print(
-                            f"\033[91m    {calc_len(v2['pred_kpts'])*metadata.pixel_meter_size*100:.1f}cm\033[0m"
+                            f"\033[91m    {calc_len(v2['pred_kpts_global_px'])*metadata.pixel_meter_size*100:.1f}cm\033[0m"
                         )
                 else:
                     print(f"    {v}")
@@ -177,12 +180,65 @@ class DetectTrackCountPipeline:
 
             length_estimates = length_estimates
             tracker_output_dict = tracker_output_to_dict_rows(asdict(tracker_output))
-            print(f"{tracker_output_dict=}")
+
+            for frame_pred_idx, frame_pred in enumerate(frames_preds):
+                frame_num = frame_pred["frame_num"]
+                frame_bs_num = (
+                    int(frame_num / self.dataset_cfg.batch_size),
+                    frame_num % self.dataset_cfg.batch_size,
+                )
+                for fish_idx, fish_pred in enumerate(frame_pred["fish"]):
+                    fish_id = fish_pred["id"]
+                    bbox = fish_pred["bbox"]
+                    conf = fish_pred["conf"]
+                    low_pred = low_preds[frame_bs_num]
+                    length_estimate = length_estimates[frame_bs_num]
+                    # MAH 2025-11-25 22:33:33 TODO this is hacky, find a better way to do this, cuurently: find the length estimate that matches the bbox after tracking (by matching the bbox pre tracking with the bbox post tracking)
+                    for i, low_pr in enumerate(low_pred):
+                        # MAH 2025-11-25 22:27:50 TODO this is a hack to get the bboxes to match, should be done better why dont they completely match up, do they match up with high preds?
+                        if np.allclose(low_pr[:4], np.array(bbox), atol=1e-2):
+                            # MAH 2025-11-25 22:32:28 TODO check that this length estimate is within the bbox. should it be?
+                            frames_preds[frame_pred_idx]["fish"][fish_idx][
+                                "length_estimate"
+                            ] = length_estimate[i]
+            print(f"{frames_preds=}")
+
+            for frame_pred in frames_preds:
+                frame_num = frame_pred["frame_num"]
+                for fish_pred in frame_pred["fish"]:
+                    fish_id = fish_pred["id"]
+                    length_estimate = fish_pred["length_estimate"][
+                        "pred_kpts_global_px"
+                    ]
+                    print(f"{frame_num=}: {fish_id=}: ")
+                    print(
+                        f"\033[91m    {calc_len(fish_pred['length_estimate']['pred_kpts_global_px'])*metadata.pixel_meter_size*100:.1f}cm\033[0m"
+                    )
+                    print(f"{frame_num=}: {fish_id=}: {length_estimate=}")
 
             print(
                 "we need to pull the lengths that are associated with the tracker output bboxes , and then filter them based on the length estimates, edge etc"
             )
-            exit()
+
+            all_length_estimates = {}
+            for frame_pred in frames_preds:
+                frame_num = frame_pred["frame_num"]
+                for fish_pred in frame_pred["fish"]:
+                    fish_id = fish_pred["id"]
+                    length_estimate = fish_pred["length_estimate"][
+                        "pred_kpts_global_px"
+                    ]
+                    if fish_id not in all_length_estimates:
+                        all_length_estimates[fish_id] = {
+                            "frame_num": [],
+                            "pred_kpts_global_px": [],
+                        }
+                    all_length_estimates[fish_id]["frame_num"].append(frame_num)
+                    all_length_estimates[fish_id]["pred_kpts_global_px"].append(
+                        length_estimate
+                    )
+            print(f"{all_length_estimates=}")
+
             (
                 _cone_points_left,
                 _cone_points_right,
@@ -190,27 +246,55 @@ class DetectTrackCountPipeline:
                 cone_eq_params_right,
             ) = get_cone_edges(metadata)
 
-            for frame_num, pred_len_output in length_estimates.items():
-                for pred_info in pred_len_output["pred_infos"]:
-                    _ = get_min_edge_distances_pxl(
-                        pred_info["pred_kpts_global_px"],
-                        cone_eq_params_left,
-                        cone_eq_params_right,
-                    )[0]
+            min_edge_dist_tolerance = 10
+            vel_delta_tolerance = None
+            length_delta_tolerance = None
+            vel_window_size = 7
+            length_window_size = 7
 
-            for fish_id in fish_ids:
+            len_outputs = {}
+            for fish_id, data in all_length_estimates.items():
+                pred_kpts_global_px = data["pred_kpts_global_px"]
+                frame_nums = data["frame_num"]
+                pred_kpts_global_0_cm = [
+                    kpts_global_px[0] * metadata.pixel_meter_size * 100
+                    for kpts_global_px in pred_kpts_global_px
+                ]
+                pred_kpts_global_1_cm = [
+                    kpts_global_px[1] * metadata.pixel_meter_size * 100
+                    for kpts_global_px in pred_kpts_global_px
+                ]
+                pred_lens_cm = [
+                    calc_len(kpts_global_px) * metadata.pixel_meter_size * 100
+                    for kpts_global_px in pred_kpts_global_px
+                ]
+
                 masks = {}
-                masks["all"] = [True] * len(pred_lens_cm[fish_id])
+                masks["all"] = [True] * len(pred_kpts_global_px)
+
                 if min_edge_dist_tolerance is not None:
+                    min_edge_distances_pxl = []
+                    for kpts_global_px in pred_kpts_global_px:
+                        edge_dist_i = get_min_edge_distances_pxl(
+                            kpts_global_px,
+                            cone_eq_params_left[0],
+                            cone_eq_params_left[1],
+                            cone_eq_params_right[0],
+                            cone_eq_params_right[1],
+                        )[0]
+                        min_edge_distances_pxl.append(edge_dist_i)
                     masks["edge_dist"] = [
                         edge_dist >= min_edge_dist_tolerance
-                        for edge_dist in min_edge_distances_pxl[fish_id]
+                        for edge_dist in min_edge_distances_pxl
                     ]
                 if vel_delta_tolerance is not None:
+                    print(
+                        f"# MAH 2025-11-25 22:58:57 velocity needs to bear in mind that not all the frames are sequential"
+                    )
                     # filter out the fish with deviations
                     velocity_deviations = get_velocity_dev(
-                        pred_kpts_global_0_cm[fish_id],
-                        pred_kpts_global_1_cm[fish_id],
+                        pred_kpts_global_0_cm,
+                        pred_kpts_global_1_cm,
                         window_size=vel_window_size,
                     )  # MAH 2025-11-24 12:07:56 TODO this needs to take in the fact that they may not be sequential frames
                     masks["velocity"] = [
@@ -219,9 +303,12 @@ class DetectTrackCountPipeline:
 
                 if length_delta_tolerance is not None:
                     # filter out the fish with changes in length from a moving average
+                    print(
+                        f"# MAH 2025-11-25 22:58:57 change in length needs to bear in mind that not all the frames are sequential"
+                    )
                     change_in_length, _moving_average_length = get_change_in_length(
-                        pred_kpts_global_0_cm[fish_id],
-                        pred_kpts_global_1_cm[fish_id],
+                        pred_kpts_global_0_cm,
+                        pred_kpts_global_1_cm,
                         window_size=length_window_size,
                         robust=True,
                     )
@@ -241,15 +328,15 @@ class DetectTrackCountPipeline:
                 else:
                     filtered_len_cm = np.mean(
                         [
-                            pred_lens_cm[fish_id][i]
-                            for i in range(len(pred_lens_cm[fish_id]))
+                            pred_lens_cm[i]
+                            for i in range(len(pred_lens_cm))
                             if combined_filter_mask[i]
                         ]
                     )
 
                 # get the index of the closest to the mean
                 if np.sum(combined_filter_mask):
-                    pred_lens_filtered = pred_lens_cm[fish_id] * combined_filter_mask
+                    pred_lens_filtered = pred_lens_cm * combined_filter_mask
                     # mean where not zero
                     pred_lens_filtered_mean = np.mean(
                         pred_lens_filtered[pred_lens_filtered != 0]
@@ -260,7 +347,7 @@ class DetectTrackCountPipeline:
                     if not combined_filter_mask[clostest_to_mean_pred_len_indx]:
                         frame_id_closest_to_mean = None
                     else:
-                        frame_id_closest_to_mean = frame_nums[fish_id][
+                        frame_id_closest_to_mean = frame_nums[
                             clostest_to_mean_pred_len_indx
                         ]
                 else:
@@ -268,9 +355,11 @@ class DetectTrackCountPipeline:
                     pred_lens_filtered_mean = None
 
                 if clostest_to_mean_pred_len_indx is not None:
+                    print(f"{clostest_to_mean_pred_len_indx=}")
+                    print(f"{len(pred_kpts_global_px)=}")
                     coords = [
-                        pred_kpts_global_0_px[fish_id][clostest_to_mean_pred_len_indx],
-                        pred_kpts_global_1_px[fish_id][clostest_to_mean_pred_len_indx],
+                        pred_kpts_global_px[clostest_to_mean_pred_len_indx][0],
+                        pred_kpts_global_px[clostest_to_mean_pred_len_indx][1],
                     ]
                 else:
                     coords = None
