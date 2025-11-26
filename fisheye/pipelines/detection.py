@@ -20,7 +20,7 @@ from fisheye.lengths.length_estimator import LengthEstimator
 
 from fisheye.boxes import run_nms, normalize_boxes_for_tracking
 
-import numpy as np  # MAH 2025-11-25 13:20:55 should find a non numpy way maybe? though nms uses numpy for some reason
+import numpy as np  # MAH 2025-11-25 13:20:55 TODO should find a non numpy way maybe? though nms uses numpy for some reason
 
 # Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
@@ -148,16 +148,12 @@ class ObjectDetectionPipeline:
             width = None
             height = None
 
-        print(f"{type(self.dataloader)=}")
         with torch.inference_mode():
             for batch_idx, (img, _, shapes, img_original) in tqdm(
                 enumerate(self.dataloader),
                 total=len(self.dataloader),
                 desc="Running detection",
             ):
-                print(f"{img_original.shape=}")
-                print(f"{img.shape=}")
-                print(f"{shapes=}")
                 if img_original is not None:
                     img_original = img_original.to(self.device, non_blocking=True)
 

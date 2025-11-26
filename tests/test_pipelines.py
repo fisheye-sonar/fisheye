@@ -146,7 +146,6 @@ def test_object_detection_pipeline_w_postprocessing_params(confs, use_multithrea
         pipeline.metadata.image_meter_width = 1.0
         pipeline.metadata.pixel_meter_size = 1.0
         pipeline.metadata.unwarped_shape = (2684, 48)
-        # MAH 2025-11-25 20:31:02 TODO make these the unwarped numbers of klamath
         pipeline.metadata.xdim = 1307
         pipeline.metadata.ydim = 2686
         pipeline.metadata.beam_width_data = pd.read_csv(
@@ -227,7 +226,6 @@ def test_object_detection_pipeline_diff_postprocessing_structure(
         pipeline.metadata.image_meter_width = 1.0
         pipeline.metadata.pixel_meter_size = 1.0
         pipeline.metadata.unwarped_shape = (2684, 48)
-        # MAH 2025-11-25 20:31:02 TODO make these the unwarped numbers of klamath
         pipeline.metadata.xdim = 1307
         pipeline.metadata.ydim = 2686
         pipeline.metadata.beam_width_data = pd.read_csv(

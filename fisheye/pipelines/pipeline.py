@@ -22,7 +22,8 @@ from fisheye.format import tracker_output_to_dict_rows, dict_rows_to_mot_format
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
 from fisheye.lengths.length_models import get_model
-from fisheye.lengths.measure import get_pred_from_dir
+
+# from fisheye.lengths.measure import get_pred_from_dir
 from fisheye.lengths.measure_utils import get_cone_edges, calc_len
 from fisheye.lengths.measure_utils import get_min_edge_distances_pxl
 from fisheye.lengths.measure_utils import get_change_in_length
@@ -89,13 +90,7 @@ class DetectTrackCountPipeline:
                     low_preds, high_preds = self.detect_pipe()
             else:
                 print("Applying NMS over all frames")
-
                 detections = self.detect_pipe()
-
-                # detections = self.detect_pipe._forward(nms_config=self.nms_config)
-                print(f"{len(detections.pred_bboxes[0])=}")
-                print(f"{detections.pred_bboxes[0].shape=}")
-                print(f"{len(detections.pred_bboxes[1])=}")
 
                 # Get low confidence for ByteTrack
                 self.nms_config.conf = 0.1
@@ -116,16 +111,6 @@ class DetectTrackCountPipeline:
                     self.dataset_cfg.batch_size,
                     self.nms_config,
                 )
-                print(f"{high_output=}")
-
-                print(f"{len(low_output)=}")
-                print(f"{len(high_output)=}")
-                print(f"{len(high_output[0])=}")
-                print(f"{len(high_output[0][0])=}")
-                print(f"{high_output[0][0]=}")
-                for i, high_b in enumerate(high_output):
-                    for ii, hb in enumerate(high_b):
-                        print(f"{i}, {ii}: {hb=}")
 
                 # Prepare bounding boxes for tracking pipeline
                 low_preds, og_width, og_height = normalize_boxes_for_tracking(
@@ -143,13 +128,6 @@ class DetectTrackCountPipeline:
                     batch_size=self.dataset_cfg.batch_size,
                 )
 
-            # print(f"{low_preds=}")
-            # print(f"{high_preds=}")
-
-            # print(f"{len(low_preds)=}")
-            print(f"{len(low_preds)=}")
-            print(f"{len(high_preds)=}")
-            print(f"{len(list(high_preds.keys()))=}")
             for k, v in low_preds.items():
                 if v is not None:
                     print(f"low_preds {k}: {v.shape}")
@@ -175,7 +153,7 @@ class DetectTrackCountPipeline:
             )
             tracker_output_dict = asdict(tracker_output)
             frames_preds = tracker_output_dict["frames"]
-            print(f"{frames_preds=}")
+
         if self.detect_pipe.apply_length_estimates_batchwise:
 
             length_estimates = length_estimates
@@ -201,7 +179,6 @@ class DetectTrackCountPipeline:
                             frames_preds[frame_pred_idx]["fish"][fish_idx][
                                 "length_estimate"
                             ] = length_estimate[i]
-            print(f"{frames_preds=}")
 
             for frame_pred in frames_preds:
                 frame_num = frame_pred["frame_num"]
@@ -237,7 +214,6 @@ class DetectTrackCountPipeline:
                     all_length_estimates[fish_id]["pred_kpts_global_px"].append(
                         length_estimate
                     )
-            print(f"{all_length_estimates=}")
 
             (
                 _cone_points_left,
@@ -365,7 +341,7 @@ class DetectTrackCountPipeline:
                     coords = None
 
                 len_outputs[fish_id] = {
-                    "pred_length_cm": pred_lens_filtered_mean,
+                    "pred_length_cm": np.mean(pred_lens_cm),
                     "filtered_lengths_cm": filtered_len_cm,
                     "num_filtered": num_filtered,
                     "frame_id_closest_to_mean": frame_id_closest_to_mean,

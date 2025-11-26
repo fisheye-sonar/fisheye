@@ -51,7 +51,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         else:
             # MAH 2025-11-25 21:19:15 TODO make this None
             print("MAH 2025-11-25 21:19:15 TODO make this None")
-            img_original = np.array([0])
+            img_original = None
         h0, w0 = img.shape[:2]  # original height and width
         r = img_size / max(h0, w0)  # resize ratio
         interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR

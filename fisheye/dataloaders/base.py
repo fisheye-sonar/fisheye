@@ -72,10 +72,7 @@ class BaseDataset(Dataset):
             max_blurred_frame = np.max(np.abs(frames_for_bg_subtract), axis=0).astype(
                 np.float64
             )
-            # print dtype
-            print(f"# MAH 2025-11-24 17:13:03 dtype: {frames_for_bg_subtract.dtype=}")
-            print(f"# MAH 2025-11-24 17:13:03 dtype: {mean_blurred_frame.dtype=}")
-            print(f"# MAH 2025-11-24 17:13:03 dtype: {max_blurred_frame.dtype=}")
+
         else:
             mean_blurred_frame = np.zeros(
                 [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
@@ -117,7 +114,6 @@ class BaseDataset(Dataset):
         frame_labels = None
 
         if idx + 1 < len(self.extracted_frames):
-            print(f"# MAH 2025-11-25 11:17:21 using extracted frames postprocessing")
             if postprocess:
                 return self._postprocess(
                     np.stack(self.extracted_frames[idx:final_idx]),
@@ -126,9 +122,7 @@ class BaseDataset(Dataset):
                     np.stack(self.extracted_echograms[idx:final_idx]),
                 )
             else:
-                print(
-                    f"# MAH 2025-11-25 11:17:21 using extracted frames not postprocessing"
-                )
+
                 return (
                     np.stack(self.extracted_frames[idx:final_idx]),
                     frame_labels,
@@ -157,16 +151,11 @@ class BaseDataset(Dataset):
                 if self.do_bg_subtract
                 else np.expand_dims(frame_images[:-1], -1)
             )
-            # print(f"# MAH 2025-11-24 16:28:40 put the bg subtraction back in")
-            # frame_images = np.stack(
-            #     [frame_images[:-1], frame_images[:-1], frame_images[:-1]], axis=-1
-            # )
 
             if self.return_unwarped or self.return_echogram:
                 unwarped_frames = unwarped_frames[:-1]
 
             if self.return_echogram:
-                print(f"# MAH 2025-11-24 17:16:21 calculating echogram")
                 echogram = self._get_echogram(unwarped_frames)
             else:
                 echogram = None
@@ -178,12 +167,10 @@ class BaseDataset(Dataset):
                 self.extracted_echograms.extend(echogram)
 
         if postprocess:
-            print(f"# MAH 2025-11-25 11:17:21 postprocessing")
             return self._postprocess(
                 frame_images, frame_labels, unwarped_frames, echogram
             )
         else:
-            print(f"# MAH 2025-11-25 11:17:21 not postprocessing")
             return (
                 frame_images,
                 frame_labels,

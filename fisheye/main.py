@@ -70,8 +70,6 @@ def run_pipeline(cfg: DictConfig):
     runtime_config = dict(platform_cfg.inference)
     runtime_config["model"] = detector_cfg
 
-    print(f"# MAH 2025-11-24 17:11:46 dataset_config: {dataset_config=}")
-
     # Build dataset configs
     dataset_cfg = YOLODatasetConfig(**dataset_config)
 

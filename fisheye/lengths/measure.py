@@ -136,272 +136,272 @@ def get_pred_from_img(
     return outputs
 
 
-def get_pred_from_dir(
-    crop_info,
-    dataset,
-    model,
-    crop_after_model,
-    pxl_to_cm_scale,
-    vel_window_size,
-    length_window_size,
-    device,
-    cone_eq_params_left=None,
-    cone_eq_params_right=None,
-    vel_delta_tolerance=15,
-    length_delta_tolerance=5,
-    min_edge_dist_tolerance=10,
-    model_input_channels=1,
-    mapTokpt_differentiable=False,
-    mapTokpt_round_to_integer=False,
-):
+# def get_pred_from_dir(
+#     crop_info,
+#     dataset,
+#     model,
+#     crop_after_model,
+#     pxl_to_cm_scale,
+#     vel_window_size,
+#     length_window_size,
+#     device,
+#     cone_eq_params_left=None,
+#     cone_eq_params_right=None,
+#     vel_delta_tolerance=15,
+#     length_delta_tolerance=5,
+#     min_edge_dist_tolerance=10,
+#     model_input_channels=1,
+#     mapTokpt_differentiable=False,
+#     mapTokpt_round_to_integer=False,
+# ):
 
-    model.eval()
+#     model.eval()
 
-    ml, bl = cone_eq_params_left
-    mr, br = cone_eq_params_right
+#     ml, bl = cone_eq_params_left
+#     mr, br = cone_eq_params_right
 
-    all_fish_ids = set(
-        [fish["fish_id"] for frame in crop_info for fish in frame["frame_crop_infos"]]
-    )
+#     all_fish_ids = set(
+#         [fish["fish_id"] for frame in crop_info for fish in frame["frame_crop_infos"]]
+#     )
 
-    frame_nums = {fish_id: [] for fish_id in all_fish_ids}
-    pred_lens_cm = {fish_id: [] for fish_id in all_fish_ids}
-    pred_kpts_global_0_px = {fish_id: [] for fish_id in all_fish_ids}
-    pred_kpts_global_1_px = {fish_id: [] for fish_id in all_fish_ids}
-    pred_kpts_global_0_cm = {fish_id: [] for fish_id in all_fish_ids}
-    pred_kpts_global_1_cm = {fish_id: [] for fish_id in all_fish_ids}
-    min_edge_distances_pxl = {fish_id: [] for fish_id in all_fish_ids}
-    av_brightnesses = {fish_id: [] for fish_id in all_fish_ids}
-    peak_heatmap_brightnesses_0 = {fish_id: [] for fish_id in all_fish_ids}
-    peak_heatmap_brightnesses_1 = {fish_id: [] for fish_id in all_fish_ids}
-    pred_kpts = {fish_id: [] for fish_id in all_fish_ids}
-    len_outputs = {}
+#     frame_nums = {fish_id: [] for fish_id in all_fish_ids}
+#     pred_lens_cm = {fish_id: [] for fish_id in all_fish_ids}
+#     pred_kpts_global_0_px = {fish_id: [] for fish_id in all_fish_ids}
+#     pred_kpts_global_1_px = {fish_id: [] for fish_id in all_fish_ids}
+#     pred_kpts_global_0_cm = {fish_id: [] for fish_id in all_fish_ids}
+#     pred_kpts_global_1_cm = {fish_id: [] for fish_id in all_fish_ids}
+#     min_edge_distances_pxl = {fish_id: [] for fish_id in all_fish_ids}
+#     av_brightnesses = {fish_id: [] for fish_id in all_fish_ids}
+#     peak_heatmap_brightnesses_0 = {fish_id: [] for fish_id in all_fish_ids}
+#     peak_heatmap_brightnesses_1 = {fish_id: [] for fish_id in all_fish_ids}
+#     pred_kpts = {fish_id: [] for fish_id in all_fish_ids}
+#     len_outputs = {}
 
-    with torch.no_grad():
-        for frame_crop_info in tqdm(crop_info):
-            frame_num = frame_crop_info["frame_num"]
+#     with torch.no_grad():
+#         for frame_crop_info in tqdm(crop_info):
+#             frame_num = frame_crop_info["frame_num"]
 
-            print(f"{frame_num=} {frame_crop_info=}")
-            if frame_crop_info["frame_crop_infos"] == []:
-                continue
+#             print(f"{frame_num=} {frame_crop_info=}")
+#             if frame_crop_info["frame_crop_infos"] == []:
+#                 continue
 
-            fish_ids = [
-                fish_crop_info["fish_id"]
-                for fish_crop_info in frame_crop_info["frame_crop_infos"]
-            ]
-            crop_ls = [
-                fish_crop_info["crop_l"]
-                for fish_crop_info in frame_crop_info["frame_crop_infos"]
-            ]
-            crop_ts = [
-                fish_crop_info["crop_t"]
-                for fish_crop_info in frame_crop_info["frame_crop_infos"]
-            ]
-            crop_rs = [
-                fish_crop_info["crop_r"]
-                for fish_crop_info in frame_crop_info["frame_crop_infos"]
-            ]
-            crop_bs = [
-                fish_crop_info["crop_b"]
-                for fish_crop_info in frame_crop_info["frame_crop_infos"]
-            ]
-            if frame_num == 0:
-                # MAH 2025-11-24 14:26:35 this isnt ideal as not how its trained, should probably just skip the first and last frames
-                frames_to_load = [
-                    min(len(dataset) - 1, frame_num + 2),
-                    frame_num,
-                    min(len(dataset) - 1, frame_num + 1),
-                ]
+#             fish_ids = [
+#                 fish_crop_info["fish_id"]
+#                 for fish_crop_info in frame_crop_info["frame_crop_infos"]
+#             ]
+#             crop_ls = [
+#                 fish_crop_info["crop_l"]
+#                 for fish_crop_info in frame_crop_info["frame_crop_infos"]
+#             ]
+#             crop_ts = [
+#                 fish_crop_info["crop_t"]
+#                 for fish_crop_info in frame_crop_info["frame_crop_infos"]
+#             ]
+#             crop_rs = [
+#                 fish_crop_info["crop_r"]
+#                 for fish_crop_info in frame_crop_info["frame_crop_infos"]
+#             ]
+#             crop_bs = [
+#                 fish_crop_info["crop_b"]
+#                 for fish_crop_info in frame_crop_info["frame_crop_infos"]
+#             ]
+#             if frame_num == 0:
+#                 # MAH 2025-11-24 14:26:35 this isnt ideal as not how its trained, should probably just skip the first and last frames
+#                 frames_to_load = [
+#                     min(len(dataset) - 1, frame_num + 2),
+#                     frame_num,
+#                     min(len(dataset) - 1, frame_num + 1),
+#                 ]
 
-            elif frame_num == len(dataset) - 1:
-                # MAH 2025-11-24 14:26:35 this isnt ideal as not how its trained, should probably just skip the first and last frames
-                frames_to_load = [
-                    max(0, frame_num - 1),
-                    frame_num,
-                    max(0, frame_num - 2),
-                ]
-            else:
-                frames_to_load = [
-                    max(0, frame_num - 1),
-                    frame_num,
-                    min(len(dataset) - 1, frame_num + 1),
-                ]
+#             elif frame_num == len(dataset) - 1:
+#                 # MAH 2025-11-24 14:26:35 this isnt ideal as not how its trained, should probably just skip the first and last frames
+#                 frames_to_load = [
+#                     max(0, frame_num - 1),
+#                     frame_num,
+#                     max(0, frame_num - 2),
+#                 ]
+#             else:
+#                 frames_to_load = [
+#                     max(0, frame_num - 1),
+#                     frame_num,
+#                     min(len(dataset) - 1, frame_num + 1),
+#                 ]
 
-            print(
-                f"# MAH 2025-11-24 18:49:39 make this more efficient by using a get_item_ that can pull in multiple frames at once"
-            )
-            # MAH 2025-11-24 18:48:13 this should all be batched together to save time a get_item_ that can pull in multiple frames at once
-            frame_images_previous, _frame_labels, _unwarped_frames, _echogram = (
-                dataset.__getitem__(frames_to_load[0], postprocess=False)
-            )
-            frame_images_current, _frame_labels, _unwarped_frames, _echogram = (
-                dataset.__getitem__(frames_to_load[1], postprocess=False)
-            )
-            frame_images_next, _frame_labels, _unwarped_frames, _echogram = (
-                dataset.__getitem__(frames_to_load[2], postprocess=False)
-            )
+#             print(
+#                 f"# MAH 2025-11-24 18:49:39 make this more efficient by using a get_item_ that can pull in multiple frames at once"
+#             )
+#             # MAH 2025-11-24 18:48:13 this should all be batched together to save time a get_item_ that can pull in multiple frames at once
+#             frame_images_previous, _frame_labels, _unwarped_frames, _echogram = (
+#                 dataset.__getitem__(frames_to_load[0], postprocess=False)
+#             )
+#             frame_images_current, _frame_labels, _unwarped_frames, _echogram = (
+#                 dataset.__getitem__(frames_to_load[1], postprocess=False)
+#             )
+#             frame_images_next, _frame_labels, _unwarped_frames, _echogram = (
+#                 dataset.__getitem__(frames_to_load[2], postprocess=False)
+#             )
 
-            frame_images_previous_bgs = torch.from_numpy(
-                frame_images_previous[0][:, :, 1]
-            ).float()
-            frame_images_current_bgs = torch.from_numpy(
-                frame_images_current[0][:, :, 1]
-            ).float()
-            frame_images_next_bgs = torch.from_numpy(
-                frame_images_next[0][:, :, 1]
-            ).float()
+#             frame_images_previous_bgs = torch.from_numpy(
+#                 frame_images_previous[0][:, :, 1]
+#             ).float()
+#             frame_images_current_bgs = torch.from_numpy(
+#                 frame_images_current[0][:, :, 1]
+#             ).float()
+#             frame_images_next_bgs = torch.from_numpy(
+#                 frame_images_next[0][:, :, 1]
+#             ).float()
 
-            frame_images_previous_bgs -= 255 / 2
-            frame_images_current_bgs -= 255 / 2
-            frame_images_next_bgs -= 255 / 2
-            frame_images_previous_bgs[frame_images_previous_bgs < 0] = 0
-            frame_images_current_bgs[frame_images_current_bgs < 0] = 0
-            frame_images_next_bgs[frame_images_next_bgs < 0] = 0
-            frame_images_previous_bgs /= torch.max(frame_images_previous_bgs)
-            frame_images_current_bgs /= torch.max(frame_images_current_bgs)
-            frame_images_next_bgs /= torch.max(frame_images_next_bgs)
-            img = torch.stack(
-                [
-                    frame_images_previous_bgs,
-                    frame_images_current_bgs,
-                    frame_images_next_bgs,
-                ],
-                axis=0,
-            )  # MAH 2025-11-24 12:23:12 I trained the detector on BGS (previous frame, current frame, next frame) so we need to pass in the previous, current, and next frames
-            img = img.unsqueeze(
-                0
-            )  # MAH 2025-11-24 14:44:42 add batch dimension this might be able to be actually batched properly to do multiple at once?
-            img = img.to(device)
-            pred_infos = get_pred_from_img(
-                img,
-                model,
-                crops_l=crop_ls,
-                crops_t=crop_ts,
-                crops_r=crop_rs,
-                crops_b=crop_bs,
-                model_input_channels=model_input_channels,
-                mapTokpt_differentiable=mapTokpt_differentiable,
-                mapTokpt_round_to_integer=mapTokpt_round_to_integer,
-            )
+#             frame_images_previous_bgs -= 255 / 2
+#             frame_images_current_bgs -= 255 / 2
+#             frame_images_next_bgs -= 255 / 2
+#             frame_images_previous_bgs[frame_images_previous_bgs < 0] = 0
+#             frame_images_current_bgs[frame_images_current_bgs < 0] = 0
+#             frame_images_next_bgs[frame_images_next_bgs < 0] = 0
+#             frame_images_previous_bgs /= torch.max(frame_images_previous_bgs)
+#             frame_images_current_bgs /= torch.max(frame_images_current_bgs)
+#             frame_images_next_bgs /= torch.max(frame_images_next_bgs)
+#             img = torch.stack(
+#                 [
+#                     frame_images_previous_bgs,
+#                     frame_images_current_bgs,
+#                     frame_images_next_bgs,
+#                 ],
+#                 axis=0,
+#             )  # MAH 2025-11-24 12:23:12 I trained the detector on BGS (previous frame, current frame, next frame) so we need to pass in the previous, current, and next frames
+#             img = img.unsqueeze(
+#                 0
+#             )  # MAH 2025-11-24 14:44:42 add batch dimension this might be able to be actually batched properly to do multiple at once?
+#             img = img.to(device)
+#             pred_infos = get_pred_from_img(
+#                 img,
+#                 model,
+#                 crops_l=crop_ls,
+#                 crops_t=crop_ts,
+#                 crops_r=crop_rs,
+#                 crops_b=crop_bs,
+#                 model_input_channels=model_input_channels,
+#                 mapTokpt_differentiable=mapTokpt_differentiable,
+#                 mapTokpt_round_to_integer=mapTokpt_round_to_integer,
+#             )
 
-            for fish_id, pred_info in zip(fish_ids, pred_infos):
-                frame_nums[fish_id].append(frame_num)
-                pred_lens_cm[fish_id].append(
-                    calc_len(pred_info["pred_kpts"]) * pxl_to_cm_scale
-                )
-                pred_kpts_global_0_px[fish_id].append(
-                    pred_info["pred_kpts_global_px"][0]
-                )
-                pred_kpts_global_1_px[fish_id].append(
-                    pred_info["pred_kpts_global_px"][1]
-                )
-                pred_kpts_global_0_cm[fish_id].append(
-                    pred_info["pred_kpts_global_px"][0] * pxl_to_cm_scale
-                )
-                pred_kpts_global_1_cm[fish_id].append(
-                    pred_info["pred_kpts_global_px"][1] * pxl_to_cm_scale
-                )
-                min_edge_distances_pxl[fish_id].append(
-                    get_min_edge_distances_pxl(
-                        pred_info["pred_kpts_global_px"], ml, bl, mr, br
-                    )[0]
-                )
-                av_brightnesses[fish_id].append(
-                    pred_info["average_brightness_head_to_tail"]
-                )
-                peak_heatmap_brightnesses_0[fish_id].append(
-                    pred_info["peak_heatmap_brightness_0"]
-                )
-                peak_heatmap_brightnesses_1[fish_id].append(
-                    pred_info["peak_heatmap_brightness_1"]
-                )
+#             for fish_id, pred_info in zip(fish_ids, pred_infos):
+#                 frame_nums[fish_id].append(frame_num)
+#                 pred_lens_cm[fish_id].append(
+#                     calc_len(pred_info["pred_kpts"]) * pxl_to_cm_scale
+#                 )
+#                 pred_kpts_global_0_px[fish_id].append(
+#                     pred_info["pred_kpts_global_px"][0]
+#                 )
+#                 pred_kpts_global_1_px[fish_id].append(
+#                     pred_info["pred_kpts_global_px"][1]
+#                 )
+#                 pred_kpts_global_0_cm[fish_id].append(
+#                     pred_info["pred_kpts_global_px"][0] * pxl_to_cm_scale
+#                 )
+#                 pred_kpts_global_1_cm[fish_id].append(
+#                     pred_info["pred_kpts_global_px"][1] * pxl_to_cm_scale
+#                 )
+#                 min_edge_distances_pxl[fish_id].append(
+#                     get_min_edge_distances_pxl(
+#                         pred_info["pred_kpts_global_px"], ml, bl, mr, br
+#                     )[0]
+#                 )
+#                 av_brightnesses[fish_id].append(
+#                     pred_info["average_brightness_head_to_tail"]
+#                 )
+#                 peak_heatmap_brightnesses_0[fish_id].append(
+#                     pred_info["peak_heatmap_brightness_0"]
+#                 )
+#                 peak_heatmap_brightnesses_1[fish_id].append(
+#                     pred_info["peak_heatmap_brightness_1"]
+#                 )
 
-    for fish_id in fish_ids:
-        masks = {}
-        masks["all"] = [True] * len(pred_lens_cm[fish_id])
-        if min_edge_dist_tolerance is not None:
-            masks["edge_dist"] = [
-                edge_dist >= min_edge_dist_tolerance
-                for edge_dist in min_edge_distances_pxl[fish_id]
-            ]
-        if vel_delta_tolerance is not None:
-            # filter out the fish with deviations
-            velocity_deviations = get_velocity_dev(
-                pred_kpts_global_0_cm[fish_id],
-                pred_kpts_global_1_cm[fish_id],
-                window_size=vel_window_size,
-            )  # MAH 2025-11-24 12:07:56 TODO this needs to take in the fact that they may not be sequential frames
-            masks["velocity"] = [
-                vel < vel_delta_tolerance for vel in velocity_deviations
-            ]
+#     for fish_id in fish_ids:
+#         masks = {}
+#         masks["all"] = [True] * len(pred_lens_cm[fish_id])
+#         if min_edge_dist_tolerance is not None:
+#             masks["edge_dist"] = [
+#                 edge_dist >= min_edge_dist_tolerance
+#                 for edge_dist in min_edge_distances_pxl[fish_id]
+#             ]
+#         if vel_delta_tolerance is not None:
+#             # filter out the fish with deviations
+#             velocity_deviations = get_velocity_dev(
+#                 pred_kpts_global_0_cm[fish_id],
+#                 pred_kpts_global_1_cm[fish_id],
+#                 window_size=vel_window_size,
+#             )  # MAH 2025-11-24 12:07:56 TODO this needs to take in the fact that they may not be sequential frames
+#             masks["velocity"] = [
+#                 vel < vel_delta_tolerance for vel in velocity_deviations
+#             ]
 
-        if length_delta_tolerance is not None:
-            # filter out the fish with changes in length from a moving average
-            change_in_length, _moving_average_length = get_change_in_length(
-                pred_kpts_global_0_cm[fish_id],
-                pred_kpts_global_1_cm[fish_id],
-                window_size=length_window_size,
-                robust=True,
-            )
-            masks["length"] = [
-                abs(change) < length_delta_tolerance for change in change_in_length
-            ]
+#         if length_delta_tolerance is not None:
+#             # filter out the fish with changes in length from a moving average
+#             change_in_length, _moving_average_length = get_change_in_length(
+#                 pred_kpts_global_0_cm[fish_id],
+#                 pred_kpts_global_1_cm[fish_id],
+#                 window_size=length_window_size,
+#                 robust=True,
+#             )
+#             masks["length"] = [
+#                 abs(change) < length_delta_tolerance for change in change_in_length
+#             ]
 
-        # apply the filters and get the masks
-        combined_filter_mask = np.all(
-            np.array([v for v in masks.values()]) == 1, axis=0
-        ).astype(int)
+#         # apply the filters and get the masks
+#         combined_filter_mask = np.all(
+#             np.array([v for v in masks.values()]) == 1, axis=0
+#         ).astype(int)
 
-        num_filtered = sum(combined_filter_mask)
-        if num_filtered == 0:
-            filtered_len_cm = np.nan
-        else:
-            filtered_len_cm = np.mean(
-                [
-                    pred_lens_cm[fish_id][i]
-                    for i in range(len(pred_lens_cm[fish_id]))
-                    if combined_filter_mask[i]
-                ]
-            )
+#         num_filtered = sum(combined_filter_mask)
+#         if num_filtered == 0:
+#             filtered_len_cm = np.nan
+#         else:
+#             filtered_len_cm = np.mean(
+#                 [
+#                     pred_lens_cm[fish_id][i]
+#                     for i in range(len(pred_lens_cm[fish_id]))
+#                     if combined_filter_mask[i]
+#                 ]
+#             )
 
-        # get the index of the closest to the mean
-        if np.sum(combined_filter_mask):
-            pred_lens_filtered = pred_lens_cm[fish_id] * combined_filter_mask
-            # mean where not zero
-            pred_lens_filtered_mean = np.mean(
-                pred_lens_filtered[pred_lens_filtered != 0]
-            )
-            clostest_to_mean_pred_len_indx = np.argmin(
-                abs(pred_lens_filtered - pred_lens_filtered_mean)
-            )
-            if not combined_filter_mask[clostest_to_mean_pred_len_indx]:
-                frame_id_closest_to_mean = None
-            else:
-                frame_id_closest_to_mean = frame_nums[fish_id][
-                    clostest_to_mean_pred_len_indx
-                ]
-        else:
-            frame_id_closest_to_mean = None
-            pred_lens_filtered_mean = None
+#         # get the index of the closest to the mean
+#         if np.sum(combined_filter_mask):
+#             pred_lens_filtered = pred_lens_cm[fish_id] * combined_filter_mask
+#             # mean where not zero
+#             pred_lens_filtered_mean = np.mean(
+#                 pred_lens_filtered[pred_lens_filtered != 0]
+#             )
+#             clostest_to_mean_pred_len_indx = np.argmin(
+#                 abs(pred_lens_filtered - pred_lens_filtered_mean)
+#             )
+#             if not combined_filter_mask[clostest_to_mean_pred_len_indx]:
+#                 frame_id_closest_to_mean = None
+#             else:
+#                 frame_id_closest_to_mean = frame_nums[fish_id][
+#                     clostest_to_mean_pred_len_indx
+#                 ]
+#         else:
+#             frame_id_closest_to_mean = None
+#             pred_lens_filtered_mean = None
 
-        if clostest_to_mean_pred_len_indx is not None:
-            coords = [
-                pred_kpts_global_0_px[fish_id][clostest_to_mean_pred_len_indx],
-                pred_kpts_global_1_px[fish_id][clostest_to_mean_pred_len_indx],
-            ]
-        else:
-            coords = None
+#         if clostest_to_mean_pred_len_indx is not None:
+#             coords = [
+#                 pred_kpts_global_0_px[fish_id][clostest_to_mean_pred_len_indx],
+#                 pred_kpts_global_1_px[fish_id][clostest_to_mean_pred_len_indx],
+#             ]
+#         else:
+#             coords = None
 
-        len_outputs[fish_id] = {
-            "pred_length_cm": pred_lens_filtered_mean,
-            "filtered_lengths_cm": filtered_len_cm,
-            "num_filtered": num_filtered,
-            "frame_id_closest_to_mean": frame_id_closest_to_mean,
-            "coords": coords,
-        }
+#         len_outputs[fish_id] = {
+#             "pred_length_cm": pred_lens_filtered_mean,
+#             "filtered_lengths_cm": filtered_len_cm,
+#             "num_filtered": num_filtered,
+#             "frame_id_closest_to_mean": frame_id_closest_to_mean,
+#             "coords": coords,
+#         }
 
-        print(f"{len_outputs[fish_id]=}")
-    return len_outputs
+#         print(f"{len_outputs[fish_id]=}")
+#     return len_outputs
 
 
 # return {
