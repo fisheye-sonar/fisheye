@@ -14,6 +14,9 @@ from fisheye.configs import (
 from fisheye.configs.inference import NMSConfig
 from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
 from fisheye.pipelines import ObjectDetectionPipeline
+from fisheye.dataloaders.didson.beams import load_beam_width_data
+from fisheye.configs.datasets import BEAM_WIDTH_DIR
+import pandas as pd
 
 
 def test_preprocess():
@@ -74,9 +77,9 @@ def test_object_detection_pipeline_no_postprocessing(use_multithreading):
         # into individual images and runs them in parallel. Mocking ensures a controlled environment for both
         # threading modes.
         img_batch = torch.rand(batch_size, 3, 960, 512)
+        img_original_batch = torch.rand(batch_size, 3, 2686, 1307)
         shapes = [(960, 512)] * batch_size
-        pipeline.dataloader = [(img_batch, None, shapes)]
-
+        pipeline.dataloader = [(img_batch, None, shapes, img_original_batch)]
         pipeline.model = mock_model
         output = pipeline()
 
@@ -134,12 +137,28 @@ def test_object_detection_pipeline_w_postprocessing_params(confs, use_multithrea
         # into individual images and runs them in parallel. Mocking ensures a controlled environment for both
         # threading modes.
         img_batch = torch.rand(batch_size, 3, 960, 512)
+        img_original_batch = torch.rand(batch_size, 3, 2686, 1307)
         shapes = [(960, 512)] * batch_size
-        pipeline.dataloader = [(img_batch, None, shapes)]
+        pipeline.dataloader = [(img_batch, None, shapes, img_original_batch)]
 
         pipeline.model = mock_model
         pipeline.metadata = MagicMock()
         pipeline.metadata.image_meter_width = 1.0
+        pipeline.metadata.pixel_meter_size = 1.0
+        pipeline.metadata.unwarped_shape = (2684, 48)
+        # MAH 2025-11-25 20:31:02 TODO make these the unwarped numbers of klamath
+        pipeline.metadata.xdim = 1307
+        pipeline.metadata.ydim = 2686
+        pipeline.metadata.beam_width_data = pd.read_csv(
+            f"{BEAM_WIDTH_DIR}/ARIS1800_1200_48.csv"
+        )
+        pipeline.metadata.windowstart = 0.690777599811554
+        pipeline.metadata.sampleperiod = 1
+        pipeline.metadata.soundspeed = 1461.9632568359375
+        pipeline.metadata.samplesperbeam = 2684
+        pipeline.metadata.y_meter_start = 34.05017015373201
+        pipeline.metadata.x_meter_start = -8.118787600824168
+
         pipeline.dataset = MagicMock()
         pipeline.dataset.batch_size = batch_size
         output = pipeline()
@@ -199,12 +218,28 @@ def test_object_detection_pipeline_diff_postprocessing_structure(
         # into individual images and runs them in parallel. Mocking ensures a controlled environment for both
         # threading modes.
         img_batch = torch.rand(batch_size, 3, 960, 512)
+        img_original_batch = torch.rand(batch_size, 3, 2686, 1307)
         shapes = [(960, 512)] * batch_size
-        pipeline.dataloader = [(img_batch, None, shapes)]
+        pipeline.dataloader = [(img_batch, None, shapes, img_original_batch)]
 
         pipeline.model = mock_model
         pipeline.metadata = MagicMock()
         pipeline.metadata.image_meter_width = 1.0
+        pipeline.metadata.pixel_meter_size = 1.0
+        pipeline.metadata.unwarped_shape = (2684, 48)
+        # MAH 2025-11-25 20:31:02 TODO make these the unwarped numbers of klamath
+        pipeline.metadata.xdim = 1307
+        pipeline.metadata.ydim = 2686
+        pipeline.metadata.beam_width_data = pd.read_csv(
+            f"{BEAM_WIDTH_DIR}/ARIS1800_1200_48.csv"
+        )
+        pipeline.metadata.windowstart = 0.690777599811554
+        pipeline.metadata.sampleperiod = 1
+        pipeline.metadata.soundspeed = 1461.9632568359375
+        pipeline.metadata.samplesperbeam = 2684
+        pipeline.metadata.y_meter_start = 34.05017015373201
+        pipeline.metadata.x_meter_start = -8.118787600824168
+
         pipeline.dataset = MagicMock()
         pipeline.dataset.batch_size = batch_size
         output = pipeline()

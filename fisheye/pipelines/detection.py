@@ -16,9 +16,11 @@ from fisheye.configs import (
 from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
 from tqdm import tqdm  # MAH 2025-11-24 15:36:22
-
+from fisheye.lengths.length_estimator import LengthEstimator
 
 from fisheye.boxes import run_nms, normalize_boxes_for_tracking
+
+import numpy as np  # MAH 2025-11-25 13:20:55 should find a non numpy way maybe? though nms uses numpy for some reason
 
 # Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
@@ -58,6 +60,7 @@ class ObjectDetectionPipeline:
 
         self.use_multithreading = config.use_multithreading
         self.apply_nms_batchwise = config.apply_nms_batchwise
+        self.apply_length_estimates_batchwise = config.apply_length_estimates_batchwise
         self.nms_config = config.nms_config
 
         self.max_workers = config.max_workers
@@ -66,6 +69,8 @@ class ObjectDetectionPipeline:
             if postprocessing_params
             else postprocessing_params
         )
+
+        self.length_estimator = None
 
     def _build_postprocessing_params(self, postprocessing_params):
         """Sanitizes postprocessing parameters to format them correctly."""
@@ -125,21 +130,37 @@ class ObjectDetectionPipeline:
 
     def _forward(self, *args, **kwargs):
         """Performs inference with optional multithreading."""
+
+        if self.length_estimator is None:
+            if self.metadata is None:
+                print("MAH Metadata is not set")
+            else:
+                # MAH 2025-11-25 20:09:21
+                self.length_estimator = LengthEstimator(self.metadata)
+
         if self.apply_nms_batchwise:
             all_low_preds_updated_batch = {}
             all_high_preds_updated_batch = {}
+            all_length_estimates = {}
         else:
             inference_bboxes = []
             image_shapes = []
             width = None
             height = None
 
+        print(f"{type(self.dataloader)=}")
         with torch.inference_mode():
-            for batch_idx, (img, _, shapes) in tqdm(
+            for batch_idx, (img, _, shapes, img_original) in tqdm(
                 enumerate(self.dataloader),
                 total=len(self.dataloader),
                 desc="Running detection",
             ):
+                print(f"{img_original.shape=}")
+                print(f"{img.shape=}")
+                print(f"{shapes=}")
+                if img_original is not None:
+                    img_original = img_original.to(self.device, non_blocking=True)
+
                 img = self.preprocess(img)
                 size = tuple(img.shape)
                 nb, _, height, width = size  # batch size, channels, height, width
@@ -153,9 +174,6 @@ class ObjectDetectionPipeline:
                 else:
                     # Batched inference - [B, N, 6]
                     inf_out = self.model(img)
-
-                    # print(f"{inf_out=}")  # MAH 2025-11-24 15:38:28
-                    print(f"{inf_out.shape=}")  # MAH 2025-11
 
                 torch.cuda.empty_cache()
 
@@ -208,6 +226,27 @@ class ObjectDetectionPipeline:
                     all_high_preds_updated_batch.update(
                         {(batch_idx, k[1]): v for k, v in high_preds.items()}
                     )
+                    inds_with_low_preds = [
+                        k[1] for k, v in low_preds.items() if v is not None
+                    ]
+                    inds_with_high_preds = [
+                        k[1] for k, v in high_preds.items() if v is not None
+                    ]
+                    for ind in range(img.shape[0]):
+                        low_pred = low_preds[(0, ind)]
+                        high_pred = high_preds[(0, ind)]
+                        if np.array_equal(low_pred, high_pred):
+                            print(f"{ind=}: both={low_pred}")
+                        else:
+                            print(f"{ind=}:  low={low_pred} high={high_pred}")
+                    if self.apply_length_estimates_batchwise:
+                        length_estimates = self.length_estimator.run(
+                            img_original, low_preds
+                        )
+                        length_estimates = {
+                            (batch_idx, k): v for k, v in length_estimates.items()
+                        }
+                        all_length_estimates.update(length_estimates)
 
                 else:
                     image_shapes.append(batch_shape)
@@ -221,7 +260,14 @@ class ObjectDetectionPipeline:
                 )
 
         if self.apply_nms_batchwise:
-            return all_low_preds_updated_batch, all_high_preds_updated_batch
+            if self.apply_length_estimates_batchwise:
+                return (
+                    all_low_preds_updated_batch,
+                    all_high_preds_updated_batch,
+                    all_length_estimates,
+                )
+            else:
+                return all_low_preds_updated_batch, all_high_preds_updated_batch
 
         else:
             return inference_bboxes, image_shapes, width, height

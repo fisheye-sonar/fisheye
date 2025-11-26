@@ -16,8 +16,8 @@ import numpy as np  # MAH 2025-11-24 15:14:45 remove this later if possible
 from matplotlib import pyplot as plt
 import matplotlib
 
-matplotlib.use("TkAgg")
-import matplotlib
+# matplotlib.use("TkAgg")
+# import matplotlib
 
 
 def get_pred_from_img(

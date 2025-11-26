@@ -129,7 +129,6 @@ def calculate_warped_points(points, info, xdim, ydim):
                 [-np.sin(beam_left_angle), np.cos(beam_left_angle)],
             ]
         )
-
         vec = np.array([0, bin_back_edge_distance])
         bin_left_back_point = np.matmul(rot_matrix, vec)
 

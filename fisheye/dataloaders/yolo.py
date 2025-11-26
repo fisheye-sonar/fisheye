@@ -44,13 +44,25 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         )
 
     @classmethod
-    def load_image(cls, img, img_size=896):
+    def load_image(cls, img, img_size=896, return_original_shape=False):
         """Loads and resizes an image for YOLOv5 inference."""
+        if return_original_shape:
+            img_original = img.copy()
+        else:
+            # MAH 2025-11-25 21:19:15 TODO make this None
+            print("MAH 2025-11-25 21:19:15 TODO make this None")
+            img_original = np.array([0])
         h0, w0 = img.shape[:2]  # original height and width
         r = img_size / max(h0, w0)  # resize ratio
         interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
         img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
-        return img, (h0, w0), img.shape[:2]  # returns img, original hw, resized hw
+
+        return (
+            img,
+            (h0, w0),
+            img.shape[:2],
+            img_original,
+        )  # returns img, original hw, resized hw, original img
 
     def _postprocess(self, frame_images, frame_labels, unwarped_frames, echogram):
         """
@@ -67,7 +79,10 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         outputs = []
         frame_labels = frame_labels or [None for _ in frame_images]
         for image, labels in zip(frame_images, frame_labels):
-            img, (h0, w0), (h, w) = self.load_image(image)
+            # MAH 2025-11-25 19:21:01 return the original image shape for the postprocessing step
+            img, (h0, w0), (h, w), img_original = self.load_image(
+                image, return_original_shape=True
+            )
 
             # Apply letterboxing to resize and pad images
             img, ratio, pad = letterbox(
@@ -78,14 +93,16 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             img = img.transpose(2, 0, 1)  # Convert to CxHxW format
             img = np.ascontiguousarray(img)
 
+            if img_original is not None:
+                # MAH 2025-11-25 19:21:01 return the original image shape for the postprocessing step
+                img_original = img_original.transpose(
+                    2, 0, 1
+                )  # Convert to CxHxW format
+                img_original = np.ascontiguousarray(img_original)
+                img_original = torch.from_numpy(img_original).float()
+
             labels_out = self._process_labels(labels, ratio, pad, img.shape)
-            outputs.append(
-                (
-                    torch.from_numpy(img),
-                    labels_out,
-                    shapes,
-                )
-            )
+            outputs.append((torch.from_numpy(img), labels_out, shapes, img_original))
         return outputs
 
     def _process_labels(self, labels, ratio, pad, img_shape):

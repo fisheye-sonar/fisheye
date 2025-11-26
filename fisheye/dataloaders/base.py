@@ -117,6 +117,7 @@ class BaseDataset(Dataset):
         frame_labels = None
 
         if idx + 1 < len(self.extracted_frames):
+            print(f"# MAH 2025-11-25 11:17:21 using extracted frames postprocessing")
             if postprocess:
                 return self._postprocess(
                     np.stack(self.extracted_frames[idx:final_idx]),
@@ -125,6 +126,9 @@ class BaseDataset(Dataset):
                     np.stack(self.extracted_echograms[idx:final_idx]),
                 )
             else:
+                print(
+                    f"# MAH 2025-11-25 11:17:21 using extracted frames not postprocessing"
+                )
                 return (
                     np.stack(self.extracted_frames[idx:final_idx]),
                     frame_labels,
@@ -174,10 +178,12 @@ class BaseDataset(Dataset):
                 self.extracted_echograms.extend(echogram)
 
         if postprocess:
+            print(f"# MAH 2025-11-25 11:17:21 postprocessing")
             return self._postprocess(
                 frame_images, frame_labels, unwarped_frames, echogram
             )
         else:
+            print(f"# MAH 2025-11-25 11:17:21 not postprocessing")
             return (
                 frame_images,
                 frame_labels,
