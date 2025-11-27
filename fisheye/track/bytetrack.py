@@ -87,8 +87,6 @@ class ByteTracker(BaseTracker):
         for m in low_matched:
             if m[1] not in matched_tracks:
                 self.trackers[m[1]].update(low_dets[m[0], :])
-                # MAH 2025-11-26 14:54:22
-                # lengths[m[1]].append(self.trackers[m[1]].length)
 
         # create and initialise new trackers for unmatched detections
         for i in unmatched_high_dets:

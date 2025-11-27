@@ -77,7 +77,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         outputs = []
         frame_labels = frame_labels or [None for _ in frame_images]
         for image, labels in zip(frame_images, frame_labels):
-            # MAH 2025-11-25 19:21:01 return the original image shape for the postprocessing step
+            # return the original image shape for length estimation
             img, (h0, w0), (h, w), img_original = self.load_image(
                 image, return_original_shape=True
             )
@@ -92,7 +92,6 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             img = np.ascontiguousarray(img)
 
             if img_original is not None:
-                # MAH 2025-11-25 19:21:01 return the original image, used for length estimation
                 img_original = img_original.transpose(
                     2, 0, 1
                 )  # Convert to CxHxW format

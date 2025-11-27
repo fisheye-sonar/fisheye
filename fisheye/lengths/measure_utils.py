@@ -137,96 +137,128 @@ def windowed_mean(arr, window=5, min_count=1):
     return means
 
 
-def robust_mean(values, window_size=5, z_thresh=2.5):
+def robust_mean(values, frame_nums, window_size=5, z_thresh=2.5):
     """
-    Robust moving average using median + MAD.
+    Robust moving average using median + MAD, accounting for irregular or missing frame indices.
+
     values: list/array of numbers
-    window_size: odd integer window size
+    frame_nums: list of frame/time indices (same length as values)
+    window_size: time radius in frame units (not sample count)
     z_thresh: how many MADs away counts as an outlier
+
+    Returns:
+        A list of smoothed values, same order as input.
     """
     import math
+    from bisect import bisect_left, bisect_right
 
+    assert len(values) == len(frame_nums), "values and frame_nums must be same length"
     n = len(values)
-    half = window_size // 2
-    result = [math.nan] * n
+    if n == 0:
+        return []
 
-    for i in range(n):
-        # window centered at i
-        start = max(0, i - half)
-        end = min(n, i + half + 1)
-        window = values[start:end]
-
-        # median
-        sorted_w = sorted(window)
-        m = len(sorted_w)
-        if m % 2 == 1:
-            median = sorted_w[m // 2]
-        else:
-            median = 0.5 * (sorted_w[m // 2 - 1] + sorted_w[m // 2])
-
-        # MAD (median absolute deviation)
-        abs_dev = [abs(x - median) for x in window]
-        sorted_d = sorted(abs_dev)
-        if m % 2 == 1:
-            mad = sorted_d[m // 2]
-        else:
-            mad = 0.5 * (sorted_d[m // 2 - 1] + sorted_d[m // 2])
-
-        # avoid division by zero: if mad==0, treat everything as inlier
-        inliers = []
-        if mad == 0:
-            inliers = window
-        else:
-            # 0.6745 factor makes MAD comparable to std-dev for normal data
-            for x in window:
-                z = 0.6745 * (x - median) / mad
-                if abs(z) <= z_thresh:
-                    inliers.append(x)
-
-        if inliers:
-            result[i] = sum(inliers) / len(inliers)
-        else:
-            # fallback to median if somehow everything was filtered
-            result[i] = median
-
-    return result
-
-
-def robust_mean_vector(vx, vy, window_size=5, z_thresh=2.5):
-    """
-    Robust moving average for 2D vectors using median + MAD on radial distance.
-    Returns the *magnitude* of the smoothed velocity vector at each point.
-    """
-    import math
-
-    assert len(vx) == len(vy), "vx and vy must be same length"
-    n = len(vx)
-    half = window_size // 2
-    result = [math.nan] * n
-
+    # Helper: median
     def median(lst):
         s = sorted(lst)
         m = len(s)
         return s[m // 2] if (m % 2 == 1) else 0.5 * (s[m // 2 - 1] + s[m // 2])
 
-    mxs = []
-    mys = []
-    sxs = []
-    sys = []
-    deviations = []
-    for i in range(n):
-        # window centered at i
-        start = max(0, i - half)
-        end = min(n, i + half + 1)
-        wx = vx[start:end]
-        wy = vy[start:end]
-        m = end - start
+    # Sort by frame number (for bisect)
+    order = sorted(range(n), key=lambda i: frame_nums[i])
+    frames_sorted = [frame_nums[i] for i in order]
+    vals_sorted = [values[i] for i in order]
+
+    result_sorted = [math.nan] * n
+
+    for k in range(n):
+        t = frames_sorted[k]
+        # Window covers all samples within ±window_size in frame units
+        left = bisect_left(frames_sorted, t - window_size)
+        right = bisect_right(frames_sorted, t + window_size)
+        window = vals_sorted[left:right]
+
+        if not window:
+            result_sorted[k] = math.nan
+            continue
+
+        # Median
+        med = median(window)
+
+        # MAD (median absolute deviation)
+        abs_dev = [abs(x - med) for x in window]
+        mad = median(abs_dev)
+
+        # Inliers based on z-score
+        if mad == 0:
+            inliers = window
+        else:
+            inliers = [x for x in window if abs(0.6745 * (x - med) / mad) <= z_thresh]
+
+        # Average inliers (fallback to median if none)
+        if inliers:
+            result_sorted[k] = sum(inliers) / len(inliers)
+        else:
+            result_sorted[k] = med
+
+    # Restore original order
+    inv_order = [0] * n
+    for pos, orig_i in enumerate(order):
+        inv_order[orig_i] = pos
+
+    result = [result_sorted[inv_order[i]] for i in range(n)]
+    return result
+
+
+def robust_mean_vector(vx, vy, frame_nums, window_size=5, z_thresh=2.5):
+    """
+    Robust moving average for 2D vectors using median + MAD on radial distance.
+    Uses `frame_nums` (time indices) to form a variable-size window consisting of
+    all points with frame indices within ±window_size of the current point.
+
+    Returns four lists (aligned to the ORIGINAL input order):
+      - mxs, mys: per-point median vector components within the time window
+      - sxs, sys: per-point robust-mean (inlier-avg) vector components
+
+    Notes:
+      * `window_size` is a radius in FRAME UNITS, not a sample count.
+      * Handles irregular sampling and missing frames.
+    """
+    import math
+    from bisect import bisect_left, bisect_right
+
+    assert (
+        len(vx) == len(vy) == len(frame_nums)
+    ), "vx, vy, frame_nums must be same length"
+    n = len(vx)
+    if n == 0:
+        return [], [], [], []
+
+    # Helper: median for a non-empty list
+    def median(lst):
+        s = sorted(lst)
+        m = len(s)
+        return s[m // 2] if (m % 2 == 1) else 0.5 * (s[m // 2 - 1] + s[m // 2])
+
+    # Sort by frame index (in case user passes unsorted inputs)
+    order = sorted(range(n), key=lambda i: frame_nums[i])
+    frames_sorted = [frame_nums[i] for i in order]
+    vx_sorted = [vx[i] for i in order]
+    vy_sorted = [vy[i] for i in order]
+
+    # Prepare outputs in sorted order; we'll unsort at the end
+    mxs_s, mys_s, sxs_s, sys_s = [None] * n, [None] * n, [None] * n, [None] * n
+
+    for k in range(n):
+        t = frames_sorted[k]
+        # window is all indices j with frame in [t - window_size, t + window_size]
+        left = bisect_left(frames_sorted, t - window_size)
+        right = bisect_right(frames_sorted, t + window_size)  # exclusive
+        wx = vx_sorted[left:right]
+        wy = vy_sorted[left:right]
 
         # median vector
         mx = median(wx)
         my = median(wy)
-        mxs.append(mx)
-        mys.append(my)
 
         # distances from median vector
         dists = [math.hypot(x - mx, y - my) for x, y in zip(wx, wy)]
@@ -237,10 +269,10 @@ def robust_mean_vector(vx, vy, window_size=5, z_thresh=2.5):
         mad = median(abs_dev)
 
         # choose inliers by radial z-score
-        inliers = []
         if mad == 0:
             inliers = list(zip(wx, wy))
         else:
+            inliers = []
             for (x, y), d in zip(zip(wx, wy), dists):
                 z = 0.6745 * (d - md) / mad
                 if abs(z) <= z_thresh:
@@ -250,14 +282,27 @@ def robust_mean_vector(vx, vy, window_size=5, z_thresh=2.5):
             sx = sum(p[0] for p in inliers) / len(inliers)
             sy = sum(p[1] for p in inliers) / len(inliers)
         else:
+            # fall back to median if everything was rejected
             sx, sy = mx, my
 
-        sxs.append(sx)
-        sys.append(sy)
+        mxs_s[k], mys_s[k], sxs_s[k], sys_s[k] = mx, my, sx, sy
+
+    # Unsort back to original order
+    inv_order = [0] * n
+    for pos, orig_i in enumerate(order):
+        inv_order[orig_i] = pos
+
+    mxs = [mxs_s[inv_order[i]] for i in range(n)]
+    mys = [mys_s[inv_order[i]] for i in range(n)]
+    sxs = [sxs_s[inv_order[i]] for i in range(n)]
+    sys = [sys_s[inv_order[i]] for i in range(n)]
+
     return mxs, mys, sxs, sys
 
 
-def get_velocity_dev(pred_kpts_global_0, pred_kpts_global_1, window_size=5, plot=False):
+def get_velocity_dev(
+    pred_kpts_global_0, pred_kpts_global_1, frame_nums, window_size=5, plot=False
+):
     velocity_deltas = np.empty([2, len(pred_kpts_global_0)])
     velocities_xsht = []
     velocities_ysht = []
@@ -279,7 +324,7 @@ def get_velocity_dev(pred_kpts_global_0, pred_kpts_global_1, window_size=5, plot
             velocities_y.append(vy)
 
         mxs, mys, sxs, sys = robust_mean_vector(
-            velocities_x, velocities_y, window_size=window_size
+            velocities_x, velocities_y, frame_nums, window_size=window_size
         )
 
         velocities_deviation = np.hypot(
@@ -365,16 +410,16 @@ def get_velocity_dev(pred_kpts_global_0, pred_kpts_global_1, window_size=5, plot
     return velocity_deltas
 
 
-def get_deviation_from_average(vectors, window_size=5, robust=False):
+def get_deviation_from_average(vectors, frame_nums, window_size=5, robust=False):
     vector_averages = windowed_mean(np.array(vectors), window=window_size)
     if robust:
-        vector_averages = robust_mean(vectors, window_size=5, z_thresh=2.5)
+        vector_averages = robust_mean(vectors, frame_nums, window_size=5, z_thresh=2.5)
     change_in = [vectors[i] - vector_averages[i] for i in range(len(vectors))]
     return change_in, vector_averages
 
 
 def get_change_in_length(
-    pred_kpts_global_0, pred_kpts_global_1, window_size=5, robust=False
+    pred_kpts_global_0, pred_kpts_global_1, frame_nums, window_size=5, robust=False
 ):
     length_vectors = [
         np.linalg.norm(p1 - p0)
@@ -382,7 +427,7 @@ def get_change_in_length(
     ]
 
     change_in_length, length_vector_averages = get_deviation_from_average(
-        length_vectors, window_size=window_size, robust=robust
+        length_vectors, frame_nums, window_size=window_size, robust=robust
     )
 
     return change_in_length, length_vector_averages

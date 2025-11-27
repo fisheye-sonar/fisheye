@@ -15,12 +15,10 @@ from fisheye.configs import (
 
 from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
-from tqdm import tqdm  # MAH 2025-11-24 15:36:22
+from tqdm import tqdm
 from fisheye.lengths.length_estimator import LengthEstimator
 
 from fisheye.boxes import run_nms, normalize_boxes_for_tracking
-
-import numpy as np  # MAH 2025-11-25 13:20:55 TODO should find a non numpy way maybe? though nms uses numpy for some reason
 
 # Add postprocessing methods to this registry
 POSTPROCESSING_REGISTRY = {
@@ -133,9 +131,9 @@ class ObjectDetectionPipeline:
 
         if self.length_estimator is None:
             if self.metadata is None:
-                print("MAH Metadata is not set")
+                # raise ValueError("Metadata is not set cant apply length estimates")
+                pass
             else:
-                # MAH 2025-11-25 20:09:21
                 self.length_estimator = LengthEstimator(self.metadata)
 
         if self.apply_nms_batchwise:
@@ -223,19 +221,7 @@ class ObjectDetectionPipeline:
                     all_high_preds_updated_batch.update(
                         {(batch_idx, k[1]): v for k, v in high_preds.items()}
                     )
-                    inds_with_low_preds = [
-                        k[1] for k, v in low_preds.items() if v is not None
-                    ]
-                    inds_with_high_preds = [
-                        k[1] for k, v in high_preds.items() if v is not None
-                    ]
-                    for ind in range(img.shape[0]):
-                        low_pred = low_preds[(0, ind)]
-                        high_pred = high_preds[(0, ind)]
-                        # if np.array_equal(low_pred, high_pred):
-                        #     print(f"{ind=}: both={low_pred}")
-                        # else:
-                        #     print(f"{ind=}:  low={low_pred} high={high_pred}")
+
                     if self.apply_length_estimates_batchwise:
                         low_length_estimates = self.length_estimator.run(
                             img_original, low_preds

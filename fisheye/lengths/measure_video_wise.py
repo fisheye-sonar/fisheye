@@ -23,14 +23,7 @@ from fisheye.lengths.measure_utils import (
 from tqdm import tqdm
 import numpy as np
 
-import os
-from PIL import Image
-import torch
-from torchvision import transforms
-from tqdm import tqdm
-import numpy as np  # MAH 2025-11-24 15:14:45 remove this later if possible
 from matplotlib import pyplot as plt
-import matplotlib
 
 
 def get_pred_from_img(
@@ -71,36 +64,12 @@ def get_pred_from_img(
             # if given a 3 channel image (prev, current, next) we want to use the current channel
             img = img[:, 1:2, :, :]
 
-    if True:
-        # whole image
-        pred = model(img)
-    else:
-        # initial crop to have a smaller input image
-        padd_for_receptive_field = 100
-        min_crop_l = max(0, min(crops_l) - padd_for_receptive_field)
-        min_crop_t = max(0, min(crops_t) - padd_for_receptive_field)
-        min_crop_r = max(1, min(crops_r) - padd_for_receptive_field)
-        min_crop_b = max(1, min(crops_b) - padd_for_receptive_field)
-
-        pred = torch.zeros(img.shape[0], 2, img.shape[2], img.shape[3])
-        img_init_crop = img[:, :, min_crop_t:-min_crop_b, min_crop_l:-min_crop_r]
-        print(f"{img.shape=}")
-        print(f"{img_init_crop.shape=}")
-        pred_init_crop = model(img_init_crop)
-        print(f"{pred_init_crop.shape=}")
-        # uncrop the pred
-        pred[:, :, min_crop_t:-min_crop_b, min_crop_l:-min_crop_r] = pred_init_crop
+    pred = model(img)
 
     outputs = []
     for crop_l, crop_t, crop_r, crop_b in zip(crops_l, crops_t, crops_r, crops_b):
         pred_cropped = pred[:, :, crop_t:-crop_b, crop_l:-crop_r]
         img_cropped = img[:, :, crop_t:-crop_b, crop_l:-crop_r]
-        print(f"{crop_t=}")
-        print(f"{crop_b=}")
-        print(f"{crop_l=}")
-        print(f"{crop_r=}")
-        print(f"{img.shape=}")
-        print(f"{img_cropped.shape=}")
 
         peak_heatmap_brightness_0 = torch.max(pred_cropped[:, 0]).item()
         peak_heatmap_brightness_1 = torch.max(pred_cropped[:, 1]).item()
@@ -111,9 +80,6 @@ def get_pred_from_img(
             round_to_integer=mapTokpt_round_to_integer,
         )[0]
 
-        print(f"{pred_kpts.shape=}")
-        print(f"{pred_kpts=}")
-        print(f"{calc_len(pred_kpts)=}")
         # fig, ax = plt.subplots(1, 3)
         # ax[0].imshow(pred_cropped[0, 0].cpu().numpy())
         # ax[1].imshow(pred_cropped[0, 1].cpu().numpy())
@@ -162,7 +128,7 @@ def get_pred_from_video_wise(
     cone_eq_params_right=None,
     vel_delta_tolerance=15,
     length_delta_tolerance=5,
-    min_edge_dist_tolerance=10,
+    min_edge_dist_tolerance_px=10,
     model_input_channels=1,
     mapTokpt_differentiable=False,
     mapTokpt_round_to_integer=False,
@@ -329,9 +295,9 @@ def get_pred_from_video_wise(
     for fish_id in fish_ids:
         masks = {}
         masks["all"] = [True] * len(pred_lens_cm[fish_id])
-        if min_edge_dist_tolerance is not None:
+        if min_edge_dist_tolerance_px is not None:
             masks["edge_dist"] = [
-                edge_dist >= min_edge_dist_tolerance
+                edge_dist >= min_edge_dist_tolerance_px
                 for edge_dist in min_edge_distances_pxl[fish_id]
             ]
         if vel_delta_tolerance is not None:
@@ -350,6 +316,7 @@ def get_pred_from_video_wise(
             change_in_length, _moving_average_length = get_change_in_length(
                 pred_kpts_global_0_cm[fish_id],
                 pred_kpts_global_1_cm[fish_id],
+                frame_nums[fish_id],
                 window_size=length_window_size,
                 robust=True,
             )
@@ -436,28 +403,20 @@ def get_pred_from_video_wise_helper(
     length_window_size,
     vel_delta_tolerance,
     length_delta_tolerance,
-    min_edge_dist_tolerance,
+    min_edge_dist_tolerance_px,
     dataset,
     start_frame,
+    mapTokpt_differentiable=False,
+    mapTokpt_round_to_integer=False,
+    model_type="unet",
+    unet_double_conv=False,
+    # model_input_channels = 1,
+    model_input_channels=3,
 ):
-    model_type = "unet"
-    unet_double_conv = False
-    model_input_channels = 1
-    model_input_channels = 3
+
     load_model_path = "/home/mahobley/Code/fisheye-dev/head_tail/checkpoints/crop_after_model/model_150.pth"
     device = "cuda" if torch.cuda.is_available() else "cpu"
     crop_after_model = True
-    additional_bbox_padding_px = 5
-
-    vel_window_size = 7
-    length_window_size = 7
-    vel_delta_tolerance = None
-    length_delta_tolerance = None
-    min_edge_dist_tolerance = 10
-    min_edge_dist_tolerance = None
-
-    mapTokpt_differentiable = False
-    mapTokpt_round_to_integer = False
 
     crop_info = []
     for frame_pred in frames_preds:
@@ -526,7 +485,7 @@ def get_pred_from_video_wise_helper(
         cone_eq_params_right=cone_eq_params_right,
         vel_delta_tolerance=vel_delta_tolerance,
         length_delta_tolerance=length_delta_tolerance,
-        min_edge_dist_tolerance=min_edge_dist_tolerance,
+        min_edge_dist_tolerance_px=min_edge_dist_tolerance_px,
         model_input_channels=model_input_channels,
         mapTokpt_differentiable=mapTokpt_differentiable,
         mapTokpt_round_to_integer=mapTokpt_round_to_integer,

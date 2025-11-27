@@ -64,8 +64,8 @@ class Tracker:
             # Match confidence with correct track
             conf = 0
             min_score = 1000000
-            best_bbox_index = None
-            det_index = None  # was it low [0] or high [1] detection that matched?
+            best_bbox_index = None  # which low/high bbox did it match to (if that detector returned multiple bboxes)
+            det_index = None  # did it match to the low [0] or high [1] detection?
             if TrackingMethod.SORT == self.algorithm.type:
                 conf, min_score, bbox_index, improved_match = (
                     self.algorithm.match_confidence_to_track(
@@ -75,8 +75,6 @@ class Tracker:
 
             elif TrackingMethod.BYTETRACK == self.algorithm.type:
                 # dets[0] = low conf, dets[1] = high conf
-                det_group_names = ["low", "high"]
-
                 for i, det_group in enumerate(dets):
 
                     conf, min_score, bbox_index, improved_match = (
@@ -245,8 +243,7 @@ def run_tracker(
                 gp(i / len(low_preds), pbar.__str__())
 
             low_boxes, high_boxes = low_preds[key], high_preds[key]
-            # MAH 2025-11-26 12:41:56 TODO do we want to exclude when there is no high pred?
-            # MAH 2025-11-26 12:45:02 i think it should be
+            # MAH 2025-11-26 12:41:56 TODO do we want to exclude when there is no high pred?,  i think it should be
             boxes = (
                 low_boxes if low_boxes is not None else np.empty((0, 5)),
                 high_boxes if high_boxes is not None else np.empty((0, 5)),

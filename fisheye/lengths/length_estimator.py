@@ -35,13 +35,6 @@ class LengthEstimator:
 
         self.additional_bbox_padding_px = 25  # this is the padding to compensate for the bbox being sometimes being slightly smaller than the actual fish
 
-        self.vel_window_size = 7
-        self.length_window_size = 7
-        self.vel_delta_tolerance = None
-        self.length_delta_tolerance = None
-        self.min_edge_dist_tolerance = 10
-        self.min_edge_dist_tolerance = None
-
         self.mapTokpt_differentiable = False
         self.mapTokpt_round_to_integer = False
 
@@ -149,6 +142,7 @@ class LengthEstimator:
                 )
         else:
             for crop_ltrb in crop_ltrbs:
+                # add padding so the model doesnt see the edge effects of the receptive field
                 min_crop_l = max(0, crop_ltrb[0] - self.padd_for_receptive_field)
                 min_crop_t = max(0, crop_ltrb[1] - self.padd_for_receptive_field)
                 min_crop_r = max(0, crop_ltrb[2] - self.padd_for_receptive_field)
@@ -167,6 +161,7 @@ class LengthEstimator:
                 ]
 
                 pred_init_crop = self.model(img_init_crop)
+
                 # remove receptive field padding
                 pred_cropped = pred_init_crop[
                     :,
@@ -180,21 +175,12 @@ class LengthEstimator:
                     amount_padded_top:-amount_padded_bottom,
                     amount_padded_left:-amount_padded_right,
                 ]
-                img_cropped2 = img[
-                    :,
-                    :,
-                    crop_ltrb[1] : -crop_ltrb[3],
-                    crop_ltrb[0] : -crop_ltrb[2],
-                ]
-                # MAH 2025-11-26 11:39:45 checking its the same as as if i did the crop after the model
-                if not torch.allclose(img_cropped, img_cropped2, atol=1e-6):
-                    print("crops different")
+
                 outputs.append(
                     self.get_pred_data_from_cropped_pred(
                         pred_cropped,
                         img_cropped,
                         crop_ltrb,
-                        i=i,
                     )
                 )
 
@@ -217,8 +203,7 @@ class LengthEstimator:
                 if frame_crop_info["crop_ltrbs"] == []:
                     continue
                 crop_ltrbs = frame_crop_info["crop_ltrbs"]
-                # MAH 2025-11-26 10:55:53 this works on the batch so the forst and last fram eof every batch is going to be wrong, need to have some kind of batch overlap or the dataloader gets the next and last frame anyway
-                # MAH 2025-11-24 14:26:35 this isnt ideal as not how its trained, some of these are getting 2 of the same frames on 2 channels
+                # MAH 2025-11-26 10:55:53 this works on the batch so the first and last frame of every batch is going to be wrong, need to have some kind of batch overlap or the dataloader gets the next and last frame anyway
 
                 prev_ind = max(0, frame_num - 1)
                 next_ind = min(len(frames_batch) - 1, frame_num + 1)

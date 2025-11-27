@@ -30,9 +30,10 @@ from fisheye.lengths.measure_utils import get_velocity_dev
 from fisheye.lengths.measure_video_wise import get_pred_from_video_wise_helper
 
 # MAH 2025-11-24 14:48:40 imports that can probably be removed later when this is tidied out of pipeline
-import torch
-from math import floor, ceil
 import numpy as np
+from matplotlib import pyplot as plt
+import matplotlib
+
 
 logger = structlog.getLogger(__name__)
 
@@ -70,8 +71,8 @@ class DetectTrackCountPipeline:
         print(f"MAH put end frame back")
         start_frame = 0
         end_frame = 0
-        start_frame = 315
-        end_frame = 360
+        start_frame = 131
+        end_frame = 532
         self.dataset_cfg = replace(
             self.dataset_cfg,
             filepath=file,
@@ -181,15 +182,17 @@ class DetectTrackCountPipeline:
                     _conf = fish_pred["conf"]
                     bbox_index = fish_pred["bbox_index"]
                     det_index = fish_pred["det_index"]
-                    low_length_estimate_frame = low_length_estimates[frame_bs_num]
-                    high_length_estimate_frame = high_length_estimates[frame_bs_num]
                     if det_index == 0:
-                        matched_length_estimate = low_length_estimate_frame[bbox_index]
+                        matched_length_estimate = low_length_estimates[frame_bs_num][
+                            bbox_index
+                        ]
                     else:
                         print(
-                            "\033[41m# MAH 2025-11-26 17:33:08 matched to a high confidence detection, given the way we do our code i am not certain this will ever be done, if it is remove this line from the codebase\033[0m"
+                            "\033[41m# MAH 2025-11-26 17:33:08 matched to a high confidence detection, given the way we do our filtering (low first then high) i am not certain this will ever be done, if it is remove this line from the codebase\033[0m"
                         )
-                        matched_length_estimate = high_length_estimate_frame[bbox_index]
+                        matched_length_estimate = high_length_estimates[frame_bs_num][
+                            bbox_index
+                        ]
 
                     frames_preds[frame_pred_idx]["fish"][fish_idx][
                         "length_estimate"
@@ -208,10 +211,6 @@ class DetectTrackCountPipeline:
             #             f"\033[91m    {calc_len(fish_pred['length_estimate']['pred_kpts_global_px'])*metadata.pixel_meter_size*100:.1f}cm\033[0m"
             #         )
             #         print(f"{frame_num=}: {fish_id=}: {length_estimate=}")
-
-            print(
-                "we need to pull the lengths that are associated with the tracker output bboxes , and then filter them based on the length estimates, edge etc"
-            )
 
             all_length_estimates = {}
             for frame_pred in frames_preds:
@@ -238,14 +237,29 @@ class DetectTrackCountPipeline:
                 cone_eq_params_right,
             ) = get_cone_edges(metadata)
 
-            min_edge_dist_tolerance = 10
-            vel_delta_tolerance = None
-            length_delta_tolerance = None
+            # MAH 2025-11-26 18:40:48 TODO put these in the config
+            min_edge_dist_tolerance_px = 10
+            vel_delta_tolerance = 15
+            length_delta_tolerance_cm = 5
             vel_window_size = 7
             length_window_size = 7
 
+            plot_filters_for_debugging = True
+
             len_outputs = {}
             for fish_id, data in all_length_estimates.items():
+                if (
+                    length_window_size is not None
+                    and len(data["pred_kpts_global_px"]) < length_window_size
+                ):
+                    len_outputs[fish_id] = None
+                    continue
+                if (
+                    vel_window_size is not None
+                    and len(data["pred_kpts_global_px"]) < vel_window_size
+                ):
+                    len_outputs[fish_id] = None
+                    continue
                 pred_kpts_global_px = data["pred_kpts_global_px"]
                 frame_nums = data["frame_num"]
                 pred_kpts_global_0_cm = [
@@ -267,7 +281,7 @@ class DetectTrackCountPipeline:
                 masks = {}
                 masks["all"] = [True] * len(pred_kpts_global_px)
 
-                if min_edge_dist_tolerance is not None:
+                if min_edge_dist_tolerance_px is not None:
                     min_edge_distances_pxl = []
                     for kpts_global_px in pred_kpts_global_px:
                         edge_dist_i = get_min_edge_distances_pxl(
@@ -279,38 +293,91 @@ class DetectTrackCountPipeline:
                         )[0]
                         min_edge_distances_pxl.append(edge_dist_i)
                     masks["edge_dist"] = [
-                        edge_dist >= min_edge_dist_tolerance
+                        edge_dist >= min_edge_dist_tolerance_px
                         for edge_dist in min_edge_distances_pxl
                     ]
-                if vel_delta_tolerance is not None:
-                    print(
-                        f"# MAH 2025-11-25 22:58:57 velocity needs to bear in mind that not all the frames are sequential"
+
+                if length_delta_tolerance_cm is not None:
+                    # filter out the fish with changes in length from a moving average
+                    change_in_length, _moving_average_length = get_change_in_length(
+                        pred_kpts_global_0_cm,
+                        pred_kpts_global_1_cm,
+                        frame_nums,
+                        window_size=length_window_size,
+                        robust=True,
                     )
+                    masks["length"] = [
+                        abs(change) < length_delta_tolerance_cm
+                        for change in change_in_length
+                    ]
+                    lengths_cm = [
+                        calc_len(kpts_global_px) * metadata.pixel_meter_size * 100
+                        for kpts_global_px in pred_kpts_global_px
+                    ]
+                    # check if the frame_nums are sequential
+                    if not np.all(np.diff(frame_nums) == 1):
+                        print(
+                            f"\033[41m # MAH 2025-11-26 18:43:22 frame_nums are not sequential\n{frame_nums=}\033[0m"
+                        )
+                    if plot_filters_for_debugging:
+                        matplotlib.use("TkAgg")
+
+                        fig, ax = plt.subplots(1, 5)
+                        for i in range(len(lengths_cm)):
+                            c = "green" if masks["length"][i] else "red"
+                            ax[0].scatter(frame_nums[i], lengths_cm[i], color=c)
+                            ax[1].scatter(frame_nums[i], change_in_length[i], color=c)
+                            kpts = pred_kpts_global_px[i]
+                            ax[2].plot(
+                                [kpts[0][0], kpts[1][0]],
+                                [kpts[0][1], kpts[1][1]],
+                                color=c,
+                            )
+                        ax[0].plot(frame_nums, _moving_average_length)
+                        ax[1].axhline(y=length_delta_tolerance_cm)
+                        ax[1].axhline(y=-length_delta_tolerance_cm)
+                        ax[0].set_title("Lengths")
+                        ax[1].set_title("Change in length")
+
+                if vel_delta_tolerance is not None:
                     # filter out the fish with deviations
                     velocity_deviations = get_velocity_dev(
                         pred_kpts_global_0_cm,
                         pred_kpts_global_1_cm,
+                        frame_nums,
                         window_size=vel_window_size,
                     )  # MAH 2025-11-24 12:07:56 TODO this needs to take in the fact that they may not be sequential frames
                     masks["velocity"] = [
                         vel < vel_delta_tolerance for vel in velocity_deviations
                     ]
+                    if plot_filters_for_debugging:
+                        for i in range(len(velocity_deviations)):
+                            if masks["length"][i]:
+                                if masks["velocity"][i]:
+                                    c = "green"
+                                else:
+                                    c = "red"
+                            else:
+                                if masks["velocity"][i]:
+                                    c = "orange"
+                                else:
+                                    c = "blue"
 
-                if length_delta_tolerance is not None:
-                    # filter out the fish with changes in length from a moving average
-                    print(
-                        f"# MAH 2025-11-25 22:58:57 change in length needs to bear in mind that not all the frames are sequential"
-                    )
-                    change_in_length, _moving_average_length = get_change_in_length(
-                        pred_kpts_global_0_cm,
-                        pred_kpts_global_1_cm,
-                        window_size=length_window_size,
-                        robust=True,
-                    )
-                    masks["length"] = [
-                        abs(change) < length_delta_tolerance
-                        for change in change_in_length
-                    ]
+                            ax[3].scatter(
+                                frame_nums[i], velocity_deviations[i], color=c
+                            )
+                            kpts = pred_kpts_global_px[i]
+                            ax[4].plot(
+                                [kpts[0][0], kpts[1][0]],
+                                [kpts[0][1], kpts[1][1]],
+                                color=c,
+                            )
+                        ax[3].set_title("Velocity deviations")
+                if plot_filters_for_debugging:
+                    ax[2].set_ylim(ax[2].get_ylim()[1], ax[2].get_ylim()[0])
+                    ax[4].set_ylim(ax[4].get_ylim()[1], ax[4].get_ylim()[0])
+                    fig.suptitle(f"Length exclusions for fish {fish_id}")
+                    plt.show()
 
                 # apply the filters and get the masks
                 combined_filter_mask = np.all(
@@ -359,17 +426,17 @@ class DetectTrackCountPipeline:
                     coords = None
 
                 len_outputs[fish_id] = {
-                    "pred_length_cm": np.mean(pred_lens_cm),
+                    "fish_id": fish_id,
+                    "all_lengths_cm": np.mean(pred_lens_cm),
                     "filtered_lengths_cm": filtered_len_cm,
                     "num_filtered": num_filtered,
                     "frame_id_closest_to_mean": frame_id_closest_to_mean,
-                    "coords": coords,
+                    "coords_px": coords,
                 }
 
-                # print(f"{len_outputs[fish_id]=}")
-            return len_outputs
+                print(f"{fish_id}: {len_outputs[fish_id]=}")
         else:
-            # MAH 2025-11-26 11:04:22 this is significantly less efficient than the batchwise approach
+            # this is significantly less efficient than the batchwise approach
             additional_bbox_padding_px = 5
             len_outputs = get_pred_from_video_wise_helper(
                 frames_preds,
@@ -377,8 +444,8 @@ class DetectTrackCountPipeline:
                 vel_window_size,
                 length_window_size,
                 vel_delta_tolerance,
-                length_delta_tolerance,
-                min_edge_dist_tolerance,
+                length_delta_tolerance_cm,
+                min_edge_dist_tolerance_px,
                 self.detect_pipe.dataset,
                 start_frame,
                 additional_bbox_padding_px,
@@ -476,6 +543,8 @@ class DetectTrackCountPipeline:
 
             logger.warning("no_counts", file_path=str(file))
 
+        print(f"{formatted_crossings=}")
+        exit()
         remaining_export_types = [
             et
             for et in export_types_list
