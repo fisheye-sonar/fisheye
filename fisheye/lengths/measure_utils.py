@@ -45,6 +45,7 @@ def mapTokpt(heatmap, p=10, differentiable=False, round_to_integer=False):
 
 
 def get_cone_edges(metadata, plot=False):
+    # MAH 2025-11-26 20:36:52 TODO this doesnt perfectly line up with the actual cone edges, need to look into this
     corners_unwarped = [
         [0, 0],
         [0, metadata.unwarped_shape[0] - 1],
