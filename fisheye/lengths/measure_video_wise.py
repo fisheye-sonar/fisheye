@@ -306,7 +306,7 @@ def get_pred_from_video_wise(
                 pred_kpts_global_0_cm[fish_id],
                 pred_kpts_global_1_cm[fish_id],
                 window_size=vel_window_size,
-            )  # MAH 2025-11-24 12:07:56 TODO this needs to take in the fact that they may not be sequential frames
+            )
             masks["velocity"] = [
                 vel < vel_delta_tolerance for vel in velocity_deviations
             ]

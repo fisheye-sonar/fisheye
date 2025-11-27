@@ -22,6 +22,17 @@ class TrackerConfig:
 
 
 @dataclass
+class LengthConfig:
+    """Configuration for fish length estimation."""
+
+    min_edge_dist_tolerance_px: int = 10
+    vel_delta_tolerance: int = 15
+    length_delta_tolerance_cm: int = 5
+    vel_window_size: int = 7
+    length_window_size: int = 7
+
+
+@dataclass
 class FishSizeConfig:
     """Configuration for fish size in detection and tracking."""
 

@@ -14,7 +14,7 @@ from fisheye.boxes import (
 from fisheye.common.generic import safe_execution
 from fisheye.common.file_system import get_valid_files
 from fisheye.configs import YOLODatasetConfig
-from fisheye.configs.inference import TrackerConfig, NMSConfig
+from fisheye.configs.inference import TrackerConfig, NMSConfig, LengthConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
 from fisheye.export import save_to_disk, to_mot_txt
@@ -45,10 +45,12 @@ class DetectTrackCountPipeline:
         self,
         detect_pipe: Optional[ObjectDetectionPipeline] = None,
         tracker_cfg: Optional[TrackerConfig] = None,
+        length_cfg: Optional[LengthConfig] = None,
         dataset_cfg: YOLODatasetConfig = None,
     ):
         self.detect_pipe = detect_pipe
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
+        self.length_cfg = length_cfg if length_cfg else LengthConfig()
         self.nms_config = NMSConfig()
         self.dataset_cfg = dataset_cfg if dataset_cfg else YOLODatasetConfig()
 
@@ -237,26 +239,21 @@ class DetectTrackCountPipeline:
                 cone_eq_params_right,
             ) = get_cone_edges(metadata)
 
-            # MAH 2025-11-26 18:40:48 TODO put these in the config
-            min_edge_dist_tolerance_px = 10
-            vel_delta_tolerance = 15
-            length_delta_tolerance_cm = 5
-            vel_window_size = 7
-            length_window_size = 7
-
             plot_filters_for_debugging = True
 
             len_outputs = {}
             for fish_id, data in all_length_estimates.items():
                 if (
-                    length_window_size is not None
-                    and len(data["pred_kpts_global_px"]) < length_window_size
+                    self.length_cfg.length_window_size is not None
+                    and len(data["pred_kpts_global_px"])
+                    < self.length_cfg.length_window_size
                 ):
                     len_outputs[fish_id] = None
                     continue
                 if (
-                    vel_window_size is not None
-                    and len(data["pred_kpts_global_px"]) < vel_window_size
+                    self.length_cfg.vel_window_size is not None
+                    and len(data["pred_kpts_global_px"])
+                    < self.length_cfg.vel_window_size
                 ):
                     len_outputs[fish_id] = None
                     continue
@@ -281,7 +278,7 @@ class DetectTrackCountPipeline:
                 masks = {}
                 masks["all"] = [True] * len(pred_kpts_global_px)
 
-                if min_edge_dist_tolerance_px is not None:
+                if self.length_cfg.min_edge_dist_tolerance_px is not None:
                     min_edge_distances_pxl = []
                     for kpts_global_px in pred_kpts_global_px:
                         edge_dist_i = get_min_edge_distances_pxl(
@@ -293,34 +290,36 @@ class DetectTrackCountPipeline:
                         )[0]
                         min_edge_distances_pxl.append(edge_dist_i)
                     masks["edge_dist"] = [
-                        edge_dist >= min_edge_dist_tolerance_px
+                        edge_dist >= self.length_cfg.min_edge_dist_tolerance_px
                         for edge_dist in min_edge_distances_pxl
                     ]
 
-                if length_delta_tolerance_cm is not None:
+                if self.length_cfg.length_delta_tolerance_cm is not None:
                     # filter out the fish with changes in length from a moving average
                     change_in_length, _moving_average_length = get_change_in_length(
                         pred_kpts_global_0_cm,
                         pred_kpts_global_1_cm,
                         frame_nums,
-                        window_size=length_window_size,
+                        window_size=self.length_cfg.length_window_size,
                         robust=True,
                     )
                     masks["length"] = [
-                        abs(change) < length_delta_tolerance_cm
+                        abs(change) < self.length_cfg.length_delta_tolerance_cm
                         for change in change_in_length
                     ]
                     lengths_cm = [
                         calc_len(kpts_global_px) * metadata.pixel_meter_size * 100
                         for kpts_global_px in pred_kpts_global_px
                     ]
-                    # check if the frame_nums are sequential
-                    if not np.all(np.diff(frame_nums) == 1):
-                        print(
-                            f"\033[41m # MAH 2025-11-26 18:43:22 frame_nums are not sequential\n{frame_nums=}\033[0m"
-                        )
+
                     if plot_filters_for_debugging:
                         matplotlib.use("TkAgg")
+
+                        # check if the frame_nums are sequential
+                        if not np.all(np.diff(frame_nums) == 1):
+                            print(
+                                f"\033[41m # MAH 2025-11-26 18:43:22 frame_nums are not sequential\n{frame_nums=}\033[0m"
+                            )
 
                         fig, ax = plt.subplots(1, 5)
                         for i in range(len(lengths_cm)):
@@ -334,21 +333,22 @@ class DetectTrackCountPipeline:
                                 color=c,
                             )
                         ax[0].plot(frame_nums, _moving_average_length)
-                        ax[1].axhline(y=length_delta_tolerance_cm)
-                        ax[1].axhline(y=-length_delta_tolerance_cm)
+                        ax[1].axhline(y=self.length_cfg.length_delta_tolerance_cm)
+                        ax[1].axhline(y=-self.length_cfg.length_delta_tolerance_cm)
                         ax[0].set_title("Lengths")
                         ax[1].set_title("Change in length")
 
-                if vel_delta_tolerance is not None:
+                if self.length_cfg.vel_delta_tolerance is not None:
                     # filter out the fish with deviations
                     velocity_deviations = get_velocity_dev(
                         pred_kpts_global_0_cm,
                         pred_kpts_global_1_cm,
                         frame_nums,
-                        window_size=vel_window_size,
-                    )  # MAH 2025-11-24 12:07:56 TODO this needs to take in the fact that they may not be sequential frames
+                        window_size=self.length_cfg.vel_window_size,
+                    )
                     masks["velocity"] = [
-                        vel < vel_delta_tolerance for vel in velocity_deviations
+                        vel < self.length_cfg.vel_delta_tolerance
+                        for vel in velocity_deviations
                     ]
                     if plot_filters_for_debugging:
                         for i in range(len(velocity_deviations)):
@@ -441,11 +441,11 @@ class DetectTrackCountPipeline:
             len_outputs = get_pred_from_video_wise_helper(
                 frames_preds,
                 metadata,
-                vel_window_size,
-                length_window_size,
-                vel_delta_tolerance,
-                length_delta_tolerance_cm,
-                min_edge_dist_tolerance_px,
+                self.length_cfg.vel_window_size,
+                self.length_cfg.length_window_size,
+                self.length_cfg.vel_delta_tolerance,
+                self.length_cfg.length_delta_tolerance_cm,
+                self.length_cfg.min_edge_dist_tolerance_px,
                 self.detect_pipe.dataset,
                 start_frame,
                 additional_bbox_padding_px,
