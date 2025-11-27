@@ -23,11 +23,11 @@ from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
 from fisheye.lengths.length_models import get_model
 
-# from fisheye.lengths.measure import get_pred_from_dir
 from fisheye.lengths.measure_utils import get_cone_edges, calc_len
 from fisheye.lengths.measure_utils import get_min_edge_distances_pxl
 from fisheye.lengths.measure_utils import get_change_in_length
 from fisheye.lengths.measure_utils import get_velocity_dev
+from fisheye.lengths.measure_video_wise import get_pred_from_video_wise_helper
 
 # MAH 2025-11-24 14:48:40 imports that can probably be removed later when this is tidied out of pipeline
 import torch
@@ -71,7 +71,7 @@ class DetectTrackCountPipeline:
         start_frame = 0
         end_frame = 0
         start_frame = 315
-        end_frame = 415
+        end_frame = 360
         self.dataset_cfg = replace(
             self.dataset_cfg,
             filepath=file,
@@ -85,7 +85,12 @@ class DetectTrackCountPipeline:
             if self.detect_pipe.apply_nms_batchwise:
                 print("Applying NMS batchwise")
                 if self.detect_pipe.apply_length_estimates_batchwise:
-                    low_preds, high_preds, length_estimates = self.detect_pipe()
+                    (
+                        low_preds,
+                        high_preds,
+                        low_length_estimates,
+                        high_length_estimates,
+                    ) = self.detect_pipe()
                 else:
                     low_preds, high_preds = self.detect_pipe()
             else:
@@ -128,21 +133,26 @@ class DetectTrackCountPipeline:
                     batch_size=self.dataset_cfg.batch_size,
                 )
 
-            for k, v in low_preds.items():
-                if v is not None:
-                    print(f"low_preds {k}: {v.shape}")
-                else:
-                    print(f"low_preds {k}: {v}")
-            for k, v in length_estimates.items():
-                print(f"length_estimates {k}: ")
-                if v is not None:
-                    for v2 in v:
-                        print(f"    {v2}")
-                        print(
-                            f"\033[91m    {calc_len(v2['pred_kpts_global_px'])*metadata.pixel_meter_size*100:.1f}cm\033[0m"
-                        )
-                else:
-                    print(f"    {v}")
+            # for k, v in low_preds.items():
+            #     if v is not None:
+            #         print(f"low_preds {k}: {v.shape}")
+            #     else:
+            #         print(f"low_preds {k}: {v}")
+            # for k, v in high_preds.items():
+            #     if v is not None:
+            #         print(f"high_preds {k}: {v.shape}")
+            #     else:
+            #         print(f"high_preds {k}: {v}")
+            # for k, v in low_length_estimates.items():
+            #     print(f"low_length_estimates {k}: ")
+            #     if v is not None:
+            #         for v2 in v:
+            #             print(f"    {v2}")
+            #             print(
+            #                 f"\033[91m    {calc_len(v2['pred_kpts_global_px'])*metadata.pixel_meter_size*100:.1f}cm\033[0m"
+            #             )
+            #     else:
+            #         print(f"    {v}")
 
             tracker_output = run_tracker(
                 low_preds,  # xyxy format relative to the original image pixel space
@@ -156,9 +166,9 @@ class DetectTrackCountPipeline:
 
         if self.detect_pipe.apply_length_estimates_batchwise:
 
-            length_estimates = length_estimates
             tracker_output_dict = tracker_output_to_dict_rows(asdict(tracker_output))
 
+            # add the associated length estimates to the frames_preds
             for frame_pred_idx, frame_pred in enumerate(frames_preds):
                 frame_num = frame_pred["frame_num"]
                 frame_bs_num = (
@@ -167,31 +177,37 @@ class DetectTrackCountPipeline:
                 )
                 for fish_idx, fish_pred in enumerate(frame_pred["fish"]):
                     fish_id = fish_pred["id"]
-                    bbox = fish_pred["bbox"]
-                    conf = fish_pred["conf"]
-                    low_pred = low_preds[frame_bs_num]
-                    length_estimate = length_estimates[frame_bs_num]
-                    # MAH 2025-11-25 22:33:33 TODO this is hacky, find a better way to do this, cuurently: find the length estimate that matches the bbox after tracking (by matching the bbox pre tracking with the bbox post tracking)
-                    for i, low_pr in enumerate(low_pred):
-                        # MAH 2025-11-25 22:27:50 TODO this is a hack to get the bboxes to match, should be done better why dont they completely match up, do they match up with high preds?
-                        if np.allclose(low_pr[:4], np.array(bbox), atol=1e-2):
-                            # MAH 2025-11-25 22:32:28 TODO check that this length estimate is within the bbox. should it be?
-                            frames_preds[frame_pred_idx]["fish"][fish_idx][
-                                "length_estimate"
-                            ] = length_estimate[i]
+                    _bbox = fish_pred["bbox"]
+                    _conf = fish_pred["conf"]
+                    bbox_index = fish_pred["bbox_index"]
+                    det_index = fish_pred["det_index"]
+                    low_length_estimate_frame = low_length_estimates[frame_bs_num]
+                    high_length_estimate_frame = high_length_estimates[frame_bs_num]
+                    if det_index == 0:
+                        matched_length_estimate = low_length_estimate_frame[bbox_index]
+                    else:
+                        print(
+                            "\033[41m# MAH 2025-11-26 17:33:08 matched to a high confidence detection, given the way we do our code i am not certain this will ever be done, if it is remove this line from the codebase\033[0m"
+                        )
+                        matched_length_estimate = high_length_estimate_frame[bbox_index]
 
-            for frame_pred in frames_preds:
-                frame_num = frame_pred["frame_num"]
-                for fish_pred in frame_pred["fish"]:
-                    fish_id = fish_pred["id"]
-                    length_estimate = fish_pred["length_estimate"][
-                        "pred_kpts_global_px"
-                    ]
-                    print(f"{frame_num=}: {fish_id=}: ")
-                    print(
-                        f"\033[91m    {calc_len(fish_pred['length_estimate']['pred_kpts_global_px'])*metadata.pixel_meter_size*100:.1f}cm\033[0m"
-                    )
-                    print(f"{frame_num=}: {fish_id=}: {length_estimate=}")
+                    frames_preds[frame_pred_idx]["fish"][fish_idx][
+                        "length_estimate"
+                    ] = matched_length_estimate
+
+            # print the length estimates
+            # for frame_pred in frames_preds:
+            #     frame_num = frame_pred["frame_num"]
+            #     for fish_pred in frame_pred["fish"]:
+            #         fish_id = fish_pred["id"]
+            #         length_estimate = fish_pred["length_estimate"][
+            #             "pred_kpts_global_px"
+            #         ]
+            #         print(f"{frame_num=}: {fish_id=}: ")
+            #         print(
+            #             f"\033[91m    {calc_len(fish_pred['length_estimate']['pred_kpts_global_px'])*metadata.pixel_meter_size*100:.1f}cm\033[0m"
+            #         )
+            #         print(f"{frame_num=}: {fish_id=}: {length_estimate=}")
 
             print(
                 "we need to pull the lengths that are associated with the tracker output bboxes , and then filter them based on the length estimates, edge etc"
@@ -244,6 +260,9 @@ class DetectTrackCountPipeline:
                     calc_len(kpts_global_px) * metadata.pixel_meter_size * 100
                     for kpts_global_px in pred_kpts_global_px
                 ]
+                print(
+                    f"id:{fish_id} -- {[int(pred_lens_cm[i]) for i in range(len(pred_lens_cm))]}"
+                )
 
                 masks = {}
                 masks["all"] = [True] * len(pred_kpts_global_px)
@@ -311,33 +330,32 @@ class DetectTrackCountPipeline:
                     )
 
                 # get the index of the closest to the mean
+                clostest_to_mean_pred_len_indx = None
                 if np.sum(combined_filter_mask):
                     pred_lens_filtered = pred_lens_cm * combined_filter_mask
                     # mean where not zero
                     pred_lens_filtered_mean = np.mean(
                         pred_lens_filtered[pred_lens_filtered != 0]
                     )
-                    clostest_to_mean_pred_len_indx = np.argmin(
+                    clostest_to_mean_pred_len_ind = np.argmin(
                         abs(pred_lens_filtered - pred_lens_filtered_mean)
                     )
-                    if not combined_filter_mask[clostest_to_mean_pred_len_indx]:
-                        frame_id_closest_to_mean = None
-                    else:
-                        frame_id_closest_to_mean = frame_nums[
-                            clostest_to_mean_pred_len_indx
-                        ]
-                else:
-                    frame_id_closest_to_mean = None
-                    pred_lens_filtered_mean = None
+
+                    if combined_filter_mask[clostest_to_mean_pred_len_ind]:
+                        clostest_to_mean_pred_len_indx = clostest_to_mean_pred_len_ind
 
                 if clostest_to_mean_pred_len_indx is not None:
-                    print(f"{clostest_to_mean_pred_len_indx=}")
-                    print(f"{len(pred_kpts_global_px)=}")
+                    frame_id_closest_to_mean = frame_nums[
+                        clostest_to_mean_pred_len_indx
+                    ]
+
                     coords = [
                         pred_kpts_global_px[clostest_to_mean_pred_len_indx][0],
                         pred_kpts_global_px[clostest_to_mean_pred_len_indx][1],
                     ]
                 else:
+                    frame_id_closest_to_mean = None
+
                     coords = None
 
                 len_outputs[fish_id] = {
@@ -348,110 +366,23 @@ class DetectTrackCountPipeline:
                     "coords": coords,
                 }
 
-                print(f"{len_outputs[fish_id]=}")
+                # print(f"{len_outputs[fish_id]=}")
             return len_outputs
         else:
-            if False:
-                model_type = "unet"
-                unet_double_conv = False
-                model_input_channels = 1
-                model_input_channels = 3
-                load_model_path = "/home/mahobley/Code/fisheye-dev/head_tail/checkpoints/crop_after_model/model_150.pth"
-                device = "cuda" if torch.cuda.is_available() else "cpu"
-                crop_after_model = True
-                additional_bbox_padding_px = 5
-
-                vel_window_size = 7
-                length_window_size = 7
-                vel_delta_tolerance = None
-                length_delta_tolerance = None
-                min_edge_dist_tolerance = 10
-                min_edge_dist_tolerance = None
-
-                mapTokpt_differentiable = False
-                mapTokpt_round_to_integer = False
-
-                crop_info = []
-                for frame_pred in frames_preds:
-                    fn = frame_pred["frame_num"]
-                    frame_crop_infos = []
-                    for fish_pred in frame_pred["fish"]:
-                        fish_id = fish_pred["id"]
-
-                        pred_bbox = fish_pred["bbox"]
-                        pred_bbox_xyxy = [
-                            floor(pred_bbox[0] * metadata.xdim),
-                            floor(pred_bbox[1] * metadata.ydim),
-                            ceil(pred_bbox[2] * metadata.xdim),
-                            ceil(pred_bbox[3] * metadata.ydim),
-                        ]
-
-                        right_space = metadata.xdim - pred_bbox_xyxy[2]
-                        bottom_space = metadata.ydim - pred_bbox_xyxy[3]
-
-                        crop_l = max(0, pred_bbox_xyxy[0] - additional_bbox_padding_px)
-                        crop_t = max(0, pred_bbox_xyxy[1] - additional_bbox_padding_px)
-                        crop_r = max(1, right_space - additional_bbox_padding_px)
-                        crop_b = max(1, bottom_space - additional_bbox_padding_px)
-
-                        frame_crop_infos.append(
-                            {
-                                "fish_id": fish_id,
-                                "crop_l": crop_l,
-                                "crop_t": crop_t,
-                                "crop_r": crop_r,
-                                "crop_b": crop_b,
-                            }
-                        )
-                    crop_info.append(
-                        {
-                            "frame_num": fn,
-                            "frame_crop_infos": frame_crop_infos,
-                        }
-                    )
-
-                model = get_model(
-                    model_type,
-                    model_input_channels,
-                    unet_double_conv,
-                    load_model_path,
-                    device,
-                )
-
-                (
-                    _cone_points_left,
-                    _cone_points_right,
-                    cone_eq_params_left,
-                    cone_eq_params_right,
-                ) = get_cone_edges(metadata)
-
-                dataset = self.detect_pipe.dataset
-
-                pred_len_outputs = get_pred_from_dir(
-                    crop_info,
-                    dataset,
-                    model,
-                    crop_after_model,
-                    pxl_to_cm_scale=metadata.pixel_meter_size * 100,
-                    vel_window_size=vel_window_size,
-                    length_window_size=length_window_size,
-                    device=device,
-                    cone_eq_params_left=cone_eq_params_left,
-                    cone_eq_params_right=cone_eq_params_right,
-                    vel_delta_tolerance=vel_delta_tolerance,
-                    length_delta_tolerance=length_delta_tolerance,
-                    min_edge_dist_tolerance=min_edge_dist_tolerance,
-                    model_input_channels=model_input_channels,
-                    mapTokpt_differentiable=mapTokpt_differentiable,
-                    mapTokpt_round_to_integer=mapTokpt_round_to_integer,
-                )
-
-                # add start_frame to frame_id_closest_to_mean
-                for fish_id, pred_len_output in pred_len_outputs.items():
-                    pred_len_output["frame_id_closest_to_mean"] += start_frame
-
-                print(f"{pred_len_outputs=}")
-                exit()
+            # MAH 2025-11-26 11:04:22 this is significantly less efficient than the batchwise approach
+            additional_bbox_padding_px = 5
+            len_outputs = get_pred_from_video_wise_helper(
+                frames_preds,
+                metadata,
+                vel_window_size,
+                length_window_size,
+                vel_delta_tolerance,
+                length_delta_tolerance,
+                min_edge_dist_tolerance,
+                self.detect_pipe.dataset,
+                start_frame,
+                additional_bbox_padding_px,
+            )
 
         formatted_yolo_tracks = tracker_output_to_dict_rows(asdict(tracker_output))
 

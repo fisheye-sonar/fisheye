@@ -35,11 +35,14 @@ class BaseTracker(ABC):
     @staticmethod
     def match_confidence_to_track(track, dets, conf, min_score):
         """Match confidence with correct track."""
-
-        for det in dets:
+        improved_match = False
+        bbox_index = -1
+        for i, det in enumerate(dets):
             score = sum(abs(det[0:4] - track[0:4]))
+
             if score < min_score:
                 min_score = score
                 conf = det[4]
-
-        return conf, min_score
+                improved_match = True
+                bbox_index = i
+        return conf, min_score, bbox_index, improved_match

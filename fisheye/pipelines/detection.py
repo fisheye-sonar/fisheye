@@ -141,7 +141,8 @@ class ObjectDetectionPipeline:
         if self.apply_nms_batchwise:
             all_low_preds_updated_batch = {}
             all_high_preds_updated_batch = {}
-            all_length_estimates = {}
+            all_low_length_estimates = {}
+            all_high_length_estimates = {}
         else:
             inference_bboxes = []
             image_shapes = []
@@ -231,18 +232,27 @@ class ObjectDetectionPipeline:
                     for ind in range(img.shape[0]):
                         low_pred = low_preds[(0, ind)]
                         high_pred = high_preds[(0, ind)]
-                        if np.array_equal(low_pred, high_pred):
-                            print(f"{ind=}: both={low_pred}")
-                        else:
-                            print(f"{ind=}:  low={low_pred} high={high_pred}")
+                        # if np.array_equal(low_pred, high_pred):
+                        #     print(f"{ind=}: both={low_pred}")
+                        # else:
+                        #     print(f"{ind=}:  low={low_pred} high={high_pred}")
                     if self.apply_length_estimates_batchwise:
-                        length_estimates = self.length_estimator.run(
+                        low_length_estimates = self.length_estimator.run(
                             img_original, low_preds
                         )
-                        length_estimates = {
-                            (batch_idx, k): v for k, v in length_estimates.items()
+                        low_length_estimates = {
+                            (batch_idx, k): v for k, v in low_length_estimates.items()
                         }
-                        all_length_estimates.update(length_estimates)
+
+                        all_low_length_estimates.update(low_length_estimates)
+
+                        high_length_estimates = self.length_estimator.run(
+                            img_original, high_preds
+                        )
+                        high_length_estimates = {
+                            (batch_idx, k): v for k, v in high_length_estimates.items()
+                        }
+                        all_high_length_estimates.update(high_length_estimates)
 
                 else:
                     image_shapes.append(batch_shape)
@@ -260,7 +270,8 @@ class ObjectDetectionPipeline:
                 return (
                     all_low_preds_updated_batch,
                     all_high_preds_updated_batch,
-                    all_length_estimates,
+                    all_low_length_estimates,
+                    all_high_length_estimates,
                 )
             else:
                 return all_low_preds_updated_batch, all_high_preds_updated_batch

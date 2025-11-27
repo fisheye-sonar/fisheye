@@ -75,6 +75,8 @@ class TrackedFish:
     id: int
     bbox: List[float]
     conf: float
+    bbox_index: int
+    det_index: int
 
 
 @dataclass
@@ -106,6 +108,8 @@ class TrackerOutput:
                         id=fish["fish_id"],
                         bbox=fish["bbox"],
                         conf=fish["conf"],
+                        bbox_index=fish["bbox_index"],
+                        det_index=fish["det_index"],
                     )
                     for fish in frame["fish"]
                 ],

@@ -60,7 +60,6 @@ class ByteTracker(BaseTracker):
         # get predicted locations from existing trackers.
         low_dets = dets[0]
         high_dets = dets[1]
-
         trks = np.zeros((len(self.trackers), 5))
         to_del = []
         ret = []
@@ -80,7 +79,6 @@ class ByteTracker(BaseTracker):
         low_matched, unmatched_low_dets, unmatched_high_trk_ids = (
             associate_detections_to_trackers(low_dets, trks, self.iou_threshold)
         )
-
         # update matched trackers with assigned detections
         matched_tracks = []
         for m in high_matched:
@@ -89,6 +87,8 @@ class ByteTracker(BaseTracker):
         for m in low_matched:
             if m[1] not in matched_tracks:
                 self.trackers[m[1]].update(low_dets[m[0], :])
+                # MAH 2025-11-26 14:54:22
+                # lengths[m[1]].append(self.trackers[m[1]].length)
 
         # create and initialise new trackers for unmatched detections
         for i in unmatched_high_dets:

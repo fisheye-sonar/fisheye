@@ -49,8 +49,6 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         if return_original_shape:
             img_original = img.copy()
         else:
-            # MAH 2025-11-25 21:19:15 TODO make this None
-            print("MAH 2025-11-25 21:19:15 TODO make this None")
             img_original = None
         h0, w0 = img.shape[:2]  # original height and width
         r = img_size / max(h0, w0)  # resize ratio
@@ -94,7 +92,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             img = np.ascontiguousarray(img)
 
             if img_original is not None:
-                # MAH 2025-11-25 19:21:01 return the original image shape for the postprocessing step
+                # MAH 2025-11-25 19:21:01 return the original image, used for length estimation
                 img_original = img_original.transpose(
                     2, 0, 1
                 )  # Convert to CxHxW format
