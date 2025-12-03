@@ -1,7 +1,9 @@
 from pathlib import Path
 
+import numpy as np
+import torch
+
 from fisheye.configs import BaseDatasetConfig
-from fisheye.dataloaders import create_dataloader
 
 
 class FrameExtractor:
@@ -18,6 +20,8 @@ class FrameExtractor:
 
     def iter_frames(self, aris_path: Path, frame_idx: int):
         """Yield individual image tensors for the requested frame window."""
+        from fisheye.dataloaders import create_dataloader
+
         config = BaseDatasetConfig(
             filepath=str(aris_path),
             start_frame=frame_idx,
@@ -27,3 +31,11 @@ class FrameExtractor:
         for images, *_ in dataloader:
             for image in images:
                 yield image
+
+
+def to_chw_tensor(img):
+    """Convert HWC uint8 numpy → CHW tensor."""
+    img = img.transpose(2, 0, 1)
+    img = np.ascontiguousarray(img)
+
+    return torch.from_numpy(img)

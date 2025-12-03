@@ -7,6 +7,7 @@ from yolov5.utils.general import xyxy2xywh
 
 from fisheye.configs import YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset
+from fisheye.dataloaders.utils import to_chw_tensor
 
 logger = structlog.get_logger()
 
@@ -44,22 +45,34 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         )
 
     @classmethod
-    def load_image(cls, img, img_size=896):
+    def load_image(cls, img, img_size=896, return_original_image=False):
         """Loads and resizes an image for YOLOv5 inference."""
+        img_original = img.copy() if return_original_image else None
+
         h0, w0 = img.shape[:2]  # original height and width
         r = img_size / max(h0, w0)  # resize ratio
         interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
-        img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
-        return img, (h0, w0), img.shape[:2]  # returns img, original hw, resized hw
+        resized_img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
 
-    def _postprocess(self, frame_images, frame_labels, unwarped_frames, echogram):
+        # returns resized_img, original hw, resized hw, original img
+        return resized_img, (h0, w0), resized_img.shape[:2], img_original
+
+    def _postprocess(
+        self,
+        frame_images,
+        frame_labels,
+        unwarped_frames,
+        echogram,
+        return_original_image,
+    ):
         """
         Return a batch of data in the format used by ScaledYOLOv4.
         That is, a list of tuples, on tuple per image in the batch:
             [
-                (img ->torch.Tensor,
+                (resized_img_for_yolo ->torch.Tensor,
                 labels ->torch.Tensor,
                 shapes ->tuple describing image original dimensions and scaled/padded dimensions
+                original_img_tensor ->torch.Tensor (optional)
                 ),
                 ...
             ]
@@ -67,24 +80,28 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         outputs = []
         frame_labels = frame_labels or [None for _ in frame_images]
         for image, labels in zip(frame_images, frame_labels):
-            img, (h0, w0), (h, w) = self.load_image(image)
-
+            # resized_img, original hw, resized hw, original img
+            resized_img, (h0, w0), (h, w), img_original = self.load_image(
+                image, return_original_image=return_original_image
+            )
             # Apply letterboxing to resize and pad images
-            img, ratio, pad = letterbox(
-                img, self.shape, auto=False, scaleup=False, stride=self.stride
+            resized_img, ratio, pad = letterbox(
+                resized_img, self.shape, auto=False, scaleup=False, stride=self.stride
             )
             shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
 
-            img = img.transpose(2, 0, 1)  # Convert to CxHxW format
-            img = np.ascontiguousarray(img)
+            resized_img_tensor = to_chw_tensor(resized_img)
+            original_img_tensor = (
+                to_chw_tensor(img_original).float()
+                if img_original is not None
+                else None
+            )
 
-            labels_out = self._process_labels(labels, ratio, pad, img.shape)
+            labels_out = self._process_labels(
+                labels, ratio, pad, resized_img_tensor.shape
+            )
             outputs.append(
-                (
-                    torch.from_numpy(img),
-                    labels_out,
-                    shapes,
-                )
+                (resized_img_tensor, labels_out, shapes, original_img_tensor)
             )
         return outputs
 

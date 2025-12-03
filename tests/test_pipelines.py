@@ -75,7 +75,7 @@ def test_object_detection_pipeline_no_postprocessing(use_multithreading):
         # threading modes.
         img_batch = torch.rand(batch_size, 3, 960, 512)
         shapes = [(960, 512)] * batch_size
-        pipeline.dataloader = [(img_batch, None, shapes)]
+        pipeline.dataloader = [(img_batch, None, shapes, None)]
 
         pipeline.model = mock_model
         output = pipeline()
@@ -135,7 +135,7 @@ def test_object_detection_pipeline_w_postprocessing_params(confs, use_multithrea
         # threading modes.
         img_batch = torch.rand(batch_size, 3, 960, 512)
         shapes = [(960, 512)] * batch_size
-        pipeline.dataloader = [(img_batch, None, shapes)]
+        pipeline.dataloader = [(img_batch, None, shapes, None)]
 
         pipeline.model = mock_model
         pipeline.metadata = MagicMock()
@@ -200,7 +200,7 @@ def test_object_detection_pipeline_diff_postprocessing_structure(
         # threading modes.
         img_batch = torch.rand(batch_size, 3, 960, 512)
         shapes = [(960, 512)] * batch_size
-        pipeline.dataloader = [(img_batch, None, shapes)]
+        pipeline.dataloader = [(img_batch, None, shapes, None)]
 
         pipeline.model = mock_model
         pipeline.metadata = MagicMock()

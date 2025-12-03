@@ -58,7 +58,7 @@ class TestARISDataloader:
             if dataset.metadata.numframes < config.batch_size
             else (config.batch_size)
         )
-        _, _, _, batch_echogram = next(iter(dataloader))
+        _, _, _, batch_echogram, _ = next(iter(dataloader))
         assert batch_echogram.shape == torch.Size([batch_size, 512, 2])
 
     def test_loading_frames(self):

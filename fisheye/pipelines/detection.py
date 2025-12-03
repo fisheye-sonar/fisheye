@@ -124,7 +124,7 @@ class ObjectDetectionPipeline:
         height = None
 
         with torch.inference_mode():
-            for batch_idx, (img, _, shapes) in enumerate(self.dataloader):
+            for batch_idx, (img, _, shapes, original_img) in enumerate(self.dataloader):
                 img = self.preprocess(img)
                 size = tuple(img.shape)
                 nb, _, height, width = size  # batch size, channels, height, width

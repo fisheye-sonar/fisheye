@@ -44,7 +44,7 @@ class TestARISDataloader:
     def test_return_echogram(self):
         config = BaseDatasetConfig(filepath=ARIS_FILE, return_echogram=True)
         dataloader, _ = create_dataloader(config)
-        _, _, _, batch_echogram = next(iter(dataloader))
+        _, _, _, batch_echogram, _ = next(iter(dataloader))
         assert batch_echogram.shape == torch.Size([3, 2684, 2])
 
     def test_loading_frames(self):

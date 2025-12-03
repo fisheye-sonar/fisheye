@@ -36,6 +36,8 @@ class BaseDataset(Dataset):
         self.return_echogram = config.return_echogram
         self.max_workers = config.max_workers
         self.use_multithreading = config.use_multithreading
+        self.use_blur = config.use_blur
+        self.return_original_image = config.return_original_image
 
         self._init_bg_frame()
 
@@ -66,31 +68,38 @@ class BaseDataset(Dataset):
 
     def _compute_bg_subtraction(self, frames_for_bg_subtract):
         """Calculate the mean blurred frame and normalization value."""
-        mean_blurred_frame = np.zeros(
-            [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
-            dtype=np.float32,
-        )
-        max_blurred_frame = np.zeros(
-            [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
-            dtype=np.float32,
-        )
-        if self.use_multithreading:
-            blurred_frames = run_with_threads(
-                lambda i: cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0),
-                list(range(frames_for_bg_subtract.shape[0])),
-                max_workers=self.max_workers,
+        if not self.use_blur:
+            mean_blurred_frame = np.mean(frames_for_bg_subtract, axis=0)
+            max_blurred_frame = np.max(np.abs(frames_for_bg_subtract), axis=0).astype(
+                np.float64
             )
-            # Aggregate results
-            for blurred in blurred_frames:
-                mean_blurred_frame += blurred
-                max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
-        else:
-            for i in range(frames_for_bg_subtract.shape[0]):
-                blurred = cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0)
-                mean_blurred_frame += blurred
-                max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
 
-        mean_blurred_frame /= frames_for_bg_subtract.shape[0]
+        else:
+            mean_blurred_frame = np.zeros(
+                [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
+                dtype=np.float32,
+            )
+            max_blurred_frame = np.zeros(
+                [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
+                dtype=np.float32,
+            )
+            if self.use_multithreading:
+                blurred_frames = run_with_threads(
+                    lambda i: cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0),
+                    list(range(frames_for_bg_subtract.shape[0])),
+                    max_workers=self.max_workers,
+                )
+                # Aggregate results
+                for blurred in blurred_frames:
+                    mean_blurred_frame += blurred
+                    max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
+            else:
+                for i in range(frames_for_bg_subtract.shape[0]):
+                    blurred = cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0)
+                    mean_blurred_frame += blurred
+                    max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
+
+            mean_blurred_frame /= frames_for_bg_subtract.shape[0]
         max_blurred_frame -= mean_blurred_frame
         mean_normalization_value = np.max(max_blurred_frame)
 
@@ -111,6 +120,7 @@ class BaseDataset(Dataset):
                 frame_labels,
                 np.stack(self.extracted_unwarped_frames[idx:final_idx]),
                 np.stack(self.extracted_echograms[idx:final_idx]),
+                self.return_original_image,
             )
 
         else:
@@ -130,7 +140,7 @@ class BaseDataset(Dataset):
             # background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w,
             # 3] not was [t,h,w])
             frame_images = (
-                self._apply_bg_subtraction(frame_images)
+                self._stack_preprocessed_channels(frame_images)
                 if self.do_bg_subtract
                 else np.expand_dims(frame_images[:-1], -1)
             )
@@ -148,28 +158,44 @@ class BaseDataset(Dataset):
                 self.extracted_unwarped_frames.extend(unwarped_frames)
                 self.extracted_echograms.extend(echogram)
 
-        # MAH 2025-02-07 16:48:40 I think this is likely the best solution, it means indexes will be consistent and
-        # if needed we can add more things to the list when required
-        return self._postprocess(frame_images, frame_labels, unwarped_frames, echogram)
+        return self._postprocess(
+            frame_images,
+            frame_labels,
+            unwarped_frames,
+            echogram,
+            self.return_original_image,
+        )
 
-    def _apply_bg_subtraction(self, frames: np.ndarray):
-        """Apply background subtraction."""
-        # MAH 2025-02-05 19:16:34 TODO this function should be renamed to something that describes the fact it is
-        #  stacking the channels
-        if self.use_multithreading:
-            blurred_frames = np.zeros_like(frames, dtype=np.float32)
-            blurred_frames_list = run_with_threads(
-                lambda i: cv2.GaussianBlur(frames[i], (5, 5), 0),
-                list(range(frames.shape[0])),
-                max_workers=self.max_workers,
-            )
+    def _stack_preprocessed_channels(self, frames: np.ndarray):
+        """Generate a 3-channel representation of the frames.
 
-            for i in range(frames.shape[0]):
-                blurred_frames[i] = blurred_frames_list[i]
-        else:
+        This method:
+            • Applies Gaussian blurring to each frame (optionally with multithreading)
+            • Normalizes blurred frames using either warped or unwarped mean statistics
+            • Scales normalized values into the [0, 255] range
+            • Constructs a 3-channel image stack consisting of:
+                - Channel 0: original frames (excluding the last)
+                - Channel 1: blurred + normalized frames
+                - Channel 2: temporal difference between consecutive blurred frames
+        """
+        if not self.use_blur:
             blurred_frames = frames.astype(np.float32)
-            for i in range(frames.shape[0]):
-                blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
+
+        else:
+            if self.use_multithreading:
+                blurred_frames = np.zeros_like(frames, dtype=np.float32)
+                blurred_frames_list = run_with_threads(
+                    lambda i: cv2.GaussianBlur(frames[i], (5, 5), 0),
+                    list(range(frames.shape[0])),
+                    max_workers=self.max_workers,
+                )
+
+                for i in range(frames.shape[0]):
+                    blurred_frames[i] = blurred_frames_list[i]
+            else:
+                blurred_frames = frames.astype(np.float32)
+                for i in range(frames.shape[0]):
+                    blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
 
         if self.return_unwarped:
             blurred_frames -= self.unwarped_mean_blurred_frame
@@ -177,6 +203,8 @@ class BaseDataset(Dataset):
         else:
             blurred_frames -= self.mean_blurred_frame
             blurred_frames /= self.mean_normalization_value
+
+        # MAH 2025-11-24 17:09:09 I think we should not do this here and instead we should only take the positive values of the bgs
         blurred_frames += 1
         blurred_frames /= 2
 
@@ -191,13 +219,27 @@ class BaseDataset(Dataset):
 
         return frame_image
 
-    def _postprocess(self, frame_images, frame_labels, unwarped_frames, echogram):
+    def _postprocess(
+        self,
+        frame_images,
+        frame_labels,
+        unwarped_frames,
+        echogram,
+        return_original_image,
+    ):
         """Postprocess frames before returning."""
-        return frame_images, frame_labels, unwarped_frames, echogram
+        return (
+            frame_images,
+            frame_labels,
+            unwarped_frames,
+            echogram,
+            return_original_image,
+        )
 
     def _get_echogram(self, unwarped_frames):
         """Generate Echogram from the frames.
-        the return channels are the magnitude and the normalised angle between -0.5 and 0.5
+
+        The return channels are the magnitude and the normalised angle between -0.5 and 0.5
         """
         unwarped_frames_bgs = unwarped_frames.astype(np.float32)
         unwarped_frames_bgs -= self.unwarped_mean_blurred_frame
