@@ -14,7 +14,6 @@ from fisheye.configs import (
 from fisheye.configs.inference import NMSConfig
 from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
 from fisheye.pipelines import ObjectDetectionPipeline
-from fisheye.configs import ObjectDetectionPipelineOutput
 
 
 def test_preprocess():
@@ -45,237 +44,214 @@ def test_preprocess():
         assert (preprocessed_image <= 1.0).all()  # Ensure the image is normalized
 
 
-#
-#
-# @patch("fisheye.pipelines.detection.NMSProcessor")
-# @pytest.mark.parametrize("use_multithreading", [True, False])
-# def test_object_detection_pipeline_no_postprocessing(
-#     mock_nms_cls, use_multithreading
-# ):
-#     """Test ObjectDetectionPipeline with a mocked `self.model` (patched _load_model)."""
-#
-#     dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
-#     batch_size = dataset_cfg.batch_size
-#     mock_model = MagicMock()
-#
-#     if use_multithreading:
-#         # Each call returns shape [1, 30240, 6]
-#         mock_model.side_effect = [
-#             torch.rand((1, 30240, 6)) for _ in range(batch_size)
-#         ]
-#     else:
-#         # Single batched output: shape [batch_size, 30240, 6]
-#         mock_model.return_value = torch.rand((batch_size, 30240, 6))
-#
-#     # Mock NMSProcessor instance
-#     mock_nms_instance = mock_nms_cls.return_value
-#     # Mock return values for NMSProcessor.run
-#     # Keys are expected to be tuples (idx, ...), values are bboxes
-#     mock_low_preds = {(0, 0): torch.rand(1, 6)}
-#     mock_high_preds = {(0, 0): torch.rand(1, 6)}
-#     mock_nms_instance.run.return_value = (mock_low_preds, mock_high_preds)
-#
-#     with patch.object(
-#         YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
-#     ):
-#         model_cfg = YOLOv5ModelConfig(weights="dummy/path")
-#         # Enable apply_nms_batchwise to trigger NMSProcessor usage
-#         config = ObjectDetectionConfig(
-#             model=model_cfg,
-#             use_multithreading=use_multithreading,
-#             apply_nms_batchwise=True,
-#         )
-#         mock_model.config.device = config.model.device
-#         pipeline = ObjectDetectionPipeline(mock_model, config)
-#
-#         # Manually override the dataloader with a mock batch to ensure consistent input shape.
-#         img_batch = torch.rand(batch_size, 3, 960, 512)
-#         shapes = [(960, 512)] * batch_size
-#         pipeline.dataloader = [(img_batch, None, shapes, None)]
-#
-#         pipeline.model = mock_model
-#         pipeline.metadata = MagicMock()  # NMSProcessor needs metadata
-#         output = pipeline()
-#
-#         expected_calls = batch_size if use_multithreading else 1
-#         assert mock_model.call_count == expected_calls
-#
-#         assert isinstance(output, ObjectDetectionPipelineOutput)
-#         # Verify low_preds and high_preds are populated
-#         # The pipeline updates keys: (batch_idx, k[1]) -> (0, 0)
-#         assert len(output.low_preds) == 1
-#         assert len(output.high_preds) == 1
-#         assert (0, 0) in output.low_preds
-#         assert (0, 0) in output.high_preds
-#
-#         assert output.width is not None
-#         assert output.height is not None
-#
-#
-# @patch("fisheye.pipelines.detection.NMSProcessor")
-# @pytest.mark.parametrize(
-#     "confs,use_multithreading",
-#     [
-#         ([0.1], True),
-#         ([0.1], False),
-#         ([0.1, 0.3], True),
-#         ([0.1, 0.3], False),
-#     ],
-# )
-# def test_object_detection_pipeline_w_postprocessing_params(
-#     mock_nms_cls, confs, use_multithreading
-# ):
-#     """Test enabling postprocessing parameters with and without multithreading."""
-#
-#     postprocessing_params = {"nms": [NMSConfig(conf=c) for c in confs]}
-#     dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
-#     batch_size = dataset_cfg.batch_size
-#
-#     mock_model = MagicMock()
-#     if use_multithreading:
-#         mock_model.side_effect = [
-#             torch.rand((1, 30240, 6)) for _ in range(batch_size)
-#         ]
-#     else:
-#         mock_model.return_value = torch.rand((batch_size, 30240, 6))
-#
-#     # Mock NMSProcessor
-#     mock_nms_instance = mock_nms_cls.return_value
-#     mock_low_preds = {(0, 0): torch.rand(1, 6)}
-#     mock_high_preds = {(0, 0): torch.rand(1, 6)}
-#     mock_nms_instance.run.return_value = (mock_low_preds, mock_high_preds)
-#
-#     with patch.object(
-#         YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
-#     ):
-#         model_cfg = YOLOv5ModelConfig(weights="dummy/path")
-#         config = ObjectDetectionConfig(
-#             model=model_cfg,
-#             use_multithreading=use_multithreading,
-#             apply_nms_batchwise=True,
-#         )
-#         mock_model.config.device = config.model.device
-#         pipeline = ObjectDetectionPipeline(mock_model, config, postprocessing_params)
-#
-#         # Manually override the dataloader with a mock batch
-#         img_batch = torch.rand(batch_size, 3, 960, 512)
-#         shapes = [(960, 512)] * batch_size
-#         pipeline.dataloader = [(img_batch, None, shapes, None)]
-#
-#         pipeline.model = mock_model
-#         pipeline.metadata = MagicMock()
-#         pipeline.metadata.image_meter_width = 1.0
-#         pipeline.dataset = MagicMock()
-#         pipeline.dataset.batch_size = batch_size
-#         output = pipeline()
-#
-#         expected_calls = batch_size if use_multithreading else 1
-#         assert mock_model.call_count == expected_calls
-#
-#         steps = pipeline.postprocessing_steps
-#         # Output should be the result of postprocessing
-#         # Since we mocked postprocessing steps to just be called,
-#         # and the pipeline returns the result of postprocess() which returns a list of results
-#         assert len(output) == len(steps)
-#         assert len(steps) == len(confs)
-#
-#         for step, conf_val in zip(steps, confs):
-#             assert callable(step)
-#             assert step.keywords["nms_config"].conf == conf_val
-#
-#
-# @patch("fisheye.pipelines.detection.NMSProcessor")
-# @pytest.mark.parametrize(
-#     "postprocessing_param,use_multithreading",
-#     [
-#         ({"nms": NMSConfig()}, True),
-#         ({"nms": NMSConfig()}, False),
-#         ({"nms": [NMSConfig()]}, True),
-#         ({"nms": [NMSConfig()]}, False),
-#         ({"nms": []}, True),
-#         ({"nms": []}, False),
-#     ],
-# )
-# def test_object_detection_pipeline_diff_postprocessing_structure(
-#     mock_nms_cls, postprocessing_param, use_multithreading
-# ):
-#     """Test enabling postprocessing parameters."""
-#
-#     dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
-#     batch_size = dataset_cfg.batch_size
-#
-#     mock_model = MagicMock()
-#     if use_multithreading:
-#         mock_model.side_effect = [
-#             torch.rand((1, 30240, 6)) for _ in range(batch_size)
-#         ]
-#     else:
-#         mock_model.return_value = torch.rand((batch_size, 30240, 6))
-#
-#     # Mock NMSProcessor
-#     mock_nms_instance = mock_nms_cls.return_value
-#     mock_low_preds = {(0, 0): torch.rand(1, 6)}
-#     mock_high_preds = {(0, 0): torch.rand(1, 6)}
-#     mock_nms_instance.run.return_value = (mock_low_preds, mock_high_preds)
-#
-#     with patch.object(
-#         YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
-#     ):
-#         dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
-#         model_cfg = YOLOv5ModelConfig(weights="dummy/path")
-#         config = ObjectDetectionConfig(
-#             model=model_cfg,
-#             use_multithreading=use_multithreading,
-#             apply_nms_batchwise=True,
-#         )
-#         batch_size = dataset_cfg.batch_size
-#
-#         mock_model.config.device = config.model.device
-#         pipeline = ObjectDetectionPipeline(mock_model, config, postprocessing_param)
-#
-#         # Manually override the dataloader with a mock batch
-#         img_batch = torch.rand(batch_size, 3, 960, 512)
-#         shapes = [(960, 512)] * batch_size
-#         pipeline.dataloader = [(img_batch, None, shapes, None)]
-#
-#         pipeline.model = mock_model
-#         pipeline.metadata = MagicMock()
-#         pipeline.metadata.image_meter_width = 1.0
-#         pipeline.dataset = MagicMock()
-#         pipeline.dataset.batch_size = batch_size
-#         output = pipeline()
-#
-#         expected_calls = batch_size if use_multithreading else 1
-#         assert mock_model.call_count == expected_calls
-#         steps = pipeline.postprocessing_steps
-#
-#         if steps:
-#             assert len(output) == len(steps)
-#         else:
-#             # If no steps, it returns ObjectDetectionPipelineOutput
-#             assert isinstance(output, ObjectDetectionPipelineOutput)
-#
-#
-# def test_object_detection_pipeline_postprocessing_invalid_params():
-#     """Test sending invalid postprocessing parameters"""
-#
-#     # Mock the model to be used in the pipeline
-#     mock_model = MagicMock()
-#     mock_predict_return = torch.rand((1, 6, 6))
-#     mock_model.predict.return_value = mock_predict_return
-#
-#     # Patch the _load_model method to return the mocked model
-#     with patch.object(
-#         YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
-#     ):
-#         dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
-#         model_cfg = YOLOv5ModelConfig(weights="dummy/path")
-#         config = ObjectDetectionConfig(model=model_cfg)
-#         processing_params = {"some_func_name": "some_func"}
-#         with pytest.raises(
-#             ValueError, match="Unknown postprocessing step: some_func_name"
-#         ):
-#             ObjectDetectionPipeline(mock_model, config, processing_params)
+@pytest.mark.parametrize("use_multithreading", [True, False])
+def test_object_detection_pipeline_no_postprocessing(use_multithreading):
+    """Test ObjectDetectionPipeline with batchwise NMS enabled."""
+
+    dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
+    batch_size = dataset_cfg.batch_size
+    mock_model = MagicMock()
+
+    if use_multithreading:
+        # Each call returns shape [1, 30240, 6]
+        mock_model.side_effect = [torch.rand((1, 30240, 6)) for _ in range(batch_size)]
+    else:
+        # Single batched output: shape [batch_size, 30240, 6]
+        mock_model.return_value = torch.rand((batch_size, 30240, 6))
+
+    with patch.object(
+        YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
+    ):
+        model_cfg = YOLOv5ModelConfig(weights="dummy/path")
+        config = ObjectDetectionConfig(
+            model=model_cfg,
+            use_multithreading=use_multithreading,
+            apply_nms_batchwise=True,
+        )
+        mock_model.config.device = config.model.device
+        pipeline = ObjectDetectionPipeline(mock_model, config)
+
+        # Mock metadata and dataset required for NMSProcessor
+        pipeline.metadata = MagicMock()
+        pipeline.metadata.image_meter_width = 1.0
+        pipeline.dataset = MagicMock()
+        pipeline.dataset.batch_size = batch_size
+
+        # Manually override the dataloader with a mock batch to ensure consistent input shape.
+        img_batch = torch.rand(batch_size, 3, 960, 512)
+        # shapes format: (image_shape, original_shape) where original_shape = ((h, w), (h, w))
+        shapes = [(torch.Size([960, 512]), ((960, 512), (960, 512)))] * batch_size
+        pipeline.dataloader = [(img_batch, None, shapes, None)]
+
+        pipeline.model = mock_model
+        low_preds, high_preds = pipeline()
+
+        expected_calls = batch_size if use_multithreading else 1
+        assert mock_model.call_count == expected_calls
+
+        # Check both outputs are dictionaries
+        assert isinstance(low_preds, dict)
+        assert isinstance(high_preds, dict)
+
+        # Both should have entries for the batch
+        assert len(low_preds) > 0 or len(high_preds) > 0
+
+
+@pytest.mark.skip(
+    reason="Postprocessing is deprecated - batchwise NMS is now the standard approach"
+)
+@pytest.mark.parametrize(
+    "confs,use_multithreading",
+    [
+        ([0.1], True),
+        ([0.1], False),
+        ([0.1, 0.3], True),
+        ([0.1, 0.3], False),
+    ],
+)
+def test_object_detection_pipeline_w_postprocessing_params(confs, use_multithreading):
+    """Test enabling postprocessing parameters with and without multithreading.
+
+    Note: This test is deprecated. The pipeline now uses batchwise NMS by default,
+    which is incompatible with the old postprocessing approach.
+    """
+
+    postprocessing_params = {"nms": [NMSConfig(conf=c) for c in confs]}
+    dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
+    batch_size = dataset_cfg.batch_size
+
+    mock_model = MagicMock()
+    if use_multithreading:
+        mock_model.side_effect = [torch.rand((1, 30240, 6)) for _ in range(batch_size)]
+    else:
+        mock_model.return_value = torch.rand((batch_size, 30240, 6))
+
+    with patch.object(
+        YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
+    ):
+        model_cfg = YOLOv5ModelConfig(weights="dummy/path")
+        config = ObjectDetectionConfig(
+            model=model_cfg,
+            use_multithreading=use_multithreading,
+            apply_nms_batchwise=False,  # Disable batchwise NMS when using postprocessing
+        )
+        mock_model.config.device = config.model.device
+        pipeline = ObjectDetectionPipeline(mock_model, config, postprocessing_params)
+
+        # Manually override the dataloader with a mock batch to ensure consistent input shape.
+        img_batch = torch.rand(batch_size, 3, 960, 512)
+        shapes = [(torch.Size([960, 512]), ((960, 512), (960, 512)))] * batch_size
+        pipeline.dataloader = [(img_batch, None, shapes, None)]
+
+        pipeline.model = mock_model
+        pipeline.metadata = MagicMock()
+        pipeline.metadata.image_meter_width = 1.0
+        pipeline.dataset = MagicMock()
+        pipeline.dataset.batch_size = batch_size
+        output = pipeline()
+
+        expected_calls = batch_size if use_multithreading else 1
+        assert mock_model.call_count == expected_calls
+
+        steps = pipeline.postprocessing_steps
+        assert len(output) == len(steps)
+        assert len(steps) == len(confs)
+
+        for step, conf_val in zip(steps, confs):
+            assert callable(step)
+            assert step.keywords["nms_config"].conf == conf_val
+
+
+@pytest.mark.skip(
+    reason="Postprocessing is deprecated - batchwise NMS is now the standard approach"
+)
+@pytest.mark.parametrize(
+    "postprocessing_param,use_multithreading",
+    [
+        ({"nms": NMSConfig()}, True),
+        ({"nms": NMSConfig()}, False),
+        ({"nms": [NMSConfig()]}, True),
+        ({"nms": [NMSConfig()]}, False),
+        ({"nms": []}, True),
+        ({"nms": []}, False),
+    ],
+)
+def test_object_detection_pipeline_diff_postprocessing_structure(
+    postprocessing_param, use_multithreading
+):
+    """Test enabling postprocessing parameters.
+
+    Note: This test is deprecated. The pipeline now uses batchwise NMS by default,
+    which is incompatible with the old postprocessing approach.
+    """
+
+    dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
+    batch_size = dataset_cfg.batch_size
+
+    mock_model = MagicMock()
+    if use_multithreading:
+        mock_model.side_effect = [torch.rand((1, 30240, 6)) for _ in range(batch_size)]
+    else:
+        mock_model.return_value = torch.rand((batch_size, 30240, 6))
+
+    with patch.object(
+        YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
+    ):
+        dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
+        model_cfg = YOLOv5ModelConfig(weights="dummy/path")
+        config = ObjectDetectionConfig(
+            model=model_cfg,
+            use_multithreading=use_multithreading,
+            apply_nms_batchwise=False,  # Disable batchwise NMS when using postprocessing
+        )
+        batch_size = dataset_cfg.batch_size
+
+        mock_model.config.device = config.model.device
+        pipeline = ObjectDetectionPipeline(mock_model, config, postprocessing_param)
+
+        # Manually override the dataloader with a mock batch to ensure consistent input shape.
+        img_batch = torch.rand(batch_size, 3, 960, 512)
+        shapes = [(torch.Size([960, 512]), ((960, 512), (960, 512)))] * batch_size
+        pipeline.dataloader = [(img_batch, None, shapes, None)]
+
+        pipeline.model = mock_model
+        pipeline.metadata = MagicMock()
+        pipeline.metadata.image_meter_width = 1.0
+        pipeline.dataset = MagicMock()
+        pipeline.dataset.batch_size = batch_size
+        output = pipeline()
+
+        expected_calls = batch_size if use_multithreading else 1
+        assert mock_model.call_count == expected_calls
+        steps = pipeline.postprocessing_steps
+
+        if steps:
+            assert len(output) == len(steps)
+
+
+@pytest.mark.skip(
+    reason="Postprocessing is deprecated - batchwise NMS is now the standard approach"
+)
+def test_object_detection_pipeline_postprocessing_invalid_params():
+    """Test sending invalid postprocessing parameters"""
+
+    # Mock the model to be used in the pipeline
+    mock_model = MagicMock()
+    mock_predict_return = torch.rand((1, 6, 6))
+    mock_model.predict.return_value = mock_predict_return
+
+    # Patch the _load_model method to return the mocked model
+    with patch.object(
+        YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
+    ):
+        dataset_cfg = YOLODatasetConfig(filepath=ARIS_FILE)
+        model_cfg = YOLOv5ModelConfig(weights="dummy/path")
+        config = ObjectDetectionConfig(model=model_cfg)
+        processing_params = {"some_func_name": "some_func"}
+        with pytest.raises(
+            ValueError, match="Unknown postprocessing step: some_func_name"
+        ):
+            ObjectDetectionPipeline(mock_model, config, processing_params)
 
 
 def test_safe_execution_eventually_succeeds():

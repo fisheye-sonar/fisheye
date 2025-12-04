@@ -1,26 +1,18 @@
-from functools import partial
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 import structlog
 import torch
 
-from fisheye.boxes import run_nms, NMSProcessor
+from fisheye.boxes import NMSProcessor
 from fisheye.common.generic import run_with_threads
 from fisheye.common.logging import log_progress
 from fisheye.configs import (
     YOLODatasetConfig,
-    ObjectDetectionPipelineOutput,
     ObjectDetectionConfig,
 )
 from fisheye.configs.inference import NMSConfig
-
 from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
-
-# Add postprocessing methods to this registry
-POSTPROCESSING_REGISTRY = {
-    "nms": run_nms,
-}
 
 logger = structlog.get_logger()
 
@@ -35,7 +27,6 @@ class ObjectDetectionPipeline:
         self,
         model: Optional[BaseModel] = None,
         config: ObjectDetectionConfig = ObjectDetectionConfig(),
-        postprocessing_params: Dict[str, Any] = None,
         *args,
         **kwargs,
     ):
@@ -55,34 +46,8 @@ class ObjectDetectionPipeline:
 
         self.use_multithreading = config.use_multithreading
         self.max_workers = config.max_workers
-        self.postprocessing_steps = (
-            self._build_postprocessing_params(postprocessing_params)
-            if postprocessing_params
-            else postprocessing_params
-        )
         self.nms_config = NMSConfig()
         self.apply_nms_batchwise = config.apply_nms_batchwise
-
-    def _build_postprocessing_params(self, postprocessing_params):
-        """Sanitizes postprocessing parameters to format them correctly."""
-        if not postprocessing_params:
-            return []
-        postprocessing_steps = []
-
-        for step_name, params in postprocessing_params.items():
-            processor = POSTPROCESSING_REGISTRY.get(step_name)
-            if not processor:
-                raise ValueError(f"Unknown postprocessing step: {step_name}")
-
-            if isinstance(params, list):
-                for p in params:
-                    if p:
-                        postprocessing_steps.append(partial(processor, nms_config=p))
-
-            else:
-                postprocessing_steps.append(partial(processor, nms_config=params))
-
-        return postprocessing_steps
 
     def __call__(self, *args, **kwargs):
         """Executes the detection pipeline."""
@@ -103,21 +68,6 @@ class ObjectDetectionPipeline:
         image /= 255.0  # 0 - 255 to 0.0 - 1.0
 
         return image
-
-    def postprocess(self, output):
-        """Process model output using configured postprocessing steps."""
-
-        processed_output = []
-        for step in self.postprocessing_steps:
-            step.keywords["pred_bboxes"] = output.pred_bboxes
-            step.keywords["image_meter_width"] = self.metadata.image_meter_width
-            step.keywords["image_pixel_width"] = output.width
-            step.keywords["batch_size"] = self.dataset.batch_size
-
-            # Append the result of each step to the list
-            processed_output.append(step(**step.keywords))
-
-        return processed_output if processed_output else output
 
     def _run_inference(self, *args, **kwargs):
         """Performs inference with optional multithreading."""
@@ -180,11 +130,11 @@ class ObjectDetectionPipeline:
 
         return all_low_preds, all_high_preds
 
-    def run(self, *args, **kwargs) -> (Dict, Dict):
+    def run(self, *args, **kwargs) -> Tuple[Dict[Any, Any], Dict[Any, Any]]:
         """Executes the detection pipeline end-to-end.
 
         Returns:
-            ObjectDetectionPipelineOutput: Processed detection results.
+            Tuple[Dict, Dict]: (low_preds, high_preds) dictionaries from batchwise NMS.
         """
         low_preds, high_preds = self._run_inference(*args, **kwargs)
 
