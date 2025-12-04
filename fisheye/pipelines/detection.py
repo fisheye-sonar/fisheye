@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 import structlog
 import torch
 
-from fisheye.boxes import run_nms
+from fisheye.boxes import run_nms, NMSProcessor
 from fisheye.common.generic import run_with_threads
 from fisheye.common.logging import log_progress
 from fisheye.configs import (
@@ -12,6 +12,7 @@ from fisheye.configs import (
     ObjectDetectionPipelineOutput,
     ObjectDetectionConfig,
 )
+from fisheye.configs.inference import NMSConfig
 
 from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
@@ -59,6 +60,8 @@ class ObjectDetectionPipeline:
             if postprocessing_params
             else postprocessing_params
         )
+        self.nms_config = NMSConfig()
+        self.apply_nms_batchwise = config.apply_nms_batchwise
 
     def _build_postprocessing_params(self, postprocessing_params):
         """Sanitizes postprocessing parameters to format them correctly."""
@@ -116,12 +119,16 @@ class ObjectDetectionPipeline:
 
         return processed_output if processed_output else output
 
-    def _forward(self, *args, **kwargs):
+    def _run_inference(self, *args, **kwargs):
         """Performs inference with optional multithreading."""
-        inference = []
-        image_shapes = []
-        width = None
-        height = None
+
+        nms_processor = None
+        all_low_preds, all_high_preds = {}, {}
+
+        if self.apply_nms_batchwise:
+            nms_processor = NMSProcessor(
+                self.nms_config, self.metadata, self.dataset.batch_size
+            )
 
         with torch.inference_mode():
             for batch_idx, (img, _, shapes, original_img) in enumerate(self.dataloader):
@@ -132,22 +139,37 @@ class ObjectDetectionPipeline:
                 if self.use_multithreading:
                     # per image inference with multithreading
                     img_list = [img[i : i + 1] for i in range(img.shape[0])]
-                    inf_out = run_with_threads(self.model, img_list, self.max_workers)
+                    batch_out = run_with_threads(self.model, img_list, self.max_workers)
                     # Concatenate per sample predictions into a batched tensor [B, N, 6]
-                    inf_out = torch.cat(inf_out, dim=0)
+                    batch_out = torch.cat(batch_out, dim=0)
                 else:
                     # Batched inference - [B, N, 6]
-                    inf_out = self.model(img)
+                    batch_out = self.model(img)
 
                 torch.cuda.empty_cache()
 
                 # Save shapes for resizing to original shape
                 batch_shape = []
-                for si, pred in enumerate(inf_out):
+                for si, pred in enumerate(batch_out):
                     batch_shape.append((img[si].shape[1:], shapes[si]))
 
-                image_shapes.append(batch_shape)
-                inference.append(inf_out.cpu())
+                if nms_processor:
+                    low_preds, high_preds = nms_processor.run(
+                        batch_out.cpu(), batch_shape
+                    )
+
+                    all_low_preds.update(
+                        {
+                            (batch_idx, k[1]): v
+                            for i, (k, v) in enumerate(low_preds.items())
+                        }
+                    )
+                    all_high_preds.update(
+                        {
+                            (batch_idx, k[1]): v
+                            for i, (k, v) in enumerate(high_preds.items())
+                        }
+                    )
 
                 log_progress(
                     logger,
@@ -156,14 +178,14 @@ class ObjectDetectionPipeline:
                     prefix="Detector progress | ",
                 )
 
-        return inference, image_shapes, width, height
+        return all_low_preds, all_high_preds
 
-    def run(self, *args, **kwargs):
+    def run(self, *args, **kwargs) -> (Dict, Dict):
         """Executes the detection pipeline end-to-end.
 
         Returns:
-            List[Any]: Processed detection results.
+            ObjectDetectionPipelineOutput: Processed detection results.
         """
-        output = ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))
+        low_preds, high_preds = self._run_inference(*args, **kwargs)
 
-        return output if not self.postprocessing_steps else self.postprocess(output)
+        return low_preds, high_preds

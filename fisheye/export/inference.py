@@ -285,7 +285,7 @@ class FCExporter(BaseInferenceExporter):
             valid_mask = group_df["R (m)"].notna()
             group_df = group_df[valid_mask]
 
-            if group_df.empty:
+            if group_df.empty or group_df is None or group_df["Frame#"].isna().all():
                 lines = [title + "\n\n", header_line + "\n", separator_line + "\n"]
             else:
                 # Populate defaults

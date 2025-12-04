@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Union, List
+from typing import Union, List, Tuple, Dict
 
 import numpy as np
 import torch
@@ -375,7 +375,6 @@ def run_nms(
 
     if gp:
         gp(0, "Suppression...")
-    # TODO: how to deal with large files?
     outputs = []
     with tqdm(
         total=len(pred_bboxes) * batch_size,
@@ -405,3 +404,55 @@ def run_nms(
             pbar.update(1 * batch_size)
 
     return outputs
+
+
+class NMSProcessor:
+    """Handles low/high confidence NMS and normalization for tracking."""
+
+    def __init__(self, nms_config, metadata, batch_size: int):
+        self.nms_config = nms_config or NMSConfig()
+        self.metadata = metadata
+        self.batch_size = batch_size
+
+    def run(self, batch_pred: torch.Tensor, batch_shapes) -> Tuple[Dict, Dict]:
+        """Apply NMS at low (0.1) and high (0.3) confidence thresholds."""
+        low_conf, high_conf = 0.1, 0.3
+
+        batch_pred = batch_pred.cpu()
+        (img_height, img_width) = batch_shapes[0][0]
+
+        # Low confidence NMS
+        self.nms_config.conf = low_conf
+        low_output = run_nms(
+            [batch_pred],
+            self.metadata.image_meter_width,
+            img_width,
+            self.batch_size,
+            self.nms_config,
+        )
+        low_preds, *_ = normalize_boxes_for_tracking(
+            [batch_shapes],
+            low_output,
+            width=img_width,
+            height=img_height,
+            batch_size=self.batch_size,
+        )
+
+        # High confidence NMS
+        self.nms_config.conf = high_conf
+        high_output = run_nms(
+            [batch_pred],
+            self.metadata.image_meter_width,
+            img_width,
+            self.batch_size,
+            self.nms_config,
+        )
+        high_preds, *_ = normalize_boxes_for_tracking(
+            [batch_shapes],
+            high_output,
+            width=img_width,
+            height=img_height,
+            batch_size=self.batch_size,
+        )
+
+        return low_preds, high_preds

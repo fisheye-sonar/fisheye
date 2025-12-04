@@ -5,8 +5,6 @@ from typing import Optional, List, Union
 import structlog
 
 from fisheye.boxes import (
-    run_nms,
-    normalize_boxes_for_tracking,
     mean_bbox_width_yolo_to_image,
     median_bbox_width_yolo_to_image,
     std_bbox_width_yolo_to_image,
@@ -14,7 +12,7 @@ from fisheye.boxes import (
 from fisheye.common.generic import safe_execution
 from fisheye.common.file_system import get_valid_files
 from fisheye.configs import YOLODatasetConfig
-from fisheye.configs.inference import TrackerConfig, NMSConfig
+from fisheye.configs.inference import TrackerConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
 from fisheye.export import save_to_disk, MOTExporter
@@ -36,7 +34,6 @@ class DetectTrackCountPipeline:
     ):
         self.detect_pipe = detect_pipe
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
-        self.nms_config = NMSConfig()
         self.dataset_cfg = dataset_cfg if dataset_cfg else YOLODatasetConfig()
 
     @safe_execution(default_return=[], max_retries=3, delay=2)
@@ -60,44 +57,8 @@ class DetectTrackCountPipeline:
         )
 
         self.detect_pipe.load_dataset(self.dataset_cfg)
-        detections = self.detect_pipe()
+        low_preds, high_preds = self.detect_pipe()
         metadata = self.detect_pipe.metadata
-
-        # Get low confidence for ByteTrack
-        self.nms_config.conf = 0.1
-        low_output = run_nms(
-            detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
-            metadata.image_meter_width,
-            detections.width,
-            self.dataset_cfg.batch_size,
-            self.nms_config,
-        )
-
-        # Get high confidence for ByteTrack
-        self.nms_config.conf = 0.3
-        high_output = run_nms(
-            detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
-            metadata.image_meter_width,
-            detections.width,
-            self.dataset_cfg.batch_size,
-            self.nms_config,
-        )
-
-        # Prepare bounding boxes for tracking pipeline
-        low_preds, og_width, og_height = normalize_boxes_for_tracking(
-            detections.image_shape,
-            low_output,  # xyxy format relative to YOLO pixel space
-            detections.width,
-            detections.height,
-            batch_size=self.dataset_cfg.batch_size,
-        )
-        high_preds, og_width, og_height = normalize_boxes_for_tracking(
-            detections.image_shape,
-            high_output,  # xyxy format relative to YOLO pixel space
-            detections.width,
-            detections.height,
-            batch_size=self.dataset_cfg.batch_size,
-        )
 
         tracker_output = run_tracker(
             low_preds,  # xyxy format relative to the original image pixel space
