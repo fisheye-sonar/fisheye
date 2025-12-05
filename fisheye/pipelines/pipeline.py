@@ -12,11 +12,13 @@ from fisheye.boxes import (
 from fisheye.common.generic import safe_execution
 from fisheye.common.file_system import get_valid_files
 from fisheye.configs import YOLODatasetConfig
-from fisheye.configs.inference import TrackerConfig
+from fisheye.configs.inference import TrackerConfig, LengthConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
 from fisheye.export import save_to_disk, MOTExporter
+from fisheye.export.constants import FC_DEFAULT_LENGTH_CM
 from fisheye.format import tracker_output_to_dict_rows, dict_rows_to_mot_format
+from fisheye.lengths.processor import LengthProcessor
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
 
@@ -35,6 +37,7 @@ class DetectTrackCountPipeline:
         self.detect_pipe = detect_pipe
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
         self.dataset_cfg = dataset_cfg if dataset_cfg else YOLODatasetConfig()
+        self.length_cfg = LengthConfig()
 
     @safe_execution(default_return=[], max_retries=3, delay=2)
     def _run(
@@ -57,7 +60,9 @@ class DetectTrackCountPipeline:
         )
 
         self.detect_pipe.load_dataset(self.dataset_cfg)
-        low_preds, high_preds = self.detect_pipe()
+        low_preds, high_preds, low_length_estimates, high_length_estimates = (
+            self.detect_pipe()
+        )
         metadata = self.detect_pipe.metadata
 
         tracker_output = run_tracker(
@@ -67,6 +72,22 @@ class DetectTrackCountPipeline:
             metadata.image_meter_height,
             self.tracker_cfg,
         )
+
+        len_outputs = self._estimate_lengths(
+            tracker_output,
+            low_length_estimates,
+            high_length_estimates,
+        )
+
+        if len_outputs:
+            num_fish_with_lengths = sum(
+                1 for v in len_outputs.values() if v is not None
+            )
+            logger.info(
+                "length_estimation_complete",
+                total_fish=len(len_outputs),
+                fish_with_valid_lengths=num_fish_with_lengths,
+            )
 
         formatted_yolo_tracks = tracker_output_to_dict_rows(asdict(tracker_output))
 
@@ -96,21 +117,33 @@ class DetectTrackCountPipeline:
                     "Source.Name": Path(file).name,
                     "Frame#": frame,
                     "Dir": "Up" if upstream_direction == "left" else "Down",
-                    "ID": track,
+                    "ID": track_id,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
+                    "L(cm)": round(
+                        len_outputs[track_id].get(
+                            "filtered_lengths_cm", FC_DEFAULT_LENGTH_CM
+                        ),
+                        2,
+                    ),
                 }
-                for track, frame, bbox in crossing_frames["left"]
+                for track_id, frame, bbox in crossing_frames["left"]
             ] + [
                 {
                     "Source.Name": Path(file).name,
                     "Frame#": frame,
                     "Dir": "Up" if upstream_direction == "right" else "Down",
-                    "ID": track,
+                    "ID": track_id,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
+                    "L(cm)": round(
+                        len_outputs[track_id].get(
+                            "filtered_lengths_cm", FC_DEFAULT_LENGTH_CM
+                        ),
+                        2,
+                    ),
                 }
-                for track, frame, bbox in crossing_frames["right"]
+                for track_id, frame, bbox in crossing_frames["right"]
             ]
 
             # TODO (MHV): Try/except is temporary until this logic has been tested more vigorously
@@ -155,6 +188,7 @@ class DetectTrackCountPipeline:
                     "ID": None,
                     "bbox": None,
                     "metadata": metadata,
+                    "L(cm)": None,
                 }
             ]
 
@@ -174,6 +208,49 @@ class DetectTrackCountPipeline:
         )
 
         return formatted_crossings
+
+    def _estimate_lengths(
+        self,
+        tracker_output,
+        low_length_estimates,
+        high_length_estimates,
+    ):
+        """Estimate fish lengths.
+
+        Returns:
+            Dict mapping fish_id to length estimate dict (or None if estimation disabled)
+        """
+        # Check if length estimation is enabled
+        if not hasattr(self.detect_pipe, "apply_length_estimates_batchwise"):
+            logger.debug("Length estimation not configured in detection pipeline")
+            return {}
+
+        if not self.detect_pipe.apply_length_estimates_batchwise:
+            logger.debug("Length estimation disabled (batchwise mode required)")
+            return {}
+
+        # Check if we have length estimates from detection
+        if not low_length_estimates and not high_length_estimates:
+            logger.debug("No length estimates available from detection pipeline")
+            return {}
+
+        processor = LengthProcessor(self.length_cfg, self.detect_pipe.metadata)
+
+        frames_preds = asdict(tracker_output)["frames"]
+        len_outputs = processor.process_from_tracks(
+            frames_preds,
+            low_length_estimates,
+            high_length_estimates,
+            self.dataset_cfg.batch_size,
+        )
+
+        # Convert LengthEstimate dataclasses to dicts for compatibility
+        len_outputs_dict = {
+            fish_id: asdict(estimate) if estimate is not None else None
+            for fish_id, estimate in len_outputs.items()
+        }
+
+        return len_outputs_dict
 
     def run(
         self,

@@ -4,7 +4,7 @@ from typing import List, Union, TypeVar, Generic, Dict
 import torch
 
 from fisheye.configs.models import BaseModelConfig, YOLOv5ModelConfig
-from fisheye.enums import TrackingMethod
+from fisheye.enums import TrackingMethod, DeviceType
 
 T = TypeVar("T", bound=BaseModelConfig)
 
@@ -40,7 +40,7 @@ class LengthModelConfig:
     input_channels: int = 3
     unet_double_conv: bool = False
     weights_path: str = None
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    device: str = DeviceType.CPU.value
     crop_after_model: bool = True
     padd_for_receptive_field: int = 100
     additional_bbox_padding_px: int = 25
@@ -101,8 +101,8 @@ class TrackedFish:
     id: int
     bbox: List[float]
     conf: float
-    # bbox_index: int
-    # det_index: int
+    bbox_index: int
+    det_index: int
 
 
 @dataclass
@@ -134,8 +134,8 @@ class TrackerOutput:
                         id=fish["fish_id"],
                         bbox=fish["bbox"],
                         conf=fish["conf"],
-                        # bbox_index=fish["bbox_index"],
-                        # det_index=fish["det_index"],
+                        bbox_index=fish["bbox_index"],
+                        det_index=fish["det_index"],
                     )
                     for fish in frame["fish"]
                 ],

@@ -28,7 +28,7 @@ class BaseDatasetConfig:
     use_multithreading: bool = True  # For dataloader threading
     max_workers: int = 2
     use_blur: bool = True  # For background subtraction blurring
-    return_original_image: bool = False
+    return_original_image: bool = True
 
 
 @dataclass

@@ -10,9 +10,10 @@ from fisheye.configs import (
     YOLODatasetConfig,
     ObjectDetectionConfig,
 )
-from fisheye.configs.inference import NMSConfig
+from fisheye.configs.inference import NMSConfig, LengthModelConfig
 from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
+from fisheye.lengths.estimator import UNetLengthEstimator
 
 logger = structlog.get_logger()
 
@@ -48,6 +49,7 @@ class ObjectDetectionPipeline:
         self.max_workers = config.max_workers
         self.nms_config = NMSConfig()
         self.apply_nms_batchwise = config.apply_nms_batchwise
+        self.apply_length_estimates_batchwise = config.apply_length_estimates_batchwise
 
     def __call__(self, *args, **kwargs):
         """Executes the detection pipeline."""
@@ -74,6 +76,15 @@ class ObjectDetectionPipeline:
 
         nms_processor = None
         all_low_preds, all_high_preds = {}, {}
+        all_low_length_estimates, all_high_length_estimates = {}, {}
+
+        # Only initialize length estimator if length estimation is enabled
+        if self.apply_length_estimates_batchwise:
+            self.length_estimator = UNetLengthEstimator(
+                self.metadata, LengthModelConfig(device=self.device)
+            )
+        else:
+            self.length_estimator = None
 
         if self.apply_nms_batchwise:
             nms_processor = NMSProcessor(
@@ -82,6 +93,9 @@ class ObjectDetectionPipeline:
 
         with torch.inference_mode():
             for batch_idx, (img, _, shapes, original_img) in enumerate(self.dataloader):
+                if original_img is not None:
+                    original_img = original_img.to(self.device, non_blocking=True)
+
                 img = self.preprocess(img)
                 size = tuple(img.shape)
                 nb, _, height, width = size  # batch size, channels, height, width
@@ -121,6 +135,24 @@ class ObjectDetectionPipeline:
                         }
                     )
 
+                if self.length_estimator and original_img is not None:
+                    low_length_estimates = self.length_estimator.run(
+                        original_img, low_preds
+                    )
+                    low_length_estimates = {
+                        (batch_idx, k): v for k, v in low_length_estimates.items()
+                    }
+
+                    all_low_length_estimates.update(low_length_estimates)
+
+                    high_length_estimates = self.length_estimator.run(
+                        original_img, high_preds
+                    )
+                    high_length_estimates = {
+                        (batch_idx, k): v for k, v in high_length_estimates.items()
+                    }
+                    all_high_length_estimates.update(high_length_estimates)
+
                 log_progress(
                     logger,
                     batch_idx,
@@ -128,14 +160,21 @@ class ObjectDetectionPipeline:
                     prefix="Detector progress | ",
                 )
 
-        return all_low_preds, all_high_preds
+        return (
+            all_low_preds,
+            all_high_preds,
+            all_low_length_estimates,
+            all_high_length_estimates,
+        )
 
-    def run(self, *args, **kwargs) -> Tuple[Dict[Any, Any], Dict[Any, Any]]:
+    def run(self, *args, **kwargs) -> Tuple[Dict, Dict, Dict, Dict]:
         """Executes the detection pipeline end-to-end.
 
         Returns:
             Tuple[Dict, Dict]: (low_preds, high_preds) dictionaries from batchwise NMS.
         """
-        low_preds, high_preds = self._run_inference(*args, **kwargs)
+        low_preds, high_preds, low_length_estimates, high_length_estimates = (
+            self._run_inference(*args, **kwargs)
+        )
 
-        return low_preds, high_preds
+        return low_preds, high_preds, low_length_estimates, high_length_estimates

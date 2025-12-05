@@ -64,17 +64,27 @@ class Tracker:
             # Match confidence with correct track
             conf = 0
             min_score = 1000000
+            best_bbox_index = None  # which low/high bbox did it match to (if that detector returned multiple bboxes)
+            det_index = None  # did it match to the low [0] or high [1] detection?
             if TrackingMethod.SORT == self.algorithm.type:
-                conf, min_score = self.algorithm.match_confidence_to_track(
-                    track, dets, conf, min_score
+                conf, min_score, bbox_index, improved_match = (
+                    self.algorithm.match_confidence_to_track(
+                        track, dets, conf, min_score
+                    )
                 )
 
             elif TrackingMethod.BYTETRACK == self.algorithm.type:
                 # dets[0] = low conf, dets[1] = high conf
-                for det_group in dets:
-                    conf, min_score = self.algorithm.match_confidence_to_track(
-                        track, det_group, conf, min_score
+                for i, det_group in enumerate(dets):
+                    conf, min_score, bbox_index, improved_match = (
+                        self.algorithm.match_confidence_to_track(
+                            track, det_group, conf, min_score
+                        )
                     )
+
+                    if improved_match:
+                        det_index = i
+                        best_bbox_index = bbox_index
 
             # Assign Track
             self.fish_ids[int(track[4])] += 1
@@ -83,10 +93,13 @@ class Tracker:
                     "fish_id": int(track[4]),
                     "bbox": list(track[:4]),
                     "conf": conf,
+                    "bbox_index": best_bbox_index,
+                    "det_index": det_index,
                 }
             )
         new_frame_entries = sorted(new_frame_entries, key=lambda k: k["fish_id"])
 
+        new_frame_entries = sorted(new_frame_entries, key=lambda k: k["fish_id"])
         self.json_data["frames"].append(
             {"frame_num": self.frame_id, "fish": new_frame_entries}
         )
@@ -117,7 +130,14 @@ class Tracker:
                 # check if valid
                 if bbox["fish_id"] in fish_id_map.keys():
                     track_id = fish_id_map[bbox["fish_id"]]
-                    tracks[track_id].append((bbox["bbox"], frame["frame_num"]))
+                    tracks[track_id].append(
+                        {
+                            "bbox": bbox["bbox"],
+                            "frame_num": frame["frame_num"],
+                            "bbox_index": bbox["bbox_index"],
+                            "det_index": bbox["det_index"],
+                        }
+                    )
 
         # map IDs and keep frame['fish'] sorted by ID
         for frame in json_data["frames"]:
@@ -133,8 +153,10 @@ class Tracker:
         for track_id, boxes in tracks.items():
             fish_entry = {"id": track_id, "length": -1}
 
-            start_bbox = boxes[0][0]
-            end_bbox = boxes[-1][0]
+            # start_bbox = boxes[0][0]
+            # end_bbox = boxes[-1][0]
+            start_bbox = boxes[0]["bbox"]
+            end_bbox = boxes[-1]["bbox"]
 
             fish_entry["travel_dist"] = FishMetrics.get_travel_distance(
                 start_bbox,
@@ -143,8 +165,10 @@ class Tracker:
                 json_data["image_meter_height"],
             )
 
-            fish_entry["start_frame_index"] = boxes[0][1]
-            fish_entry["end_frame_index"] = boxes[-1][1]
+            # fish_entry["start_frame_index"] = boxes[0][1]
+            # fish_entry["end_frame_index"] = boxes[-1][1]
+            fish_entry["start_frame_index"] = boxes[0]["frame_num"]
+            fish_entry["end_frame_index"] = boxes[-1]["frame_num"]
 
             json_data["fish"].append(fish_entry)
 
@@ -167,6 +191,7 @@ class Tracker:
                 for fish in frame["fish"]:
                     if fish["fish_id"] not in invalid_ids:
                         new_fish.append(fish)
+                # MAH 2025-11-26 16:00:01 TODO check if this line does anything?
                 frame["fish"] = new_fish
 
         if output_path is not None:
@@ -223,10 +248,11 @@ def run_tracker(
                 gp(i / len(low_preds), pbar.__str__())
 
             low_boxes, high_boxes = low_preds[key], high_preds[key]
+
+            # MAH 2025-11-26 12:41:56 TODO do we want to exclude when there is no high pred?,  i think it should be
             boxes = (
-                (low_boxes, high_boxes)
-                if low_boxes is not None and high_boxes is not None
-                else (np.empty((0, 5)), np.empty((0, 5)))
+                low_boxes if low_boxes is not None else np.empty((0, 5)),
+                high_boxes if high_boxes is not None else np.empty((0, 5)),
             )
 
             tracker.update(boxes)

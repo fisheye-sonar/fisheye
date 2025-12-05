@@ -67,6 +67,7 @@ def test_object_detection_pipeline_no_postprocessing(use_multithreading):
             model=model_cfg,
             use_multithreading=use_multithreading,
             apply_nms_batchwise=True,
+            apply_length_estimates_batchwise=False,  # Disable length estimation for this test
         )
         mock_model.config.device = config.model.device
         pipeline = ObjectDetectionPipeline(mock_model, config)
@@ -84,7 +85,9 @@ def test_object_detection_pipeline_no_postprocessing(use_multithreading):
         pipeline.dataloader = [(img_batch, None, shapes, None)]
 
         pipeline.model = mock_model
-        low_preds, high_preds = pipeline()
+
+        # Pipeline now returns 4 values: low_preds, high_preds, low_length_estimates, high_length_estimates
+        low_preds, high_preds, low_length_estimates, high_length_estimates = pipeline()
 
         expected_calls = batch_size if use_multithreading else 1
         assert mock_model.call_count == expected_calls
@@ -95,6 +98,10 @@ def test_object_detection_pipeline_no_postprocessing(use_multithreading):
 
         # Both should have entries for the batch
         assert len(low_preds) > 0 or len(high_preds) > 0
+
+        # Length estimates should be empty dicts when disabled
+        assert isinstance(low_length_estimates, dict)
+        assert isinstance(high_length_estimates, dict)
 
 
 @pytest.mark.skip(
