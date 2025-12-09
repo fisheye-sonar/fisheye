@@ -1,6 +1,14 @@
+from pathlib import Path
+from typing import Optional, Dict, Type
+
+import structlog
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from fisheye.enums import LengthEstimatorType
+
+logger = structlog.getLogger(__name__)
 
 
 class HeatmapCNN(nn.Module):
@@ -164,33 +172,86 @@ class UNetHeatmap(nn.Module):
         return x
 
 
+LENGTH_MODEL_REGISTRY: Dict[LengthEstimatorType, Type[torch.nn.Module]] = {
+    LengthEstimatorType.UNET: UNetHeatmap,
+    LengthEstimatorType.HEATMAP_CNN: HeatmapCNN,
+}
+
+
 def get_model(
-    model_type, model_input_channels, unet_double_conv, load_model_path, device
-):
-    if model_type == "heatmap_cnn":
-        model = HeatmapCNN(in_ch=model_input_channels).to(device)
-    elif model_type == "unet":
-        model = UNetHeatmap(
-            in_ch=model_input_channels, use_double_conv=unet_double_conv
-        ).to(device)
+    model_type: str,
+    model_input_channels: int,
+    unet_double_conv: bool,
+    weights: Optional[str],
+    device: str,
+) -> torch.nn.Module:
+    """
+    Create and load a length estimation model.
 
-    if load_model_path:
-        # MAH 2025-11-24 12:33:54 TODO this is a hack to get the model to load on the CPU because my machine is showing no GPU available
-        print(
-            f"MAH TODO this is a hack to get the model to load on the CPU because my machine is showing no GPU available"
+    Args:
+        model_type: Type of model ("unet" or "heatmap_cnn")
+        model_input_channels: Number of input channels
+        unet_double_conv: Whether to use double convolution in UNet
+        weights: Path to model weights (optional)
+        device: Device to load model on
+
+    Returns:
+        Loaded PyTorch model
+
+    Raises:
+        ValueError: If model_type is not recognized
+    """
+    try:
+        model_type_enum = LengthEstimatorType(model_type)
+    except ValueError:
+        valid_types = [e.value for e in LengthEstimatorType]
+        raise ValueError(
+            f"Unknown model type '{model_type}'. Must be one of: {valid_types}"
         )
-        try:
-            model.load_state_dict(torch.load(load_model_path, weights_only=True))
-        except Exception as e:
-            print(f"Error loading model: {e}")
-            model.load_state_dict(
-                torch.load(
-                    load_model_path, weights_only=True, map_location=torch.device("mps")
-                )
-            )
 
-        print(f"Loaded model from {load_model_path}")
+    model_cls = LENGTH_MODEL_REGISTRY.get(model_type_enum)
+
+    if model_cls is None:
+        raise ValueError(
+            f"Model type '{model_type}' not implemented in registry. "
+            f"Available: {list(LENGTH_MODEL_REGISTRY.keys())}"
+        )
+
+    # Instantiate model with appropriate parameters
+    if model_type_enum == LengthEstimatorType.UNET:
+        model = model_cls(in_ch=model_input_channels, use_double_conv=unet_double_conv)
+    elif model_type_enum == LengthEstimatorType.HEATMAP_CNN:
+        model = model_cls(in_ch=model_input_channels)
     else:
-        print("No model path provided")
+        # Fallback for future models
+        model = model_cls(in_ch=model_input_channels)
+
+    model = model.to(device)
+
+    if weights:
+        weights_path = Path(weights)
+        if not weights_path.exists():
+            logger.warning(
+                "weights_path_not_found",
+                path=str(weights_path),
+                message="Proceeding with untrained model",
+            )
+            return model
+
+        try:
+            state_dict = torch.load(
+                weights_path, weights_only=True, map_location=device
+            )
+            model.load_state_dict(state_dict)
+            logger.info("model_loaded", path=str(weights_path), device=device)
+        except Exception as e:
+            logger.error(
+                "model_load_failed", path=str(weights_path), error=str(e), exc_info=True
+            )
+            raise RuntimeError(
+                f"Failed to load model weights from {weights_path}: {e}"
+            ) from e
+    else:
+        logger.warning("no_weights_provided", message="Using untrained model")
 
     return model

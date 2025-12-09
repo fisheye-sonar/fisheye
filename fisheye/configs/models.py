@@ -1,17 +1,26 @@
 from dataclasses import dataclass, field
-from typing import Optional, Union, List, Type, Dict
+from typing import Optional, List
 
-from fisheye.detect.base import BaseModel
-from fisheye.enums import DeviceType, DetectorType
+from fisheye.enums import DeviceType, DetectorType, LengthEstimatorType
 
 
 @dataclass
 class BaseModelConfig:
     """Base model configuration."""
 
-    type: DetectorType = field(init=False)
-    weights: Union[str, BaseModel] = None
+    type: str = field(init=False)
+    weights: str = None
     device: str = DeviceType.CPU.value
+
+
+@dataclass
+class BaseLengthModelConfig(BaseModelConfig):
+    """Base configuration for length estimation models."""
+
+    input_channels: int = 3
+    crop_after_model: bool = True
+    padd_for_receptive_field: int = 100
+    additional_bbox_padding_px: int = 25
 
 
 @dataclass
@@ -38,19 +47,16 @@ class YOLOv11ModelConfig(BaseModelConfig):
     type: str = DetectorType.YOLOv11.value
 
 
-DETECTOR_CONFIG_REGISTRY: Dict[DetectorType, Type[BaseModelConfig]] = {
-    DetectorType.YOLOv5: YOLOv5ModelConfig,
-    DetectorType.YOLOv11: YOLOv11ModelConfig,
-}
+@dataclass
+class UNetLengthModelConfig(BaseLengthModelConfig):
+    """UNet-specific length model configuration."""
+
+    type: str = LengthEstimatorType.UNET.value
+    unet_double_conv: bool = False
 
 
-def get_detector_config(
-    model_type: Union[DetectorType, str], **kwargs
-) -> BaseModelConfig:
-    """Return the appropriate config class for the given detector type."""
-    if not isinstance(model_type, DetectorType):
-        model_type = DetectorType(model_type)
+@dataclass
+class HeatmapCNNLengthModelConfig(BaseLengthModelConfig):
+    """HeatmapCNN-specific length model configuration."""
 
-    config_cls = DETECTOR_CONFIG_REGISTRY[model_type]
-
-    return config_cls(**kwargs)
+    type: str = LengthEstimatorType.HEATMAP_CNN.value

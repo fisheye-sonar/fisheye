@@ -16,7 +16,7 @@ from fisheye.configs import (
     get_detector_config,
 )
 from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
-from fisheye.enums import ExportType, DetectorType, DeviceType
+from fisheye.enums import ExportType, DetectorType
 from fisheye.export import save_to_disk, parse_export_options
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline

@@ -9,9 +9,9 @@ from typing import Dict, List, Optional
 
 import structlog
 
-from fisheye.configs.inference import LengthConfig
-from fisheye.lengths.filters import LengthFilter, FilterResult
-from fisheye.lengths.measure_utils import get_cone_edges, calc_len
+from fisheye.configs.inference import LengthEstimationConfig
+from fisheye.lengths.filters import LengthFilter
+from fisheye.lengths.measure_utils import get_cone_edges
 
 logger = structlog.get_logger(__name__)
 
@@ -37,7 +37,7 @@ class LengthProcessor:
     3. Computing final length estimates
     """
 
-    def __init__(self, config: LengthConfig, metadata):
+    def __init__(self, config: LengthEstimationConfig, metadata):
         """Initialize the processor.
 
         Args:
@@ -205,7 +205,7 @@ class LengthProcessor:
 
         # Apply filters
         filter_result = self.filter.apply_filters(
-            fish_id, pred_kpts_global_px, frame_nums, self.cone_params
+            pred_kpts_global_px, frame_nums, self.cone_params
         )
 
         # Determine best estimate

@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from fisheye.configs.inference import LengthConfig
+from fisheye.configs.inference import LengthEstimationConfig
 from fisheye.lengths.measure_utils import (
     get_min_edge_distances_pxl,
     get_change_in_length,
@@ -39,7 +39,7 @@ class LengthFilter:
     - Velocity consistency (deviation from expected motion)
     """
 
-    def __init__(self, config: LengthConfig, metadata):
+    def __init__(self, config: LengthEstimationConfig, metadata):
         """Initialize the filter with configuration.
 
         Args:
@@ -51,7 +51,6 @@ class LengthFilter:
 
     def apply_filters(
         self,
-        fish_id: int,
         pred_kpts_global_px: List[np.ndarray],
         frame_nums: List[int],
         cone_params: Tuple[float, float, float, float],
@@ -59,7 +58,6 @@ class LengthFilter:
         """Apply all configured filters to length estimates for a single fish.
 
         Args:
-            fish_id: Fish track ID
             pred_kpts_global_px: List of keypoint pairs [(x0,y0), (x1,y1)] in global pixel coords
             frame_nums: Corresponding frame numbers
             cone_params: (ml, bl, mr, br) - left and right cone edge parameters

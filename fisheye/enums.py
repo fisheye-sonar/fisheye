@@ -82,5 +82,12 @@ class DetectorType(Enum):
     YOLOv11 = "yolov11"
 
 
+class LengthEstimatorType(Enum):
+    """Types of length estimators currently supported."""
+
+    UNET = "unet"
+    HEATMAP_CNN = "heatmap_cnn"
+
+
 IGNORED_DIR_NAMES = {e.value for e in IgnoredSystemDirs}
 IGNORED_FILE_PREFIXES = {e.value for e in IgnoredFilePrefixes}

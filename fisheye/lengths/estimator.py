@@ -3,7 +3,7 @@ from math import floor, ceil
 import torch
 from matplotlib import pyplot as plt
 
-from fisheye.configs.inference import LengthModelConfig
+from fisheye.configs.models import BaseLengthModelConfig, UNetLengthModelConfig
 from fisheye.lengths.base import BaseLengthEstimator
 from fisheye.lengths.models import get_model
 from fisheye.lengths.measure_utils import get_cone_edges
@@ -15,11 +15,11 @@ from fisheye.lengths.measure_utils import vis_3_channel_img
 
 
 class UNetLengthEstimator(BaseLengthEstimator):
-    def __init__(self, metadata, config: LengthModelConfig = None):
+    def __init__(self, metadata, config: BaseLengthModelConfig = None):
         super().__init__(metadata)
 
         if config is None:
-            config = LengthModelConfig()
+            config = UNetLengthModelConfig()
         self.config = config
 
         self.xdim = metadata.xdim
@@ -41,11 +41,11 @@ class UNetLengthEstimator(BaseLengthEstimator):
         self.plot_pred_kpts = False
 
         self.model = get_model(
-            self.config.model_type,
-            self.model_input_channels,
-            self.config.unet_double_conv,
-            "/Users/madison/Downloads/model_150.pth",  # self.config.weights_path,
-            self.config.device,
+            model_type=self.config.type,
+            model_input_channels=self.config.input_channels,
+            unet_double_conv=self.config.unet_double_conv,
+            weights=self.config.weights,
+            device=self.config.device,
         )
 
         self.pxl_to_cm_scale = self.metadata.pixel_meter_size * 100
@@ -192,7 +192,9 @@ class UNetLengthEstimator(BaseLengthEstimator):
                 if frame_crop_info["crop_ltrbs"] == []:
                     continue
                 crop_ltrbs = frame_crop_info["crop_ltrbs"]
-                # MAH 2025-11-26 10:55:53 this works on the batch so the first and last frame of every batch is going to be wrong, need to have some kind of batch overlap or the dataloader gets the next and last frame anyway
+                # MAH 2025-11-26 10:55:53 this works on the batch so the first and last frame of every batch is going
+                # to be wrong, need to have some kind of batch overlap or the dataloader gets the next and last frame
+                # anyway
 
                 prev_ind = max(0, frame_num - 1)
                 next_ind = min(len(frames_batch) - 1, frame_num + 1)
@@ -205,7 +207,8 @@ class UNetLengthEstimator(BaseLengthEstimator):
                     dim=0,
                 )
 
-                # MAH 2025-11-26 10:57:42 this is taking the middle (bgs) channel maybe we try a different training strategy that aligns with our existing pipeline
+                # MAH 2025-11-26 10:57:42 this is taking the middle (bgs) channel maybe we try a different training
+                # strategy that aligns with our existing pipeline
                 frames_bgs = frames[:, 1]
 
                 frames_bgs -= 255 / 2

@@ -3,8 +3,13 @@ from typing import List, Union, TypeVar, Generic, Dict
 
 import torch
 
-from fisheye.configs.models import BaseModelConfig, YOLOv5ModelConfig
-from fisheye.enums import TrackingMethod, DeviceType
+from fisheye.configs.models import (
+    BaseModelConfig,
+    YOLOv5ModelConfig,
+    BaseLengthModelConfig,
+    UNetLengthModelConfig,
+)
+from fisheye.enums import TrackingMethod
 
 T = TypeVar("T", bound=BaseModelConfig)
 
@@ -22,7 +27,7 @@ class TrackerConfig:
 
 
 @dataclass
-class LengthConfig:
+class LengthEstimationConfig:
     """Configuration for fish length estimation."""
 
     min_edge_dist_tolerance_px: int = 10
@@ -30,20 +35,6 @@ class LengthConfig:
     length_delta_tolerance_cm: int = 5
     vel_window_size: int = 7
     length_window_size: int = 7
-
-
-@dataclass
-class LengthModelConfig:
-    """Configuration for the length estimation model."""
-
-    model_type: str = "unet"
-    input_channels: int = 3
-    unet_double_conv: bool = False
-    weights_path: str = None
-    device: str = DeviceType.CPU.value
-    crop_after_model: bool = True
-    padd_for_receptive_field: int = 100
-    additional_bbox_padding_px: int = 25
 
 
 @dataclass
@@ -81,7 +72,7 @@ class ObjectDetectionConfig(Generic[T]):
     )
     nms_config: NMSConfig = field(default_factory=NMSConfig)
     fish_size: FishSizeConfig = field(default_factory=FishSizeConfig)
-    length_config: LengthModelConfig = field(default_factory=LengthModelConfig)
+    length_config: BaseLengthModelConfig = field(default_factory=UNetLengthModelConfig)
 
 
 @dataclass

@@ -12,7 +12,7 @@ from fisheye.boxes import (
 from fisheye.common.generic import safe_execution
 from fisheye.common.file_system import get_valid_files
 from fisheye.configs import YOLODatasetConfig
-from fisheye.configs.inference import TrackerConfig, LengthConfig
+from fisheye.configs.inference import TrackerConfig, LengthEstimationConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
 from fisheye.export import save_to_disk, MOTExporter
@@ -37,7 +37,7 @@ class DetectTrackCountPipeline:
         self.detect_pipe = detect_pipe
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
         self.dataset_cfg = dataset_cfg if dataset_cfg else YOLODatasetConfig()
-        self.length_cfg = LengthConfig()
+        self.length_cfg = LengthEstimationConfig()
 
     @safe_execution(default_return=[], max_retries=3, delay=2)
     def _run(

@@ -10,10 +10,11 @@ from fisheye.configs import (
     YOLODatasetConfig,
     ObjectDetectionConfig,
 )
-from fisheye.configs.inference import NMSConfig, LengthModelConfig
+from fisheye.configs import NMSConfig, get_length_model_config
 from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
-from fisheye.lengths.estimator import UNetLengthEstimator
+from fisheye.enums import LengthEstimatorType
+from fisheye.lengths.factory import create_length_estimator
 
 logger = structlog.get_logger()
 
@@ -78,10 +79,14 @@ class ObjectDetectionPipeline:
         all_low_preds, all_high_preds = {}, {}
         all_low_length_estimates, all_high_length_estimates = {}, {}
 
-        # Only initialize length estimator if length estimation is enabled
         if self.apply_length_estimates_batchwise:
-            self.length_estimator = UNetLengthEstimator(
-                self.metadata, LengthModelConfig(device=self.device)
+            length_config = get_length_model_config(
+                LengthEstimatorType.UNET,
+                weights="/Users/madison/Downloads/model_150.pth",
+                device=self.device,
+            )
+            self.length_estimator = create_length_estimator(
+                length_config, self.metadata
             )
         else:
             self.length_estimator = None
