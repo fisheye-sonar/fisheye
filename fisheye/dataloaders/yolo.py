@@ -119,17 +119,16 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
 
         h0, w0 = frame_images[0].shape[:2]
         # keep originals as torch for later use
-        imgs_original = torch.from_numpy(
-            frame_images.transpose(0, 3, 1, 2)
-        ).float()  # (N, C, H, W)
+        device = torch.device("cuda:0")
+        imgs_original = (
+            torch.from_numpy(frame_images.transpose(0, 3, 1, 2)).to(device).float()
+        )
 
-        # imgs_original = imgs_original.to(device)
         # 2) Normalize and move to device
-        imgs = imgs_original
 
         # 3) Batched letterbox to self.shape
         imgs, ratio, pad = self.letterbox_batch_torch(
-            imgs,
+            imgs_original,
             new_shape=self.shape,  # e.g. (896, 896)
             stride=self.stride,
         )

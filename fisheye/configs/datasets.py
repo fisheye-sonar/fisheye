@@ -28,6 +28,7 @@ class BaseDatasetConfig:
     use_multithreading: bool = True  # For dataloader threading
     max_workers: int = 2
     preprocess_batchwise: bool = False
+    pin_memory: bool = False
 
 
 @dataclass
@@ -63,4 +64,4 @@ class YOLODatasetConfig(BaseDatasetConfig):
     stride: int = 64
     pad: float = 0.5
     img_size: int = 896
-    preprocess_batchwise: bool = False
+    preprocess_batchwise: bool = True

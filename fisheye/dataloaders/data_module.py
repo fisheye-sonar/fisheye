@@ -46,6 +46,7 @@ class ARISDataModule(pl.LightningDataModule):
             if self.preprocess_batchwise
             else yolo_collate_fn
         )
+        self.pin_memory = dataset_config.pin_memory
 
     def setup(self, stage=None):
         """Setup dataset. Called once before training/validation starts."""
@@ -84,7 +85,7 @@ class ARISDataModule(pl.LightningDataModule):
                 data_source=self.dataset, batch_size=self.batch_size
             ),
             num_workers=self.num_workers,
-            pin_memory=True,
+            pin_memory=self.pin_memory,
             collate_fn=collate_fn,
         )
 

@@ -70,7 +70,7 @@ def create_dataloader(config: Union[BaseDatasetConfig, YOLODatasetConfig]):
         batch_size=None,
         sampler=OnePerBatchSampler(data_source=dataset, batch_size=batch_size),
         num_workers=nw,
-        pin_memory=True,
+        pin_memory=config.pin_memory,
         collate_fn=collate_fn,
     )
 

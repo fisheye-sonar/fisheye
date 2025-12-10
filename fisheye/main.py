@@ -40,6 +40,9 @@ def run_pipeline(cfg: DictConfig):
     dataset_config = platform_cfg.dataset
     model_config = platform_cfg.model
 
+    if model_config.device == DeviceType.CUDA:
+        mp.set_start_method("spawn", force=True)
+
     check_disk_space(
         path=output_dir if output_dir else input_path
     )  # Make sure there's enough space to store results
