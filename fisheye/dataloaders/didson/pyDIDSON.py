@@ -264,8 +264,10 @@ class DIDSON:
                     additional_pixel_padding_y=0,
                 )
             )
-
             if desired_size_y is not None and ydim != desired_size_y:
+                desired_size_y = (
+                    desired_size_y * 3
+                )  # MAH 2025-12-10 17:03:42 make it bigger, to be reduced by a 3x3 kernel later
                 print(f"MAH ydim {ydim} != desired_size_y {desired_size_y}")
                 print(
                     f"MAH resetting image bounds to match desired size y:{desired_size_y}"

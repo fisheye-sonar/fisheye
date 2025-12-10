@@ -1,5 +1,5 @@
 defaults:
-  - platform: cpu  # Update with different YAML if you have another platform or different optimized configs
+  - platform: cuda  # Update with different YAML if you have another platform or different optimized configs
   - override hydra/hydra_logging: none
   - override hydra/job_logging: none
 

@@ -4,7 +4,7 @@ import structlog
 import torch
 from yolov5.utils.augmentations import letterbox
 from yolov5.utils.general import xyxy2xywh
-
+import torch.nn as nn
 from fisheye.configs import YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset
 
@@ -65,8 +65,30 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             ]
         """
         outputs = []
+
+        conv = nn.Conv2d(
+            in_channels=1,
+            out_channels=1,
+            kernel_size=3,
+            stride=(3, 3),
+            padding=0,
+            bias=False,
+        )
+
+        # make it an averaging kernel over 3 elements
+        with torch.no_grad():
+            conv.weight.fill_(1.0 / 9.0)
+
         frame_labels = frame_labels or [None for _ in frame_images]
         for image, labels in zip(frame_images, frame_labels):
+            image = (
+                conv(torch.from_numpy(image).unsqueeze(0).permute(3, 0, 1, 2).float())
+                .detach()
+                .cpu()
+                .numpy()
+                .squeeze()
+                .transpose(1, 2, 0)
+            )
             img, (h0, w0), (h, w) = self.load_image(image)
 
             # Apply letterboxing to resize and pad images
