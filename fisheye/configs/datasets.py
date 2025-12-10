@@ -27,6 +27,7 @@ class BaseDatasetConfig:
     return_echogram: bool = False
     use_multithreading: bool = True  # For dataloader threading
     max_workers: int = 2
+    img_size: int = None
 
 
 @dataclass

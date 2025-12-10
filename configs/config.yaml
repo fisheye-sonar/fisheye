@@ -5,8 +5,8 @@ defaults:
 
 
 # Add CLI-overridable arguments here, no need to add paths within quotes
-input_path:
+input_path: /home/mahobley/Data/klamath/aris/2024-10-17_000000.aris
 output_dir:
-export_options: ["summary_csv", "detailed_csv", "fc"]
+export_options: []
 upstream_direction: left
 distance_offset: 0

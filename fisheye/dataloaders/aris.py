@@ -23,7 +23,11 @@ class ARISBatchedDataset(BaseDataset):
             config (BaseDatasetConfig): Configuration object containing all dataset parameters.
         """
         try:
-            self.didson = DIDSON(config.filepath, beam_width_dir=BEAM_WIDTH_DIR)
+            self.didson = DIDSON(
+                config.filepath,
+                beam_width_dir=BEAM_WIDTH_DIR,
+                desired_size_y=config.img_size,
+            )
         except Exception as e:
             logger.error(
                 "failed_to_load_file",

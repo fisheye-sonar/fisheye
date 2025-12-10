@@ -26,7 +26,9 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
 class DIDSON:
-    def __init__(self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1):
+    def __init__(
+        self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1, desired_size_y=None
+    ):
         """Load header info from DIDSON file and precompute some warps.
 
         Parameters
@@ -48,7 +50,7 @@ class DIDSON:
 
         info = self.read_header(file)
         self.info, self.write_rows, self.write_cols, self.read_i = (
-            DIDSON.compute_image_metadata(info, beam_width_dir, ixsize)
+            DIDSON.compute_image_metadata(info, beam_width_dir, ixsize, desired_size_y)
         )
 
     def read_header(self, file: Union[str, Path]):
@@ -142,7 +144,10 @@ class DIDSON:
 
     @staticmethod
     def compute_image_metadata(
-        info: dict, beam_width_dir: Path = BEAM_WIDTH_DIR, ixsize: int = -1
+        info: dict,
+        beam_width_dir: Path = BEAM_WIDTH_DIR,
+        ixsize: int = -1,
+        desired_size_y: int = None,
     ):
         """Computes derived sonar parameters, and precomputes pixel mapping for warping sonar data into to-scale images.
 
@@ -259,6 +264,24 @@ class DIDSON:
                     additional_pixel_padding_y=0,
                 )
             )
+
+            if desired_size_y is not None and ydim != desired_size_y:
+                print(f"MAH ydim {ydim} != desired_size_y {desired_size_y}")
+                print(
+                    f"MAH resetting image bounds to match desired size y:{desired_size_y}"
+                )
+                scale_factor_y = desired_size_y / ydim
+
+                pixel_meter_size = pixel_meter_size / scale_factor_y
+                xdim, ydim, x_meter_start, y_meter_start, x_meter_stop, y_meter_stop = (
+                    pyARIS.compute_image_bounds(
+                        pixel_meter_size,
+                        aris_frame,
+                        beam_width_data,
+                        additional_pixel_padding_x=0,
+                        additional_pixel_padding_y=0,
+                    )
+                )
 
             if ixsize != -1:
                 pixel_meter_size = pixel_meter_size * xdim / ixsize
