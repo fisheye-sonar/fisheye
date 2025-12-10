@@ -97,7 +97,6 @@ class ObjectDetectionPipeline:
         image = (
             image.half() if self.device != "cpu" else image.float()
         )  # uint8 to fp16/32
-        image /= 255.0  # 0 - 255 to 0.0 - 1.0
 
         return image
 
@@ -129,6 +128,11 @@ class ObjectDetectionPipeline:
                 size = tuple(img.shape)
                 nb, _, height, width = size  # batch size, channels, height, width
 
+                # Save shapes for resizing to original shape
+                batch_shape = []
+                for si in range(img.shape[0]):
+                    batch_shape.append((img[si].shape[1:], shapes[si]))
+
                 if self.use_multithreading:
                     # per image inference with multithreading
                     img_list = [img[i : i + 1] for i in range(img.shape[0])]
@@ -139,12 +143,8 @@ class ObjectDetectionPipeline:
                     # Batched inference - [B, N, 6]
                     inf_out = self.model(img)
 
+                del img
                 torch.cuda.empty_cache()
-
-                # Save shapes for resizing to original shape
-                batch_shape = []
-                for si, pred in enumerate(inf_out):
-                    batch_shape.append((img[si].shape[1:], shapes[si]))
 
                 image_shapes.append(batch_shape)
                 inference.append(inf_out.cpu())
