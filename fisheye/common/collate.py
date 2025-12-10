@@ -13,3 +13,7 @@ def yolo_collate_fn(batch):
         shapes,
         torch.stack(img_original, 0),
     )
+
+
+def yolo_collate_fn_already_batched(batch):
+    return batch

@@ -43,6 +43,10 @@ def run_pipeline(cfg: DictConfig):
     # Default to using multiprocessing for Windows machine with GPU
     if model_config.device == DeviceType.CUDA and platform.system() == "Windows":
         mp.set_start_method("spawn", force=True)
+    # MAH 2025-12-08 10:36:46 added spawn there too
+    if model_config.device == DeviceType.CUDA:
+        print(f"MAH setting spawn method for CUDA")
+        mp.set_start_method("spawn", force=True)
 
     check_disk_space(
         path=output_dir if output_dir else input_path

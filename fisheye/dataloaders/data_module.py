@@ -1,10 +1,15 @@
 import os
+from tkinter.constants import TRUE
 
 import pytorch_lightning as pl
 import structlog
 from torch.utils.data import DataLoader
 
-from fisheye.common import torch_distributed_zero_first, yolo_collate_fn
+from fisheye.common import (
+    torch_distributed_zero_first,
+    yolo_collate_fn,
+    yolo_collate_fn_already_batched,
+)
 from fisheye.configs.datasets import BaseDatasetConfig
 from fisheye.dataloaders.samplers import OnePerBatchSampler
 
@@ -36,6 +41,12 @@ class ARISDataModule(pl.LightningDataModule):
         self.rank = dataset_config.rank
         self.dataset = None
         self.dataloader = None
+        self.preprocess_batchwise = dataset_config.preprocess_batchwise
+        self.collate_fn = (
+            yolo_collate_fn_already_batched
+            if self.preprocess_batchwise
+            else yolo_collate_fn
+        )
 
     def setup(self, stage=None):
         """Setup dataset. Called once before training/validation starts."""
@@ -62,7 +73,7 @@ class ARISDataModule(pl.LightningDataModule):
     def get_dataloader(self):
         """Returns a DataLoader with the correct collate function."""
         collate_fn = (
-            yolo_collate_fn
+            self.collate_fn
             if self.dataset_cls.__name__ == "YOLOARISBatchedDataset"
             else None
         )

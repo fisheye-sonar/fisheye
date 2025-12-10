@@ -177,13 +177,14 @@ def get_model(
 
     if load_model_path:
         # MAH 2025-11-24 12:33:54 TODO this is a hack to get the model to load on the CPU because my machine is showing no GPU available
-        print(
-            f"MAH TODO this is a hack to get the model to load on the CPU because my machine is showing no GPU available"
-        )
         try:
             model.load_state_dict(torch.load(load_model_path, weights_only=True))
         except Exception as e:
+            print(
+                f"MAH TODO this is a hack to get the model to load on the CPU because my machine is showing no GPU available"
+            )
             print(f"Error loading model: {e}")
+
             model.load_state_dict(
                 torch.load(
                     load_model_path, weights_only=True, map_location=torch.device("cpu")

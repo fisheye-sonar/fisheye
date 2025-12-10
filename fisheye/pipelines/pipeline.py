@@ -75,6 +75,8 @@ class DetectTrackCountPipeline:
         end_frame = 0
         start_frame = 131
         end_frame = 532
+        start_frame = 0
+        end_frame = 532
         self.dataset_cfg = replace(
             self.dataset_cfg,
             filepath=file,
@@ -239,7 +241,8 @@ class DetectTrackCountPipeline:
                 cone_eq_params_right,
             ) = get_cone_edges(metadata)
 
-            plot_filters_for_debugging = True
+            print(f"MAH remove plot filters for debugging")
+            plot_filters_for_debugging = False
 
             len_outputs = {}
             for fish_id, data in all_length_estimates.items():
@@ -437,19 +440,23 @@ class DetectTrackCountPipeline:
                 print(f"{fish_id}: {len_outputs[fish_id]=}")
         else:
             # this is significantly less efficient than the batchwise approach
-            additional_bbox_padding_px = 5
-            len_outputs = get_pred_from_video_wise_helper(
-                frames_preds,
-                metadata,
-                self.length_cfg.vel_window_size,
-                self.length_cfg.length_window_size,
-                self.length_cfg.vel_delta_tolerance,
-                self.length_cfg.length_delta_tolerance_cm,
-                self.length_cfg.min_edge_dist_tolerance_px,
-                self.detect_pipe.dataset,
-                start_frame,
-                additional_bbox_padding_px,
-            )
+            if True:
+                print("MAH NOT doing lengths")
+                pass
+            else:
+                additional_bbox_padding_px = 5
+                len_outputs = get_pred_from_video_wise_helper(
+                    frames_preds,
+                    metadata,
+                    self.length_cfg.vel_window_size,
+                    self.length_cfg.length_window_size,
+                    self.length_cfg.vel_delta_tolerance,
+                    self.length_cfg.length_delta_tolerance_cm,
+                    self.length_cfg.min_edge_dist_tolerance_px,
+                    self.detect_pipe.dataset,
+                    start_frame,
+                    additional_bbox_padding_px,
+                )
 
         formatted_yolo_tracks = tracker_output_to_dict_rows(asdict(tracker_output))
 
@@ -544,7 +551,7 @@ class DetectTrackCountPipeline:
             logger.warning("no_counts", file_path=str(file))
 
         print(f"{formatted_crossings=}")
-        exit()
+        # exit()
         remaining_export_types = [
             et
             for et in export_types_list

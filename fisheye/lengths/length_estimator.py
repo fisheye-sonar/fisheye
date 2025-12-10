@@ -27,7 +27,7 @@ class LengthEstimator:
         self.model_input_channels = 1
         self.model_input_channels = 3
         load_model_path = "/home/mahobley/Code/fisheye-dev/head_tail/checkpoints/crop_after_model/model_150.pth"
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.crop_after_model = (
             True  # set true is expect to have multiple crops for each frame
         )
@@ -48,7 +48,7 @@ class LengthEstimator:
             self.model_input_channels,
             unet_double_conv,
             load_model_path,
-            device,
+            self.device,
         )
 
         self.pxl_to_cm_scale = self.metadata.pixel_meter_size * 100
@@ -194,9 +194,11 @@ class LengthEstimator:
     ):
 
         len_outputs = {}
+        frames_batch = frames_batch.to("cuda:0" if torch.cuda.is_available() else "cpu")
 
         with torch.no_grad():
             # for frame_crop_info in tqdm(crop_info):
+            # MAH 2025-12-08 11:10:44 TODO get the frames that have detections and run them through the model in parallel
             for frame_crop_info in crop_info:
                 frame_num = frame_crop_info["frame_num"]
 

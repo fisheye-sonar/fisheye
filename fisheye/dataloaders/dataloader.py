@@ -8,7 +8,7 @@ import torch
 from fisheye.configs import BaseDatasetConfig, YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset, YOLOARISBatchedDataset
 from fisheye.dataloaders.samplers import OnePerBatchSampler
-from fisheye.common.collate import yolo_collate_fn
+from fisheye.common.collate import yolo_collate_fn, yolo_collate_fn_already_batched
 from fisheye.common import torch_distributed_zero_first
 
 logger = structlog.get_logger()
@@ -24,7 +24,11 @@ def create_dataloader(config: Union[BaseDatasetConfig, YOLODatasetConfig]):
     # Check if config is for ARIS or YOLO dataset and choose corresponding dataset class
     if isinstance(config, YOLODatasetConfig):
         dataset_class = YOLOARISBatchedDataset
-        collate_fn = yolo_collate_fn
+        collate_fn = (
+            yolo_collate_fn_already_batched
+            if config.preprocess_batchwise
+            else yolo_collate_fn
+        )
 
     elif isinstance(config, BaseDatasetConfig):
         dataset_class = ARISBatchedDataset

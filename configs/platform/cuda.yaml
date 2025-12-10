@@ -1,5 +1,5 @@
 dataset:
-  batch_size: 32
+  batch_size: 4
   workers: 10 # For dataloader
   use_multithreading: false
   use_blur: false

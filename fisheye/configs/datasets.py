@@ -29,6 +29,8 @@ class BaseDatasetConfig:
     use_blur: bool = True  # For background subtraction blurring
     max_workers: int = 2
 
+    preprocess_batchwise: bool = False
+
 
 @dataclass
 class ARISMetadata:
@@ -65,3 +67,4 @@ class YOLODatasetConfig(BaseDatasetConfig):
     stride: int = 64
     pad: float = 0.5
     img_size: int = 896
+    preprocess_batchwise: bool = True

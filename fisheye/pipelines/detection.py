@@ -107,7 +107,7 @@ class ObjectDetectionPipeline:
         image = (
             image.half() if self.device != "cpu" else image.float()
         )  # uint8 to fp16/32
-        image /= 255.0  # 0 - 255 to 0.0 - 1.0
+        # image /= 255.0  # 0 - 255 to 0.0 - 1.0 # MAH 2025-12-08 11:01:06 now done in postprocessing
 
         return image
 
@@ -153,12 +153,14 @@ class ObjectDetectionPipeline:
                 total=len(self.dataloader),
                 desc="Running detection",
             ):
-                if img_original is not None:
-                    img_original = img_original.to(self.device, non_blocking=True)
-
                 img = self.preprocess(img)
                 size = tuple(img.shape)
                 nb, _, height, width = size  # batch size, channels, height, width
+
+                # Save shapes for resizing to original shape
+                batch_shape = []
+                for si in range(img.shape[0]):
+                    batch_shape.append((img[si].shape[1:], shapes[si]))
 
                 if self.use_multithreading:
                     # per image inference with multithreading
@@ -170,12 +172,8 @@ class ObjectDetectionPipeline:
                     # Batched inference - [B, N, 6]
                     inf_out = self.model(img)
 
+                del img
                 torch.cuda.empty_cache()
-
-                # Save shapes for resizing to original shape
-                batch_shape = []
-                for si, pred in enumerate(inf_out):
-                    batch_shape.append((img[si].shape[1:], shapes[si]))
 
                 if self.apply_nms_batchwise:
                     # Get low confidence for ByteTrack
@@ -223,6 +221,8 @@ class ObjectDetectionPipeline:
                     )
 
                     if self.apply_length_estimates_batchwise:
+                        img_original = self.preprocess(img_original)
+
                         low_length_estimates = self.length_estimator.run(
                             img_original, low_preds
                         )
@@ -240,6 +240,8 @@ class ObjectDetectionPipeline:
                         }
                         all_high_length_estimates.update(high_length_estimates)
 
+                        del img_original
+                        torch.cuda.empty_cache()
                 else:
                     image_shapes.append(batch_shape)
                     inference_bboxes.append(inf_out.cpu())
