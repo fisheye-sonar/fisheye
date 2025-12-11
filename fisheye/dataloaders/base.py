@@ -99,7 +99,7 @@ class BaseDataset(Dataset):
                     mean_blurred_frame += blurred
                     max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
 
-            mean_blurred_frame /= frames_for_bg_subtract.shape[0]
+        mean_blurred_frame /= frames_for_bg_subtract.shape[0]
         max_blurred_frame -= mean_blurred_frame
         mean_normalization_value = np.max(max_blurred_frame)
 
