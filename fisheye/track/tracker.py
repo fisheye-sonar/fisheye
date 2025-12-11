@@ -153,8 +153,6 @@ class Tracker:
         for track_id, boxes in tracks.items():
             fish_entry = {"id": track_id, "length": -1}
 
-            # start_bbox = boxes[0][0]
-            # end_bbox = boxes[-1][0]
             start_bbox = boxes[0]["bbox"]
             end_bbox = boxes[-1]["bbox"]
 
@@ -165,8 +163,6 @@ class Tracker:
                 json_data["image_meter_height"],
             )
 
-            # fish_entry["start_frame_index"] = boxes[0][1]
-            # fish_entry["end_frame_index"] = boxes[-1][1]
             fish_entry["start_frame_index"] = boxes[0]["frame_num"]
             fish_entry["end_frame_index"] = boxes[-1]["frame_num"]
 

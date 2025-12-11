@@ -220,18 +220,17 @@ class DetectTrackCountPipeline:
         Returns:
             Dict mapping fish_id to length estimate dict (or None if estimation disabled)
         """
-        # Check if length estimation is enabled
+
         if not hasattr(self.detect_pipe, "apply_length_estimates_batchwise"):
-            logger.debug("Length estimation not configured in detection pipeline")
+            logger.warning("Length estimation not configured in detection pipeline")
             return {}
 
         if not self.detect_pipe.apply_length_estimates_batchwise:
-            logger.debug("Length estimation disabled (batchwise mode required)")
+            logger.warning("Length estimation disabled (batchwise mode required)")
             return {}
 
-        # Check if we have length estimates from detection
         if not low_length_estimates and not high_length_estimates:
-            logger.debug("No length estimates available from detection pipeline")
+            logger.warning("No length estimates available from detection pipeline")
             return {}
 
         processor = LengthProcessor(self.length_cfg, self.detect_pipe.metadata)
@@ -244,7 +243,6 @@ class DetectTrackCountPipeline:
             self.dataset_cfg.batch_size,
         )
 
-        # Convert LengthEstimate dataclasses to dicts for compatibility
         len_outputs_dict = {
             fish_id: asdict(estimate) if estimate is not None else None
             for fish_id, estimate in len_outputs.items()
