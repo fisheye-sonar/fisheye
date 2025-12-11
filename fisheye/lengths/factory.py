@@ -51,7 +51,7 @@ def create_length_estimator(
         )
 
     logger.info(
-        "creating_length_estimator",
+        "initialized_length_estimator",
         model_type=model_type.value,
         estimator_class=estimator_cls.__name__,
     )

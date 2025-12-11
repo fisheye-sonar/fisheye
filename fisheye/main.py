@@ -14,9 +14,10 @@ from fisheye.configs import (
     ObjectDetectionConfig,
     YOLODatasetConfig,
     get_detector_config,
+    get_length_model_config,
 )
 from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
-from fisheye.enums import ExportType, DetectorType
+from fisheye.enums import ExportType, DetectorType, LengthEstimatorType
 from fisheye.export import save_to_disk, parse_export_options
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
@@ -63,6 +64,13 @@ def run_pipeline(cfg: DictConfig):
 
     # Build runtime configs
     runtime_config = dict(platform_cfg.inference)
+    if "length_config" in runtime_config:
+        length_cfg_dict = dict(runtime_config["length_config"])
+        model_type = length_cfg_dict.pop("type", LengthEstimatorType.UNET.value)
+        runtime_config["length_config"] = get_length_model_config(
+            model_type, **length_cfg_dict
+        )
+
     runtime_config["model"] = detector_cfg
 
     # Build dataset configs

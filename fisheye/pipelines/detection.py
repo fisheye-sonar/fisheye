@@ -51,6 +51,7 @@ class ObjectDetectionPipeline:
         self.nms_config = NMSConfig()
         self.apply_nms_batchwise = config.apply_nms_batchwise
         self.apply_length_estimates_batchwise = config.apply_length_estimates_batchwise
+        self.length_config = config.length_config
 
     def __call__(self, *args, **kwargs):
         """Executes the detection pipeline."""
@@ -77,16 +78,13 @@ class ObjectDetectionPipeline:
 
         nms_processor = None
         all_low_preds, all_high_preds = {}, {}
+        low_preds, high_preds = {}, {}
         all_low_length_estimates, all_high_length_estimates = {}, {}
 
-        if self.apply_length_estimates_batchwise:
-            length_config = get_length_model_config(
-                LengthEstimatorType.UNET,
-                weights="/Users/madison/Downloads/model_150.pth",
-                device=self.device,
-            )
+        if self.apply_length_estimates_batchwise and self.length_config:
+            self.length_config.device = self.device
             self.length_estimator = create_length_estimator(
-                length_config, self.metadata
+                self.length_config, self.metadata
             )
         else:
             self.length_estimator = None

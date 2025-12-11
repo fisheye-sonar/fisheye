@@ -18,7 +18,7 @@ class BaseLengthModelConfig(BaseModelConfig):
     """Base configuration for length estimation models."""
 
     input_channels: int = 3
-    crop_after_model: bool = True
+    crop_after_model: bool = False
     padd_for_receptive_field: int = 100
     additional_bbox_padding_px: int = 25
 

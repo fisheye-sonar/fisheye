@@ -3,6 +3,7 @@ dataset:
   workers: 10  # For dataloader
   use_multithreading: false
   max_workers: 2  # For multithreading
+  use_blur: true
 
 model:
   type: yolov5
@@ -12,3 +13,8 @@ model:
 inference:
   use_multithreading: false
   max_workers: 2  # For multithreading
+  apply_nms_batchwise: true
+  apply_length_estimates_batchwise: true
+  length_config:
+    type: unet
+    weights: null

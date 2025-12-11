@@ -37,7 +37,7 @@ class HeatmapCNN(nn.Module):
             nn.Conv2d(128, 64, 3, padding=1),
             nn.ReLU(inplace=True),
             nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
-            nn.Conv2d(128, 64, 3, padding=1),
+            nn.Conv2d(64, 64, 3, padding=1),
             nn.ReLU(inplace=True),
         )
         self.head = nn.Conv2d(64, 2, kernel_size=1)

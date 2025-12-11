@@ -6,14 +6,12 @@ import torch
 from conftest import ARIS_FILE
 from fisheye.common.file_system import get_all_valid_files_in_dir
 from fisheye.common.generic import safe_execution
-from fisheye.configs import (
-    ObjectDetectionConfig,
-    YOLODatasetConfig,
-    YOLOv5ModelConfig,
-)
+from fisheye.configs import ObjectDetectionConfig, YOLOv5ModelConfig, YOLODatasetConfig
 from fisheye.configs.inference import NMSConfig
+from fisheye.configs.inference import TrackerOutput
 from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
 from fisheye.pipelines import ObjectDetectionPipeline
+from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 
 
 def test_preprocess():
@@ -323,3 +321,135 @@ def test_ignore_hidden_files(tmp_path):
     assert "visible_file.aris" in result_names
     assert ".hidden_file.aris" not in result_names
     assert "another_hidden_file.aris" not in result_names
+
+
+@pytest.fixture
+def mock_model():
+    model = MagicMock()
+    model.config.device = "cpu"
+    # Mock return value for inference: [batch_size, num_preds, 6]
+    model.return_value = torch.rand((1, 10, 6))
+    return model
+
+
+@pytest.fixture
+def mock_length_estimator():
+    estimator = MagicMock()
+    # Mock run return value
+    estimator.run.return_value = {(0, 0): {"length": 10.0}}
+    return estimator
+
+
+def test_object_detection_pipeline_with_length(mock_model, mock_length_estimator):
+    """Test ObjectDetectionPipeline with length estimation enabled."""
+
+    config = ObjectDetectionConfig(
+        model=YOLOv5ModelConfig(weights="dummy"),
+        apply_length_estimates_batchwise=True,
+        apply_nms_batchwise=False,
+        use_multithreading=False,
+    )
+
+    with patch(
+        "fisheye.pipelines.detection.create_length_estimator",
+        return_value=mock_length_estimator,
+    ) as mock_create_le, patch(
+        "fisheye.pipelines.detection.get_length_model_config"
+    ) as mock_get_config, patch.object(
+        YOLOv5ObjectDetectionModel, "_load_model", return_value=mock_model
+    ):
+        pipeline = ObjectDetectionPipeline(mock_model, config)
+
+        # Mock dataset/dataloader
+        pipeline.dataset = MagicMock()
+        pipeline.dataset.batch_size = 1
+        pipeline.metadata = MagicMock()
+
+        # Mock dataloader: yield (img, None, shapes, original_img)
+        img = torch.rand(1, 3, 640, 640)
+        original_img = torch.rand(1, 3, 1080, 1920)
+        shapes = [(torch.Size([640, 640]), ((1080, 1920), (1080, 1920)))]
+        pipeline.dataloader = [(img, None, shapes, original_img)]
+
+        # Run pipeline
+        _, _, low_lengths, high_lengths = pipeline()
+
+        # Verify length estimator was created and called
+        mock_create_le.assert_called_once()
+        assert (
+            mock_length_estimator.run.call_count >= 1
+        )  # Called for low and high preds
+
+        # Verify output contains length estimates
+        assert len(low_lengths) > 0 or len(high_lengths) > 0
+
+
+def test_detect_track_count_pipeline_integration():
+    """Test DetectTrackCountPipeline integration with length estimates."""
+
+    # Mock detection pipeline
+    detect_pipe = MagicMock()
+    detect_pipe.metadata.image_meter_width = 1.0
+    detect_pipe.metadata.image_meter_height = 1.0
+    detect_pipe.metadata.xdim = 1920
+    detect_pipe.metadata.ydim = 1080
+    detect_pipe.apply_length_estimates_batchwise = True
+
+    # Mock detection output
+    # low_preds, high_preds, low_lengths, high_lengths
+    detect_pipe.return_value = (
+        {(0, 0): torch.tensor([[100, 100, 200, 200, 0.9, 0]])},  # low_preds
+        {},  # high_preds
+        {
+            (0, 0): {0: {"pred_kpts_global_px": [[100, 100], [200, 200]]}}
+        },  # low_lengths (mock format)
+        {},  # high_lengths
+    )
+
+    pipeline = DetectTrackCountPipeline(detect_pipe=detect_pipe)
+
+    with patch("fisheye.pipelines.pipeline.run_tracker") as mock_run_tracker, patch(
+        "fisheye.pipelines.pipeline.LengthProcessor"
+    ) as MockLengthProcessor, patch(
+        "fisheye.pipelines.pipeline.Count"
+    ) as MockCount, patch(
+        "fisheye.pipelines.pipeline.save_to_disk"
+    ), patch(
+        "fisheye.pipelines.pipeline.asdict"
+    ) as mock_asdict:
+
+        mock_tracker_output = TrackerOutput(
+            start_frame=0,
+            end_frame=1,
+            image_meter_width=1.0,
+            image_meter_height=1.0,
+            frames=[],
+            metadata=[],
+        )
+        mock_run_tracker.return_value = mock_tracker_output
+
+        # Return a dict representation of the tracker output
+        mock_asdict.return_value = {
+            "frames": [],
+            "start_frame": 0,
+            "end_frame": 1,
+            "image_meter_width": 1.0,
+            "image_meter_height": 1.0,
+            "metadata": [],
+        }
+
+        # Set up mock length processor
+        mock_processor = MockLengthProcessor.return_value
+        mock_processor.process_from_tracks.return_value = {
+            1: {"filtered_lengths_cm": 15.0}  # fish_id 1
+        }
+
+        MockCount.return_value.count.return_value = (
+            (1, 0),
+            {"left": [(1, 0, [100, 100, 100, 100])], "right": []},
+        )
+
+        pipeline._run(file="dummy.aris", output_dir=".")
+
+        # Verify length processor was called
+        mock_processor.process_from_tracks.assert_called_once()

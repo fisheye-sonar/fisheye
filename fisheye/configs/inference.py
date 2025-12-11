@@ -66,7 +66,7 @@ class ObjectDetectionConfig(Generic[T]):
     conf: float = 0.05  # Confidence threshold for detections
     use_multithreading: bool = True  # Multithreading for model inference
     max_workers: int = 2
-    apply_nms_batchwise: bool = False  # Apply NMS batchwise for detection
+    apply_nms_batchwise: bool = True  # Apply NMS batchwise for detection
     apply_length_estimates_batchwise: bool = (
         True  # Apply length estimates batchwise for detection
     )

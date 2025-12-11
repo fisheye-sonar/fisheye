@@ -121,7 +121,7 @@ class DetectTrackCountPipeline:
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
                     "L(cm)": round(
-                        len_outputs[track_id].get(
+                        len_outputs.get(track_id, {}).get(
                             "filtered_lengths_cm", FC_DEFAULT_LENGTH_CM
                         ),
                         2,
@@ -137,7 +137,7 @@ class DetectTrackCountPipeline:
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
                     "L(cm)": round(
-                        len_outputs[track_id].get(
+                        len_outputs.get(track_id, {}).get(
                             "filtered_lengths_cm", FC_DEFAULT_LENGTH_CM
                         ),
                         2,
