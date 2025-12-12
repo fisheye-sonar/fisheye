@@ -41,3 +41,4 @@ _debugging_images/
 tests/sample_midlength.aris
 weights/
 *.pt
+outputs/
