@@ -4,7 +4,9 @@ from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
 
 from fisheye.lengths.estimator import UNetLengthEstimator
+from fisheye.lengths.factory import create_length_estimator
 from fisheye.configs.models import UNetLengthModelConfig
+from fisheye.enums import LengthEstimatorType
 
 
 @pytest.fixture
@@ -29,29 +31,38 @@ def mock_metadata():
 def mock_config():
     config = UNetLengthModelConfig()
     config.device = "cpu"
-    config.weights = None  # No weights for testing
+    config.weights = "/path/to/weights.pt"  # Mock path
+    config.type = LengthEstimatorType.UNET
     return config
 
 
 @pytest.fixture
 def estimator(mock_metadata, mock_config):
-    with patch(
+    # Patch get_model to return a MagicMock so we don't need real weights
+    with patch("fisheye.lengths.estimator.get_model") as mock_get_model, patch(
         "fisheye.lengths.estimator.get_cone_edges",
         return_value=(None, None, None, None),
     ):
-        return UNetLengthEstimator(mock_metadata, mock_config)
+
+        mock_model = MagicMock()
+        mock_get_model.return_value = mock_model
+
+        est = UNetLengthEstimator(mock_metadata, mock_config)
+        return est
 
 
 def test_initialization(estimator):
     """Test that the estimator initializes correctly."""
     assert estimator.model is not None
     assert estimator.config.device == "cpu"
+    estimator.model.eval.assert_called_once()
 
 
 def test_get_pred_from_img(estimator):
     """Test prediction from a single image."""
     # Mock model output
-    estimator.model = MagicMock(return_value=torch.randn(1, 2, 50, 50))
+    estimator.model.side_effect = None
+    estimator.model.return_value = torch.randn(1, 2, 50, 50)
 
     img = torch.randn(1, 3, 100, 100)
     crop_ltrbs = [[10, 10, 10, 10]]  # [l, t, r, b] padding from edges
@@ -67,7 +78,8 @@ def test_get_pred_from_img(estimator):
 
 def test_get_pred_from_batch(estimator):
     """Test prediction from a batch of frames."""
-    estimator.model = MagicMock(return_value=torch.randn(1, 2, 50, 50))
+    estimator.model.side_effect = None
+    estimator.model.return_value = torch.randn(1, 2, 50, 50)
 
     frames_batch = [torch.randn(3, 100, 100) for _ in range(2)]
     crop_info = [
@@ -108,3 +120,55 @@ def test_run(estimator):
 
     assert result == {"result": "ok"}
     estimator.get_length_estimates.assert_called_once_with(frames_batch, pred_bboxes)
+
+
+def test_factory_creation(mock_metadata, mock_config):
+    """Test creating an estimator via the factory."""
+    with patch("fisheye.lengths.factory.Path") as mock_path, patch(
+        "fisheye.lengths.estimator.get_model"
+    ) as mock_get_model, patch(
+        "fisheye.lengths.estimator.get_cone_edges",
+        return_value=(None, None, None, None),
+    ):
+
+        # Mock Path.exists to return True
+        mock_path.return_value.exists.return_value = True
+
+        # Mock get_model to return a mock model
+        mock_get_model.return_value = MagicMock()
+
+        estimator = create_length_estimator(mock_config, mock_metadata)
+
+        assert isinstance(estimator, UNetLengthEstimator)
+        assert estimator.config == mock_config
+
+
+def test_factory_creation_no_weights(mock_metadata, mock_config):
+    """Test factory returns None when no weights are provided."""
+    mock_config.weights = None
+
+    estimator = create_length_estimator(mock_config, mock_metadata)
+
+    assert estimator is None
+
+
+def test_factory_weights_not_found(mock_metadata, mock_config):
+    """Test factory returns None when weights file doesn't exist."""
+    with patch("fisheye.lengths.factory.Path") as mock_path:
+        mock_path.return_value.exists.return_value = False
+
+        estimator = create_length_estimator(mock_config, mock_metadata)
+
+        assert estimator is None
+
+
+def test_factory_invalid_type(mock_metadata, mock_config):
+    """Test factory returns None for invalid model type."""
+    mock_config.type = "invalid_type"
+
+    # Needs to match what implicit string conversion might do if it wasn't enum,
+    # but here we are forcing a raw string that will fail enum conversion or registry lookup
+
+    estimator = create_length_estimator(mock_config, mock_metadata)
+
+    assert estimator is None

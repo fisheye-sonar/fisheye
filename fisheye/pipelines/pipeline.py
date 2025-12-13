@@ -222,15 +222,24 @@ class DetectTrackCountPipeline:
         """
 
         if not hasattr(self.detect_pipe, "apply_length_estimates_batchwise"):
-            logger.warning("Length estimation not configured in detection pipeline")
+            logger.warning(
+                "no_lengths",
+                message="Length estimator not configured in detection pipeline",
+            )
             return {}
 
         if not self.detect_pipe.apply_length_estimates_batchwise:
-            logger.warning("Length estimation disabled (batchwise mode required)")
+            logger.warning(
+                "no_lengths",
+                message="Length estimation disabled (batchwise mode required)",
+            )
             return {}
 
         if not low_length_estimates and not high_length_estimates:
-            logger.warning("No length estimates available from detection pipeline")
+            logger.warning(
+                "no_lengths",
+                message="No length estimates available from detection pipeline",
+            )
             return {}
 
         processor = LengthProcessor(self.length_cfg, self.detect_pipe.metadata)

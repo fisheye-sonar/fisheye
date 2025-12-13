@@ -186,36 +186,27 @@ def get_model(
     device: str,
 ) -> torch.nn.Module:
     """
-    Create and load a length estimation model.
+    Load a length estimation model.
 
     Args:
         model_type: Type of model ("unet" or "heatmap_cnn")
         model_input_channels: Number of input channels
         unet_double_conv: Whether to use double convolution in UNet
-        weights: Path to model weights (optional)
+        weights: Path to model weights
         device: Device to load model on
 
     Returns:
         Loaded PyTorch model
 
     Raises:
-        ValueError: If model_type is not recognized
+        ValueError: If model type is invalid
+        FileNotFoundError: If weights file does not exist
     """
-    try:
-        model_type_enum = LengthEstimatorType(model_type)
-    except ValueError:
-        valid_types = [e.value for e in LengthEstimatorType]
-        raise ValueError(
-            f"Unknown model type '{model_type}'. Must be one of: {valid_types}"
-        )
-
+    model_type_enum = LengthEstimatorType(model_type)
     model_cls = LENGTH_MODEL_REGISTRY.get(model_type_enum)
 
     if model_cls is None:
-        raise ValueError(
-            f"Model type '{model_type}' not implemented in registry. "
-            f"Available: {list(LENGTH_MODEL_REGISTRY.keys())}"
-        )
+        raise ValueError(f"Model type {model_type} not implemented")
 
     # Instantiate model with appropriate parameters
     if model_type_enum == LengthEstimatorType.UNET:
@@ -226,32 +217,14 @@ def get_model(
         # Fallback for future models
         model = model_cls(in_ch=model_input_channels)
 
+    weights_path = Path(weights)
+    if not weights_path.exists():
+        raise FileNotFoundError(f"Weights file not found at {weights}")
+
+    state_dict = torch.load(weights_path, weights_only=True, map_location=device)
+    model.load_state_dict(state_dict)
+    logger.info("length_estimator_weights_loaded", path=str(weights), device=device)
+
     model = model.to(device)
-
-    if weights:
-        weights_path = Path(weights)
-        if not weights_path.exists():
-            logger.warning(
-                "weights_path_not_found",
-                path=str(weights_path),
-                message="Proceeding with untrained model",
-            )
-            return model
-
-        try:
-            state_dict = torch.load(
-                weights_path, weights_only=True, map_location=device
-            )
-            model.load_state_dict(state_dict)
-            logger.info("model_loaded", path=str(weights_path), device=device)
-        except Exception as e:
-            logger.error(
-                "model_load_failed", path=str(weights_path), error=str(e), exc_info=True
-            )
-            raise RuntimeError(
-                f"Failed to load model weights from {weights_path}: {e}"
-            ) from e
-    else:
-        logger.warning("no_weights_provided", message="Using untrained model")
 
     return model
