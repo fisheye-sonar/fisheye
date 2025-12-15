@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Union, List, Optional
 
+import numpy as np
 import pandas as pd
 import structlog
 
@@ -27,7 +28,10 @@ from fisheye.export.constants import (
     FC_DEFAULT_REPEAT_COUNT,
     FC_DEFAULT_COMMENT,
 )
-from fisheye.utils import get_unwarped_distance_and_theta
+from fisheye.utils import (
+    get_unwarped_distance_and_theta,
+    convert_pixels_to_coords_meters,
+)
 
 logger = structlog.get_logger()
 
@@ -408,10 +412,13 @@ class XMLExporter(BaseInferenceExporter):
                     },
                 )
 
-                world_points = d.get("WorldPoints", [])
-                if not world_points:
+                global_coords_px = d.get("global_coords_px", [])
+                if not global_coords_px:
                     continue
 
+                world_points = convert_pixels_to_coords_meters(
+                    np.array(global_coords_px), d["metadata"]
+                )
                 left_point, right_point = world_points[:2]
 
                 # Figure out point order so first node is always length=0
