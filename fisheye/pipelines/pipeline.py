@@ -212,6 +212,7 @@ class DetectTrackCountPipeline:
             export_types=remaining_export_types,
             job_id=job_id,
             distance_offset=distance_offset,
+            upstream_direction=upstream_direction,
         )
 
         return formatted_crossings

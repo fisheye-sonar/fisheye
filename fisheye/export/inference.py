@@ -382,23 +382,19 @@ class XMLExporter(BaseInferenceExporter):
         output_dir: str,
         job_id: Optional[str] = None,
         distance_offset: float = 0.0,
+        upstream_direction: Optional[str] = None,
         filename: Optional[str] = None,
     ):
         super().__init__(output_dir, job_id, distance_offset)
         self.filename = filename
+        self.upstream_direction = upstream_direction
 
     def export(self, data: List[Dict]) -> None:
-
         root = ET.Element("MarkedFishMeasurements")
 
         # Flatten outer list
         for sublist in data:
             for d in sublist:
-                world_points = d.get("WorldPoints", [])
-
-                if not world_points:
-                    continue  # skip if no points
-
                 output_path = os.path.join(
                     self.output_dir, f"FC_{d.get('Source.Name')}_ID_.xml"
                 )
@@ -407,18 +403,55 @@ class XMLExporter(BaseInferenceExporter):
                     root,
                     "MarkedFishMeasurement",
                     {
-                        "FishID": str(d["ID"]),
-                        "FrameIndex": str(d["Frame#"]),
+                        "FishID": str(d.get("ID", 0)),
+                        "FrameIndex": str(d.get("Frame#", 0)),
                     },
                 )
 
-                for p in d["WorldPoints"]:
+                world_points = d.get("WorldPoints", [])
+                if not world_points:
+                    continue
+
+                first_point, second_point = world_points[0], world_points[1]
+
+                if self.upstream_direction == "left":
                     ET.SubElement(
                         marked,
                         "FishMeasureNode",
                         {
-                            "WorldPointX": f"{p[0]}",
-                            "WorldPointY": f"{p[1]}",
+                            "WorldPointX": f"{second_point[0]}",
+                            "WorldPointY": f"{second_point[1]}",
+                            "Length": "0",
+                        },
+                    )
+
+                    ET.SubElement(
+                        marked,
+                        "FishMeasureNode",
+                        {
+                            "WorldPointX": f"{first_point[0]}",
+                            "WorldPointY": f"{first_point[1]}",
+                            "Length": f'{d["L(cm)"]}',
+                        },
+                    )
+
+                else:
+                    ET.SubElement(
+                        marked,
+                        "FishMeasureNode",
+                        {
+                            "WorldPointX": f"{first_point[0]}",
+                            "WorldPointY": f"{first_point[1]}",
+                            "Length": "0",
+                        },
+                    )
+
+                    ET.SubElement(
+                        marked,
+                        "FishMeasureNode",
+                        {
+                            "WorldPointX": f"{second_point[0]}",
+                            "WorldPointY": f"{second_point[1]}",
                             "Length": f'{d["L(cm)"]}',
                         },
                     )
@@ -441,6 +474,7 @@ def get_exporter(
     output_dir: str,
     job_id: str,
     distance_offset: float = 0.0,
+    upstream_direction: Optional[str] = None,
     **kwargs,
 ):
     """Factory to create exporters."""
@@ -465,7 +499,7 @@ def get_exporter(
         )
 
     elif export_type == ExportType.XML:
-        return XMLExporter(output_dir, job_id, distance_offset)
+        return XMLExporter(output_dir, job_id, distance_offset, upstream_direction)
 
     else:
         raise ValueError(f"Unsupported export type: {export_type}")
@@ -477,6 +511,7 @@ def save_to_disk(
     export_types: Union[List[ExportType], ExportType],
     job_id: str,
     distance_offset: Union[int, float],
+    upstream_direction: Optional[str] = None,
 ) -> None:
     """Save results to disk using configured exporters."""
     if not results or all(len(sublist) == 0 for sublist in results):
@@ -489,7 +524,11 @@ def save_to_disk(
     for export_option in export_types:
         try:
             exporter = get_exporter(
-                export_option, output_dir, job_id, float(distance_offset)
+                export_option,
+                output_dir,
+                job_id,
+                float(distance_offset),
+                upstream_direction,
             )
             exporter.export(results)
         except Exception as e:
