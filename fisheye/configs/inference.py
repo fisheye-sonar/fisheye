@@ -3,7 +3,12 @@ from typing import List, Union, TypeVar, Generic, Dict
 
 import torch
 
-from fisheye.configs.models import BaseModelConfig, YOLOv5ModelConfig
+from fisheye.configs.models import (
+    BaseModelConfig,
+    YOLOv5ModelConfig,
+    BaseLengthModelConfig,
+    UNetLengthModelConfig,
+)
 from fisheye.enums import TrackingMethod
 
 T = TypeVar("T", bound=BaseModelConfig)
@@ -19,6 +24,17 @@ class TrackerConfig:
     min_travel: int = 0
     iou_threshold: float = 0.001
     reverse: bool = False
+
+
+@dataclass
+class LengthEstimationConfig:
+    """Configuration for fish length estimation."""
+
+    min_edge_dist_tolerance_px: int = 10
+    vel_delta_tolerance: int = 15
+    length_delta_tolerance_cm: int = 5
+    vel_window_size: int = 7
+    length_window_size: int = 7
 
 
 @dataclass
@@ -50,8 +66,13 @@ class ObjectDetectionConfig(Generic[T]):
     conf: float = 0.05  # Confidence threshold for detections
     use_multithreading: bool = True  # Multithreading for model inference
     max_workers: int = 2
+    apply_nms_batchwise: bool = True  # Apply NMS batchwise for detection
+    apply_length_estimates_batchwise: bool = (
+        True  # Apply length estimates batchwise for detection
+    )
     nms_config: NMSConfig = field(default_factory=NMSConfig)
     fish_size: FishSizeConfig = field(default_factory=FishSizeConfig)
+    length_config: BaseLengthModelConfig = field(default_factory=UNetLengthModelConfig)
 
 
 @dataclass
@@ -71,6 +92,8 @@ class TrackedFish:
     id: int
     bbox: List[float]
     conf: float
+    bbox_index: int
+    det_index: int
 
 
 @dataclass
@@ -102,6 +125,8 @@ class TrackerOutput:
                         id=fish["fish_id"],
                         bbox=fish["bbox"],
                         conf=fish["conf"],
+                        bbox_index=fish["bbox_index"],
+                        det_index=fish["det_index"],
                     )
                     for fish in frame["fish"]
                 ],

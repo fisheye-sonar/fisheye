@@ -59,6 +59,8 @@ class ARISBatchedDataset(BaseDataset):
             thesystemtype=info.get("thesystemtype", 0),
             largelens=info.get("largelens", 0),
             numframes=info.get("numframes", 0),
+            unwarped_shape=info.get("unwarped_shape", (0, 0)),
+            beam_width_data=info.get("beam_width_data", None),
         )
 
     def load_frames(self, start_frame, end_frame, return_unwarped=False):

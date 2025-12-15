@@ -59,6 +59,6 @@ class ImageDataset(BaseDataset):
         frames = [cv2.imread(path) for path in frame_paths]
 
         if self.do_bg_subtract:
-            frames = self._apply_bg_subtraction(np.array(frames))
+            frames = self._stack_preprocessed_channels(np.array(frames))
 
         return frames

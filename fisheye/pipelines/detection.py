@@ -1,25 +1,20 @@
-from functools import partial
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 import structlog
 import torch
 
-from fisheye.boxes import run_nms
+from fisheye.boxes import NMSProcessor
 from fisheye.common.generic import run_with_threads
 from fisheye.common.logging import log_progress
 from fisheye.configs import (
     YOLODatasetConfig,
-    ObjectDetectionPipelineOutput,
     ObjectDetectionConfig,
 )
-
+from fisheye.configs import NMSConfig, get_length_model_config
 from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
-
-# Add postprocessing methods to this registry
-POSTPROCESSING_REGISTRY = {
-    "nms": run_nms,
-}
+from fisheye.enums import LengthEstimatorType
+from fisheye.lengths.factory import create_length_estimator
 
 logger = structlog.get_logger()
 
@@ -34,7 +29,6 @@ class ObjectDetectionPipeline:
         self,
         model: Optional[BaseModel] = None,
         config: ObjectDetectionConfig = ObjectDetectionConfig(),
-        postprocessing_params: Dict[str, Any] = None,
         *args,
         **kwargs,
     ):
@@ -54,32 +48,10 @@ class ObjectDetectionPipeline:
 
         self.use_multithreading = config.use_multithreading
         self.max_workers = config.max_workers
-        self.postprocessing_steps = (
-            self._build_postprocessing_params(postprocessing_params)
-            if postprocessing_params
-            else postprocessing_params
-        )
-
-    def _build_postprocessing_params(self, postprocessing_params):
-        """Sanitizes postprocessing parameters to format them correctly."""
-        if not postprocessing_params:
-            return []
-        postprocessing_steps = []
-
-        for step_name, params in postprocessing_params.items():
-            processor = POSTPROCESSING_REGISTRY.get(step_name)
-            if not processor:
-                raise ValueError(f"Unknown postprocessing step: {step_name}")
-
-            if isinstance(params, list):
-                for p in params:
-                    if p:
-                        postprocessing_steps.append(partial(processor, nms_config=p))
-
-            else:
-                postprocessing_steps.append(partial(processor, nms_config=params))
-
-        return postprocessing_steps
+        self.nms_config = NMSConfig()
+        self.apply_nms_batchwise = config.apply_nms_batchwise
+        self.apply_length_estimates_batchwise = config.apply_length_estimates_batchwise
+        self.length_config = config.length_config
 
     def __call__(self, *args, **kwargs):
         """Executes the detection pipeline."""
@@ -101,30 +73,32 @@ class ObjectDetectionPipeline:
 
         return image
 
-    def postprocess(self, output):
-        """Process model output using configured postprocessing steps."""
-
-        processed_output = []
-        for step in self.postprocessing_steps:
-            step.keywords["pred_bboxes"] = output.pred_bboxes
-            step.keywords["image_meter_width"] = self.metadata.image_meter_width
-            step.keywords["image_pixel_width"] = output.width
-            step.keywords["batch_size"] = self.dataset.batch_size
-
-            # Append the result of each step to the list
-            processed_output.append(step(**step.keywords))
-
-        return processed_output if processed_output else output
-
-    def _forward(self, *args, **kwargs):
+    def _run_inference(self, *args, **kwargs):
         """Performs inference with optional multithreading."""
-        inference = []
-        image_shapes = []
-        width = None
-        height = None
+
+        nms_processor = None
+        all_low_preds, all_high_preds = {}, {}
+        low_preds, high_preds = {}, {}
+        all_low_length_estimates, all_high_length_estimates = {}, {}
+
+        if self.apply_length_estimates_batchwise and self.length_config:
+            self.length_config.device = self.device
+            self.length_estimator = create_length_estimator(
+                self.length_config, self.metadata
+            )
+        else:
+            self.length_estimator = None
+
+        if self.apply_nms_batchwise:
+            nms_processor = NMSProcessor(
+                self.nms_config, self.metadata, self.dataset.batch_size
+            )
 
         with torch.inference_mode():
-            for batch_idx, (img, _, shapes) in enumerate(self.dataloader):
+            for batch_idx, (img, _, shapes, original_img) in enumerate(self.dataloader):
+                if original_img is not None:
+                    original_img = original_img.to(self.device, non_blocking=True)
+
                 img = self.preprocess(img)
                 size = tuple(img.shape)
                 nb, _, height, width = size  # batch size, channels, height, width
@@ -132,22 +106,55 @@ class ObjectDetectionPipeline:
                 if self.use_multithreading:
                     # per image inference with multithreading
                     img_list = [img[i : i + 1] for i in range(img.shape[0])]
-                    inf_out = run_with_threads(self.model, img_list, self.max_workers)
+                    batch_out = run_with_threads(self.model, img_list, self.max_workers)
                     # Concatenate per sample predictions into a batched tensor [B, N, 6]
-                    inf_out = torch.cat(inf_out, dim=0)
+                    batch_out = torch.cat(batch_out, dim=0)
                 else:
                     # Batched inference - [B, N, 6]
-                    inf_out = self.model(img)
+                    batch_out = self.model(img)
 
                 torch.cuda.empty_cache()
 
                 # Save shapes for resizing to original shape
                 batch_shape = []
-                for si, pred in enumerate(inf_out):
+                for si, pred in enumerate(batch_out):
                     batch_shape.append((img[si].shape[1:], shapes[si]))
 
-                image_shapes.append(batch_shape)
-                inference.append(inf_out.cpu())
+                if nms_processor:
+                    low_preds, high_preds = nms_processor.run(
+                        batch_out.cpu(), batch_shape
+                    )
+
+                    all_low_preds.update(
+                        {
+                            (batch_idx, k[1]): v
+                            for i, (k, v) in enumerate(low_preds.items())
+                        }
+                    )
+                    all_high_preds.update(
+                        {
+                            (batch_idx, k[1]): v
+                            for i, (k, v) in enumerate(high_preds.items())
+                        }
+                    )
+
+                if self.length_estimator and original_img is not None:
+                    low_length_estimates = self.length_estimator.run(
+                        original_img, low_preds
+                    )
+                    low_length_estimates = {
+                        (batch_idx, k): v for k, v in low_length_estimates.items()
+                    }
+
+                    all_low_length_estimates.update(low_length_estimates)
+
+                    high_length_estimates = self.length_estimator.run(
+                        original_img, high_preds
+                    )
+                    high_length_estimates = {
+                        (batch_idx, k): v for k, v in high_length_estimates.items()
+                    }
+                    all_high_length_estimates.update(high_length_estimates)
 
                 log_progress(
                     logger,
@@ -156,14 +163,21 @@ class ObjectDetectionPipeline:
                     prefix="Detector progress | ",
                 )
 
-        return inference, image_shapes, width, height
+        return (
+            all_low_preds,
+            all_high_preds,
+            all_low_length_estimates,
+            all_high_length_estimates,
+        )
 
-    def run(self, *args, **kwargs):
+    def run(self, *args, **kwargs) -> Tuple[Dict, Dict, Dict, Dict]:
         """Executes the detection pipeline end-to-end.
 
         Returns:
-            List[Any]: Processed detection results.
+            Tuple[Dict, Dict]: (low_preds, high_preds) dictionaries from batchwise NMS.
         """
-        output = ObjectDetectionPipelineOutput(*self._forward(*args, **kwargs))
+        low_preds, high_preds, low_length_estimates, high_length_estimates = (
+            self._run_inference(*args, **kwargs)
+        )
 
-        return output if not self.postprocessing_steps else self.postprocess(output)
+        return low_preds, high_preds, low_length_estimates, high_length_estimates

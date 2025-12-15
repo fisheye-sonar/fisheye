@@ -5,8 +5,6 @@ from typing import Optional, List, Union
 import structlog
 
 from fisheye.boxes import (
-    run_nms,
-    normalize_boxes_for_tracking,
     mean_bbox_width_yolo_to_image,
     median_bbox_width_yolo_to_image,
     std_bbox_width_yolo_to_image,
@@ -14,11 +12,13 @@ from fisheye.boxes import (
 from fisheye.common.generic import safe_execution
 from fisheye.common.file_system import get_valid_files
 from fisheye.configs import YOLODatasetConfig
-from fisheye.configs.inference import TrackerConfig, NMSConfig
+from fisheye.configs.inference import TrackerConfig, LengthEstimationConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
 from fisheye.export import save_to_disk, MOTExporter
+from fisheye.export.constants import FC_DEFAULT_LENGTH_CM
 from fisheye.format import tracker_output_to_dict_rows, dict_rows_to_mot_format
+from fisheye.lengths.processor import LengthProcessor
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
 
@@ -36,8 +36,8 @@ class DetectTrackCountPipeline:
     ):
         self.detect_pipe = detect_pipe
         self.tracker_cfg = tracker_cfg if tracker_cfg else TrackerConfig()
-        self.nms_config = NMSConfig()
         self.dataset_cfg = dataset_cfg if dataset_cfg else YOLODatasetConfig()
+        self.length_cfg = LengthEstimationConfig()
 
     @safe_execution(default_return=[], max_retries=3, delay=2)
     def _run(
@@ -60,44 +60,10 @@ class DetectTrackCountPipeline:
         )
 
         self.detect_pipe.load_dataset(self.dataset_cfg)
-        detections = self.detect_pipe()
+        low_preds, high_preds, low_length_estimates, high_length_estimates = (
+            self.detect_pipe()
+        )
         metadata = self.detect_pipe.metadata
-
-        # Get low confidence for ByteTrack
-        self.nms_config.conf = 0.1
-        low_output = run_nms(
-            detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
-            metadata.image_meter_width,
-            detections.width,
-            self.dataset_cfg.batch_size,
-            self.nms_config,
-        )
-
-        # Get high confidence for ByteTrack
-        self.nms_config.conf = 0.3
-        high_output = run_nms(
-            detections.pred_bboxes,  # xyxy format relative to YOLO pixel space
-            metadata.image_meter_width,
-            detections.width,
-            self.dataset_cfg.batch_size,
-            self.nms_config,
-        )
-
-        # Prepare bounding boxes for tracking pipeline
-        low_preds, og_width, og_height = normalize_boxes_for_tracking(
-            detections.image_shape,
-            low_output,  # xyxy format relative to YOLO pixel space
-            detections.width,
-            detections.height,
-            batch_size=self.dataset_cfg.batch_size,
-        )
-        high_preds, og_width, og_height = normalize_boxes_for_tracking(
-            detections.image_shape,
-            high_output,  # xyxy format relative to YOLO pixel space
-            detections.width,
-            detections.height,
-            batch_size=self.dataset_cfg.batch_size,
-        )
 
         tracker_output = run_tracker(
             low_preds,  # xyxy format relative to the original image pixel space
@@ -106,6 +72,22 @@ class DetectTrackCountPipeline:
             metadata.image_meter_height,
             self.tracker_cfg,
         )
+
+        len_outputs = self._estimate_lengths(
+            tracker_output,
+            low_length_estimates,
+            high_length_estimates,
+        )
+
+        if len_outputs:
+            num_fish_with_lengths = sum(
+                1 for v in len_outputs.values() if v is not None
+            )
+            logger.info(
+                "length_estimation_complete",
+                total_fish=len(len_outputs),
+                fish_with_valid_lengths=num_fish_with_lengths,
+            )
 
         formatted_yolo_tracks = tracker_output_to_dict_rows(asdict(tracker_output))
 
@@ -135,21 +117,33 @@ class DetectTrackCountPipeline:
                     "Source.Name": Path(file).name,
                     "Frame#": frame,
                     "Dir": "Up" if upstream_direction == "left" else "Down",
-                    "ID": track,
+                    "ID": track_id,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
+                    "L(cm)": round(
+                        len_outputs.get(track_id, {}).get(
+                            "filtered_lengths_cm", FC_DEFAULT_LENGTH_CM
+                        ),
+                        2,
+                    ),
                 }
-                for track, frame, bbox in crossing_frames["left"]
+                for track_id, frame, bbox in crossing_frames["left"]
             ] + [
                 {
                     "Source.Name": Path(file).name,
                     "Frame#": frame,
                     "Dir": "Up" if upstream_direction == "right" else "Down",
-                    "ID": track,
+                    "ID": track_id,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
+                    "L(cm)": round(
+                        len_outputs.get(track_id, {}).get(
+                            "filtered_lengths_cm", FC_DEFAULT_LENGTH_CM
+                        ),
+                        2,
+                    ),
                 }
-                for track, frame, bbox in crossing_frames["right"]
+                for track_id, frame, bbox in crossing_frames["right"]
             ]
 
             # TODO (MHV): Try/except is temporary until this logic has been tested more vigorously
@@ -194,6 +188,7 @@ class DetectTrackCountPipeline:
                     "ID": None,
                     "bbox": None,
                     "metadata": metadata,
+                    "L(cm)": None,
                 }
             ]
 
@@ -213,6 +208,56 @@ class DetectTrackCountPipeline:
         )
 
         return formatted_crossings
+
+    def _estimate_lengths(
+        self,
+        tracker_output,
+        low_length_estimates,
+        high_length_estimates,
+    ):
+        """Estimate fish lengths.
+
+        Returns:
+            Dict mapping fish_id to length estimate dict (or None if estimation disabled)
+        """
+
+        if not hasattr(self.detect_pipe, "apply_length_estimates_batchwise"):
+            logger.warning(
+                "no_lengths",
+                message="Length estimator not configured in detection pipeline",
+            )
+            return {}
+
+        if not self.detect_pipe.apply_length_estimates_batchwise:
+            logger.warning(
+                "no_lengths",
+                message="Length estimation disabled (batchwise mode required)",
+            )
+            return {}
+
+        if not low_length_estimates and not high_length_estimates:
+            logger.warning(
+                "no_lengths",
+                message="No length estimates available from detection pipeline",
+            )
+            return {}
+
+        processor = LengthProcessor(self.length_cfg, self.detect_pipe.metadata)
+
+        frames_preds = asdict(tracker_output)["frames"]
+        len_outputs = processor.process_from_tracks(
+            frames_preds,
+            low_length_estimates,
+            high_length_estimates,
+            self.dataset_cfg.batch_size,
+        )
+
+        len_outputs_dict = {
+            fish_id: asdict(estimate) if estimate is not None else None
+            for fish_id, estimate in len_outputs.items()
+        }
+
+        return len_outputs_dict
 
     def run(
         self,
