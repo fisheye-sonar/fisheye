@@ -412,49 +412,33 @@ class XMLExporter(BaseInferenceExporter):
                 if not world_points:
                     continue
 
-                first_point, second_point = world_points[0], world_points[1]
+                left_point, right_point = world_points[:2]
 
+                # Figure out point order so first node is always length=0
                 if self.upstream_direction == "left":
-                    ET.SubElement(
-                        marked,
-                        "FishMeasureNode",
-                        {
-                            "WorldPointX": f"{second_point[0]}",
-                            "WorldPointY": f"{second_point[1]}",
-                            "Length": "0",
-                        },
-                    )
-
-                    ET.SubElement(
-                        marked,
-                        "FishMeasureNode",
-                        {
-                            "WorldPointX": f"{first_point[0]}",
-                            "WorldPointY": f"{first_point[1]}",
-                            "Length": f'{d["L(cm)"]}',
-                        },
-                    )
-
+                    zero_point, length_point = right_point, left_point
                 else:
-                    ET.SubElement(
-                        marked,
-                        "FishMeasureNode",
-                        {
-                            "WorldPointX": f"{first_point[0]}",
-                            "WorldPointY": f"{first_point[1]}",
-                            "Length": "0",
-                        },
-                    )
+                    zero_point, length_point = left_point, right_point
 
-                    ET.SubElement(
-                        marked,
-                        "FishMeasureNode",
-                        {
-                            "WorldPointX": f"{second_point[0]}",
-                            "WorldPointY": f"{second_point[1]}",
-                            "Length": f'{d["L(cm)"]}',
-                        },
-                    )
+                ET.SubElement(
+                    marked,
+                    "FishMeasureNode",
+                    {
+                        "WorldPointX": f"{zero_point[0]}",
+                        "WorldPointY": f"{zero_point[1]}",
+                        "Length": "0",
+                    },
+                )
+
+                ET.SubElement(
+                    marked,
+                    "FishMeasureNode",
+                    {
+                        "WorldPointX": f"{length_point[0]}",
+                        "WorldPointY": f"{length_point[1]}",
+                        "Length": f'{d["L(cm)"]}',
+                    },
+                )
 
         tree = ET.ElementTree(root)
 
