@@ -1,5 +1,6 @@
 import os
 import re
+import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
@@ -146,6 +147,7 @@ class SummaryCSVExporter(BaseInferenceExporter):
     """Export counts to summary CSV format."""
 
     def export(self, data: List[List[Dict]]) -> None:
+        df = self._prepare_dataframe(data)
         flattened_data = [item for sublist in data if sublist for item in sublist]
         if not flattened_data:
             logger.warning(
@@ -372,6 +374,68 @@ class MOTExporter(BaseInferenceExporter):
         logger.info("exported_mot_txt", output_dir=out_path)
 
 
+class XMLExporter(BaseInferenceExporter):
+    """Export measurements to XML format."""
+
+    def __init__(
+        self,
+        output_dir: str,
+        job_id: Optional[str] = None,
+        distance_offset: float = 0.0,
+        filename: Optional[str] = None,
+    ):
+        super().__init__(output_dir, job_id, distance_offset)
+        self.filename = filename
+
+    def export(self, data: List[Dict]) -> None:
+
+        root = ET.Element("MarkedFishMeasurements")
+
+        # Flatten outer list
+        for sublist in data:
+            for d in sublist:
+                world_points = d.get("WorldPoints", [])
+
+                if not world_points:
+                    continue  # skip if no points
+
+                output_path = os.path.join(
+                    self.output_dir, f"FC_{d.get('Source.Name')}_ID_.xml"
+                )
+
+                marked = ET.SubElement(
+                    root,
+                    "MarkedFishMeasurement",
+                    {
+                        "FishID": str(d["ID"]),
+                        "FrameIndex": str(d["Frame#"]),
+                    },
+                )
+
+                for p in d["WorldPoints"]:
+                    ET.SubElement(
+                        marked,
+                        "FishMeasureNode",
+                        {
+                            "WorldPointX": f"{p[0]}",
+                            "WorldPointY": f"{p[1]}",
+                            "Length": f'{d["L(cm)"]}',
+                        },
+                    )
+
+        tree = ET.ElementTree(root)
+
+        output_path = Path(output_path)
+
+        tree.write(
+            output_path,
+            encoding="utf-8",
+            xml_declaration=True,
+        )
+
+        logger.info("exported_xml", output_dir=output_path)
+
+
 def get_exporter(
     export_type: Union[ExportType, str],
     output_dir: str,
@@ -399,6 +463,9 @@ def get_exporter(
         return MOTExporter(
             output_dir, job_id, distance_offset, filename=kwargs.get("filename")
         )
+
+    elif export_type == ExportType.XML:
+        return XMLExporter(output_dir, job_id, distance_offset)
 
     else:
         raise ValueError(f"Unsupported export type: {export_type}")

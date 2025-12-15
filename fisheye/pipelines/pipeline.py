@@ -120,6 +120,9 @@ class DetectTrackCountPipeline:
                     "ID": track_id,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
+                    "WorldPoints": len_outputs.get(track_id, {}).get(
+                        "global_coords_px"
+                    ),  # Global world points head/tail for ARISFish software
                     "L(cm)": round(
                         len_outputs.get(track_id, {}).get(
                             "filtered_lengths_cm", FC_DEFAULT_LENGTH_CM
@@ -136,6 +139,9 @@ class DetectTrackCountPipeline:
                     "ID": track_id,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
+                    "WorldPoints": len_outputs.get(track_id, {}).get(
+                        "global_coords_px"
+                    ),  # Global world points head/tail for ARISFish software
                     "L(cm)": round(
                         len_outputs.get(track_id, {}).get(
                             "filtered_lengths_cm", FC_DEFAULT_LENGTH_CM
@@ -188,6 +194,7 @@ class DetectTrackCountPipeline:
                     "ID": None,
                     "bbox": None,
                     "metadata": metadata,
+                    "WorldPoints": None,
                     "L(cm)": None,
                 }
             ]
