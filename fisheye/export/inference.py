@@ -51,9 +51,37 @@ class BaseInferenceExporter(ABC):
         self.timestamp = datetime.now().strftime("%Y-%m-%d")
         self.job_suffix = f"_{job_id}" if job_id else ""
 
+    @staticmethod
+    def _flatten_list(data: List[List[Dict]]) -> List:
+        """Flattens lists to process easier."""
+        flattened_data = [item for sublist in data if sublist for item in sublist]
+        if not flattened_data:
+            return []
+
+        return flattened_data
+
+    @staticmethod
+    def _has_data_to_export(data: Union[List, pd.DataFrame]) -> bool:
+        """Return True if data contains exportable entries."""
+        is_empty = (
+            data is None
+            or (isinstance(data, pd.DataFrame) and data.empty)
+            or (isinstance(data, list) and len(data) == 0)
+        )
+
+        if is_empty:
+            logger.warning(
+                "no_data_to_export",
+                message="No counts were found in the provided data. Nothing to export.",
+            )
+            return False
+
+        return True
+
     def _prepare_dataframe(self, data: List[List[Dict]]) -> Optional[pd.DataFrame]:
         """Flattens data and prepares DataFrame with common fields."""
-        flattened_data = [item for sublist in data if sublist for item in sublist]
+        flattened_data = self._flatten_list(data)
+
         if not flattened_data:
             return None
 
@@ -101,10 +129,7 @@ class DetailedCSVExporter(BaseInferenceExporter):
 
     def export(self, data: List[List[Dict]]) -> None:
         df = self._prepare_dataframe(data)
-        if df is None or df.empty:
-            logger.warning(
-                "No counts were found in the provided data. Nothing to export."
-            )
+        if not self._has_data_to_export(df):
             return
 
         stem = Path(str(df.iloc[0]["Source.Name"])).stem
@@ -151,12 +176,8 @@ class SummaryCSVExporter(BaseInferenceExporter):
     """Export counts to summary CSV format."""
 
     def export(self, data: List[List[Dict]]) -> None:
-        df = self._prepare_dataframe(data)
-        flattened_data = [item for sublist in data if sublist for item in sublist]
-        if not flattened_data:
-            logger.warning(
-                "No counts were found in the provided data. Nothing to export."
-            )
+        flattened_data = self._flatten_list(data)
+        if not self._has_data_to_export(flattened_data):
             return
 
         out_file = os.path.join(
@@ -220,10 +241,7 @@ class FCExporter(BaseInferenceExporter):
 
     def export(self, data: List[List[Dict]]) -> None:
         df = self._prepare_dataframe(data)
-        if df is None or df.empty:
-            logger.warning(
-                "No counts were found in the provided data. Nothing to export."
-            )
+        if not self._has_data_to_export(df):
             return
 
         title = "*** Manual Marking (Manual Sizing: Q = Quality, N = Repeat Count) ***"
@@ -379,7 +397,7 @@ class MOTExporter(BaseInferenceExporter):
 
 
 class XMLExporter(BaseInferenceExporter):
-    """Export measurements to XML format."""
+    """Export head/tail measurements to XML format."""
 
     def __init__(
         self,
@@ -387,65 +405,69 @@ class XMLExporter(BaseInferenceExporter):
         job_id: Optional[str] = None,
         distance_offset: float = 0.0,
         upstream_direction: Optional[str] = None,
-        filename: Optional[str] = None,
     ):
         super().__init__(output_dir, job_id, distance_offset)
-        self.filename = filename
         self.upstream_direction = upstream_direction
 
-    def export(self, data: List[Dict]) -> None:
+    def export(self, data: List[List[Dict]]) -> None:
+        flattened_data = self._flatten_list(data)
+
         root = ET.Element("MarkedFishMeasurements")
 
-        # Flatten outer list
-        for sublist in data:
-            for d in sublist:
-                output_path = os.path.join(
-                    self.output_dir, f"FC_{d.get('Source.Name')}_ID_.xml"
-                )
+        for d in flattened_data:
+            output_path = os.path.join(
+                self.output_dir, f"FC_{d.get('Source.Name')}_ID_.xml"
+            )
 
-                marked = ET.SubElement(
-                    root,
-                    "MarkedFishMeasurement",
-                    {
-                        "FishID": str(d.get("ID", 0)),
-                        "FrameIndex": str(d.get("Frame#", 0)),
-                    },
-                )
+            marked = ET.SubElement(
+                root,
+                "MarkedFishMeasurement",
+                {
+                    "FishID": str(d.get("ID", 0)),
+                    "FrameIndex": str(d.get("Frame#", 0)),
+                },
+            )
 
-                global_coords_px = d.get("global_coords_px", [])
-                if not global_coords_px:
-                    continue
+            global_coords_px = d.get("global_coords_px", [])
+            if not global_coords_px:
+                continue
 
-                world_points = convert_pixels_to_coords_meters(
-                    np.array(global_coords_px), d["metadata"]
-                )
-                left_point, right_point = world_points[:2]
+            world_points = convert_pixels_to_coords_meters(
+                np.array(global_coords_px), d["metadata"]
+            )
+            left_point, right_point = world_points[:2]
 
-                # Figure out point order so first node is always length=0
-                if self.upstream_direction == "left":
+            # Figure out point order so first node is always length=0
+            if self.upstream_direction == "left":
+                if d["Dir"] == "Up":
                     zero_point, length_point = right_point, left_point
                 else:
                     zero_point, length_point = left_point, right_point
+            else:
+                if d["Dir"] == "Up":
+                    zero_point, length_point = left_point, right_point
+                else:
+                    zero_point, length_point = right_point, left_point
 
-                ET.SubElement(
-                    marked,
-                    "FishMeasureNode",
-                    {
-                        "WorldPointX": f"{zero_point[0]}",
-                        "WorldPointY": f"{zero_point[1]}",
-                        "Length": "0",
-                    },
-                )
+            ET.SubElement(
+                marked,
+                "FishMeasureNode",
+                {
+                    "WorldPointX": f"{zero_point[0]}",
+                    "WorldPointY": f"{zero_point[1]}",
+                    "Length": "0",
+                },
+            )
 
-                ET.SubElement(
-                    marked,
-                    "FishMeasureNode",
-                    {
-                        "WorldPointX": f"{length_point[0]}",
-                        "WorldPointY": f"{length_point[1]}",
-                        "Length": f'{d["L(cm)"]}',
-                    },
-                )
+            ET.SubElement(
+                marked,
+                "FishMeasureNode",
+                {
+                    "WorldPointX": f"{length_point[0]}",
+                    "WorldPointY": f"{length_point[1]}",
+                    "Length": f'{d["L(cm)"]}',
+                },
+            )
 
         tree = ET.ElementTree(root)
 
@@ -465,7 +487,7 @@ def get_exporter(
     output_dir: str,
     job_id: str,
     distance_offset: float = 0.0,
-    upstream_direction: Optional[str] = None,
+    upstream_direction: str = "left",
     **kwargs,
 ):
     """Factory to create exporters."""
@@ -502,7 +524,7 @@ def save_to_disk(
     export_types: Union[List[ExportType], ExportType],
     job_id: str,
     distance_offset: Union[int, float],
-    upstream_direction: Optional[str] = None,
+    upstream_direction: str,
 ) -> None:
     """Save results to disk using configured exporters."""
     if not results or all(len(sublist) == 0 for sublist in results):

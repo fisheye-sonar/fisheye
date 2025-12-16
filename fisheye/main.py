@@ -108,6 +108,7 @@ def run_pipeline(cfg: DictConfig):
                 export_types=ExportType.SUMMARY_CSV,
                 job_id=job_id,
                 distance_offset=distance_offset,
+                upstream_direction=upstream_direction,
             )
 
     end_time = time.time()

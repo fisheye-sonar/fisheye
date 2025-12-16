@@ -1,3 +1,5 @@
+from typing import List, Union
+
 import numpy as np
 import pandas as pd
 
@@ -214,7 +216,7 @@ def get_unwarped_distance_and_theta(row: pd.Series):
 
 
 def convert_pixels_to_coords_meters(
-    coords_px: np.ndarray, metadata: ARISMetadata
+    coords_px: Union[np.ndarray, List], metadata: ARISMetadata
 ) -> np.ndarray:
     """Convert image pixel coords to ARIS world (meter) coords.
 
@@ -225,6 +227,9 @@ def convert_pixels_to_coords_meters(
     Returns:
         [N, 2] array of (x, y) meter coordinates
     """
+    if isinstance(coords_px, list):
+        coords_px = np.array(coords_px)
+
     x_aris_max = metadata.x_meter_stop
     x_aris_min = metadata.x_meter_start
     y_aris_max = metadata.y_meter_start
