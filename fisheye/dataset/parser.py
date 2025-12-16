@@ -5,7 +5,8 @@ from typing import Any, Dict, List, Union
 import numpy as np
 
 from fisheye.common.file_system import find_aris_xml_files
-from fisheye.dataset.utils import coords_meters_to_pixels, get_bbox_with_padding
+from fisheye.dataset.utils import get_bbox_with_padding
+from fisheye.utils import convert_coords_meters_to_pixels
 
 
 def etree_to_dict(el: ET.Element) -> Dict[str, Any]:
@@ -99,7 +100,7 @@ def get_box_data_from_xml(
         frame_idx = int(entry["@FrameIndex"])
         fish_id = int(entry["@FishID"])
         coords = _parse_nodes(entry["FishMeasureNode"])
-        coords_px = coords_meters_to_pixels(coords, metadata)
+        coords_px = convert_coords_meters_to_pixels(coords, metadata)
         x_start, y_start, x_stop, y_stop = get_bbox_with_padding(
             coords_px,
             padding,

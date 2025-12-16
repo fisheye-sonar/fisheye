@@ -25,7 +25,7 @@ class LengthEstimate:
     filtered_lengths_cm: float  # Mean of filtered estimates (NaN if none passed)
     num_filtered: int  # Number of estimates that passed filters
     frame_id_closest_to_mean: Optional[int]  # Frame with estimate closest to mean
-    coords_px: Optional[List]  # Keypoint coordinates for best estimate
+    global_coords_px: Optional[List]  # Keypoint coordinates for best estimate
 
 
 class LengthProcessor:
@@ -225,5 +225,5 @@ class LengthProcessor:
             filtered_lengths_cm=filter_result.filtered_mean_length_cm,
             num_filtered=filter_result.num_passed,
             frame_id_closest_to_mean=frame_id_closest,
-            coords_px=coords,
+            global_coords_px=coords,
         )

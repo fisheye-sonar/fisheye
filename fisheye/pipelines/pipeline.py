@@ -120,6 +120,9 @@ class DetectTrackCountPipeline:
                     "ID": track_id,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
+                    "global_coords_px": len_outputs.get(track_id, {}).get(
+                        "global_coords_px"
+                    ),
                     "L(cm)": round(
                         len_outputs.get(track_id, {}).get(
                             "filtered_lengths_cm", FC_DEFAULT_LENGTH_CM
@@ -136,6 +139,9 @@ class DetectTrackCountPipeline:
                     "ID": track_id,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
                     "metadata": metadata,
+                    "global_coords_px": len_outputs.get(track_id, {}).get(
+                        "global_coords_px"
+                    ),
                     "L(cm)": round(
                         len_outputs.get(track_id, {}).get(
                             "filtered_lengths_cm", FC_DEFAULT_LENGTH_CM
@@ -188,6 +194,7 @@ class DetectTrackCountPipeline:
                     "ID": None,
                     "bbox": None,
                     "metadata": metadata,
+                    "global_coords_px": None,
                     "L(cm)": None,
                 }
             ]
@@ -205,6 +212,7 @@ class DetectTrackCountPipeline:
             export_types=remaining_export_types,
             job_id=job_id,
             distance_offset=distance_offset,
+            upstream_direction=upstream_direction,
         )
 
         return formatted_crossings

@@ -1,8 +1,10 @@
+from typing import List, Union
+
 import numpy as np
 import pandas as pd
 
+from fisheye.configs.datasets import BEAM_WIDTH_DIR, ARISMetadata
 from fisheye.dataloaders.didson import pyARIS
-from fisheye.configs.datasets import BEAM_WIDTH_DIR
 
 
 def calculate_unwarped_points(points, info, xdim, ydim):
@@ -211,3 +213,55 @@ def get_unwarped_distance_and_theta(row: pd.Series):
     )
 
     return distance, theta
+
+
+def convert_pixels_to_coords_meters(
+    coords_px: Union[np.ndarray, List], metadata: ARISMetadata
+) -> np.ndarray:
+    """Convert image pixel coords to ARIS world (meter) coords.
+
+    Args:
+        coords_px: [N, 2] array of (x, y) pixel coordinates
+        metadata: ARISMetadata object containing spatial configuration
+
+    Returns:
+        [N, 2] array of (x, y) meter coordinates
+    """
+    if isinstance(coords_px, list):
+        coords_px = np.array(coords_px)
+
+    x_aris_max = metadata.x_meter_stop
+    x_aris_min = metadata.x_meter_start
+    y_aris_max = metadata.y_meter_start
+    y_aris_min = metadata.y_meter_stop
+
+    xdim = int(metadata.xdim)
+    ydim = int(metadata.ydim)
+
+    coords_m = coords_px.copy().astype(float)
+    coords_m[:, 0] = (coords_px[:, 0] / xdim) * (x_aris_max - x_aris_min) + x_aris_min
+    coords_m[:, 1] = y_aris_max - (coords_px[:, 1] / ydim) * (y_aris_max - y_aris_min)
+
+    return coords_m
+
+
+def convert_coords_meters_to_pixels(coords: np.ndarray, metadata: dict):
+    """Convert ARIS world coords to pixel coords."""
+    x_aris_max = metadata["x_meter_stop"]
+    x_aris_min = metadata["x_meter_start"]
+    y_aris_max = metadata["y_meter_start"]
+    y_aris_min = metadata["y_meter_stop"]
+
+    xdim = int(metadata["xdim"])
+    ydim = int(metadata["ydim"])
+
+    # Convert to pixel space
+    x = (xdim) * (coords[:, 0] - x_aris_min) / (x_aris_max - x_aris_min)
+    y = (ydim) * (y_aris_max - coords[:, 1]) / (y_aris_max - y_aris_min)
+
+    # Clip to valid pixel ranges
+    coords_px = np.rint(np.stack((x, y), axis=1)).astype(np.int64)
+    coords_px[:, 0] = np.clip(coords_px[:, 0], 0, xdim - 1)
+    coords_px[:, 1] = np.clip(coords_px[:, 1], 0, ydim - 1)
+
+    return coords_px

@@ -25,6 +25,7 @@ class ExportType(str, Enum):
     DETAILED_CSV = "detailed_csv"
     FC = "fc"
     MOT = "mot"
+    XML = "xml"
 
 
 class DeviceType(str, Enum):
