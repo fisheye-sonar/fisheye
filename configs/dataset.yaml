@@ -1,11 +1,14 @@
 # Configuration for dataset creation
 
 # Required paths (must be provided via CLI or overrides)
-aris_dir:
-xml_dir:
-out_dir:
+# aris_dir: "/home/mahobley/Code/fisheye-dev/data/klamath/aris"
+aris_dir: "/media/mahobley/PortableSSD/klamath_aris/"
+# xml_dir: "/home/mahobley/Code/fisheye-dev/data/klamath/Klamath_2024_annotation_files"
+xml_dir: "/home/mahobley/Data/klamath/Klamath_2024_annotation_files/"
+out_dir: "/home/mahobley/Code/fisheye/xml_dataset"
+
 
 # Dataset export options
-dataset_format: yolo  # See other options in DATASET_EXPORTER_REGISTRY
+dataset_format: multi  # See other options in DATASET_EXPORTER_REGISTRY
 padding: 0.1
 min_padding_px: 30
