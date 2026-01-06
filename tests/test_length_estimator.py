@@ -117,7 +117,6 @@ def test_run(estimator):
     pred_bboxes = {(0, 0): [[0.1, 0.1, 0.2, 0.2]]}
     bgs_3_channel = False
     result = estimator.run(frames_batch, pred_bboxes)
-    print(estimator.get_length_estimates.call_args)
     assert result == {"result": "ok"}
     estimator.get_length_estimates.assert_called_once_with(
         frames_batch, pred_bboxes, bgs_3_channel=bgs_3_channel
