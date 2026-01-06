@@ -15,6 +15,7 @@ from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
 from fisheye.enums import LengthEstimatorType
 from fisheye.lengths.factory import create_length_estimator
+from tqdm import tqdm
 
 logger = structlog.get_logger()
 
@@ -95,7 +96,11 @@ class ObjectDetectionPipeline:
             )
 
         with torch.inference_mode():
-            for batch_idx, (img, _, shapes, original_img) in enumerate(self.dataloader):
+            for batch_idx, (img, _, shapes, original_img) in tqdm(
+                enumerate(self.dataloader),
+                total=len(self.dataloader),
+                desc="Processing batches",
+            ):
                 if original_img is not None:
                     original_img = original_img.to(self.device, non_blocking=True)
 

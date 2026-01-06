@@ -1,12 +1,12 @@
 defaults:
-  - platform: cpu  # Update with different YAML if you have another platform or different optimized configs
+  - platform: cuda  # Update with different YAML if you have another platform or different optimized configs
   - override hydra/hydra_logging: none
   - override hydra/job_logging: none
 
 
 # Add CLI-overridable arguments here, no need to add paths within quotes
-input_path:
-output_dir:
-export_options: ["summary_csv", "detailed_csv", "fc"]
+input_path: /media/mahobley/PortableSSD/klamath_aris/2024-10-17_000000.aris
+output_dir: /home/mahobley/Code/fisheye/
+export_options: []
 upstream_direction: left
 distance_offset: 0

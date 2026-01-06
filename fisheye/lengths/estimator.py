@@ -40,6 +40,8 @@ class UNetLengthEstimator(BaseLengthEstimator):
 
         self.plot_pred_kpts = False
 
+        self.bgs_3_channel = self.config.bgs_3_channel
+
         self.model = get_model(
             model_type=self.config.type,
             model_input_channels=self.config.input_channels,
@@ -181,7 +183,7 @@ class UNetLengthEstimator(BaseLengthEstimator):
 
         return outputs
 
-    def get_pred_from_batch(self, crop_info, frames_batch):
+    def get_pred_from_batch(self, crop_info, frames_batch, bgs_3_channel=True):
 
         len_outputs = {}
 
@@ -198,25 +200,32 @@ class UNetLengthEstimator(BaseLengthEstimator):
 
                 prev_ind = max(0, frame_num - 1)
                 next_ind = min(len(frames_batch) - 1, frame_num + 1)
-                frames = torch.stack(
-                    [
-                        frames_batch[prev_ind],
-                        frames_batch[frame_num],
-                        frames_batch[next_ind],
-                    ],
-                    dim=0,
-                )
 
-                # MAH 2025-11-26 10:57:42 this is taking the middle (bgs) channel maybe we try a different training
-                # strategy that aligns with our existing pipeline
-                frames_bgs = frames[:, 1]
+                if bgs_3_channel:
+                    frames = torch.stack(
+                        [
+                            frames_batch[prev_ind],
+                            frames_batch[frame_num],
+                            frames_batch[next_ind],
+                        ],
+                        dim=0,
+                    )
 
-                frames_bgs -= 255 / 2
-                frames_bgs[frames_bgs < 0] = 0
-                frames_bgs /= torch.max(frames_bgs)
-                frames_bgs = frames_bgs.unsqueeze(0)
+                    # MAH 2025-11-26 10:57:42 this is taking the middle (bgs) channel maybe we try a different training
+                    # strategy that aligns with our existing pipeline
+                    frames_bgs = frames[:, 1]
+
+                    frames_bgs -= 255 / 2
+                    frames_bgs[frames_bgs < 0] = 0
+                    frames_bgs /= torch.max(frames_bgs)
+                    frames_bgs = frames_bgs.unsqueeze(0)
+                    frames_to_run = frames_bgs
+                else:
+                    # MAH 2025-12-19 16:11:40 could be that we can actually run the model on all the frames in the batch in one go not in a for loop
+                    frames_to_run = frames_batch[frame_num].unsqueeze(0)
+
                 pred_infos = self.get_pred_from_img(
-                    frames_bgs,
+                    frames_to_run,
                     crop_ltrbs=crop_ltrbs,
                 )
                 len_outputs[frame_num] = pred_infos
@@ -225,7 +234,9 @@ class UNetLengthEstimator(BaseLengthEstimator):
 
     def run(self, frames_batch, pred_bboxes):
         """Run the model on a batch of frames and predicted bounding boxes."""
-        return self.get_length_estimates(frames_batch, pred_bboxes)
+        return self.get_length_estimates(
+            frames_batch, pred_bboxes, bgs_3_channel=self.config.bgs_3_channel
+        )
 
     def get_crop_info(self, pred_bboxes_batch):
         crop_info = []
@@ -261,12 +272,13 @@ class UNetLengthEstimator(BaseLengthEstimator):
             )
         return crop_info
 
-    def get_length_estimates(self, frames_batch, pred_bboxes_batch):
+    def get_length_estimates(self, frames_batch, pred_bboxes_batch, bgs_3_channel=True):
         """Get length estimates from the model for a batch of frames and predicted bounding boxes."""
         crop_info = self.get_crop_info(pred_bboxes_batch)
 
         pred_len_outputs = self.get_pred_from_batch(
             crop_info,
             frames_batch,
+            bgs_3_channel=bgs_3_channel,
         )
         return pred_len_outputs

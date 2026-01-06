@@ -1,5 +1,5 @@
 dataset:
-  batch_size: 32
+  batch_size: 2
   workers: 10  # For dataloader
   use_multithreading: false
   max_workers: 2  # For multithreading
@@ -7,7 +7,7 @@ dataset:
 
 model:
   type: yolov5
-  weights: weights/cfc_detect_yolov5s_v0.pt
+  weights: weights/cfc_detect_yolov5s_v1.pt
   device: cuda:0
 
 inference:
@@ -17,4 +17,4 @@ inference:
   apply_length_estimates_batchwise: true
   length_config:
     type: unet
-    weights: null
+    weights: "/home/mahobley/Code/fisheye_dev/head_tail/checkpoints/crop_after_model_madis_dataset_near_fish/model_best.pth"

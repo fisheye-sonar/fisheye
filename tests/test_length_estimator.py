@@ -87,7 +87,7 @@ def test_get_pred_from_batch(estimator):
         {"frame_num": 1, "crop_ltrbs": []},  # No crops for second frame
     ]
 
-    outputs = estimator.get_pred_from_batch(crop_info, frames_batch)
+    outputs = estimator.get_pred_from_batch(crop_info, frames_batch, bgs_3_channel=True)
 
     assert 0 in outputs
     assert 1 not in outputs
@@ -115,11 +115,13 @@ def test_run(estimator):
 
     frames_batch = [torch.randn(3, 100, 100)]
     pred_bboxes = {(0, 0): [[0.1, 0.1, 0.2, 0.2]]}
-
+    bgs_3_channel = False
     result = estimator.run(frames_batch, pred_bboxes)
-
+    print(estimator.get_length_estimates.call_args)
     assert result == {"result": "ok"}
-    estimator.get_length_estimates.assert_called_once_with(frames_batch, pred_bboxes)
+    estimator.get_length_estimates.assert_called_once_with(
+        frames_batch, pred_bboxes, bgs_3_channel=bgs_3_channel
+    )
 
 
 def test_factory_creation(mock_metadata, mock_config):

@@ -1,4 +1,5 @@
 #!/bin/bash
 
 
-poetry run python fisheye/main.py
+CUDA_VISIBLE_DEVICES=1 poetry run python fisheye/main.py
+# poetry run python fisheye/main.py

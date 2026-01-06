@@ -21,6 +21,10 @@ class BaseLengthModelConfig(BaseModelConfig):
     crop_after_model: bool = False
     padd_for_receptive_field: int = 100
     additional_bbox_padding_px: int = 25
+    # bgs_3_channel: bool = True # MAH 2025-12-19 16:12:40 if true uses the 3 channel bgs image for the length model input otherwise uses the normal 1 channel image
+    bgs_3_channel: bool = (
+        False  # MAH 2025-12-19 16:12:40 if true uses the 3 channel bgs image for the length model input otherwise uses the normal 1 channel image
+    )
 
 
 @dataclass
