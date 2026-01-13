@@ -11,23 +11,7 @@ import pandas as pd
 import structlog
 
 from fisheye.enums import ExportType
-from fisheye.export.constants import (
-    FC_DEFAULT_LENGTH_CM,
-    FC_DEFAULT_DR_CM,
-    FC_DEFAULT_L_OVER_R,
-    FC_DEFAULT_ASPECT,
-    FC_DEFAULT_TIME,
-    FC_DEFAULT_LATITUDE,
-    FC_DEFAULT_LONGITUDE,
-    FC_DEFAULT_PAN,
-    FC_DEFAULT_TILT,
-    FC_DEFAULT_ROLL,
-    FC_DEFAULT_SPECIES,
-    FC_DEFAULT_MOTION,
-    FC_DEFAULT_QUALITY,
-    FC_DEFAULT_REPEAT_COUNT,
-    FC_DEFAULT_COMMENT,
-)
+from fisheye.export.schema import FC_SCHEMA
 from fisheye.utils import (
     get_unwarped_distance_and_theta,
     convert_pixels_to_coords_meters,
@@ -245,59 +229,13 @@ class FCExporter(BaseInferenceExporter):
             return
 
         title = "*** Manual Marking (Manual Sizing: Q = Quality, N = Repeat Count) ***"
-        headers = [
-            "File",
-            "Total",
-            "Frame#",
-            "Dir",
-            "R (m)",
-            "Theta",
-            "L(cm)",
-            "dR(cm)",
-            "L/dR",
-            "Aspect",
-            "Time",
-            "Date",
-            "Latitude",
-            "Longitude",
-            "Pan",
-            "Tilt",
-            "Roll",
-            "Species",
-            "Motion",
-            "Q",
-            "N",
-            "Comment",
-        ]
 
-        col_width = 2
-        header_line = "  ".join(f"{h:<{col_width}}" for h in headers)
+        headers = list(FC_SCHEMA)
+        column_widths = {k: v.width for k, v in FC_SCHEMA.items()}
+        defaults = {k: v.default for k, v in FC_SCHEMA.items()}
+
+        header_line = "".join(f"{h:>{column_widths[h]}}" for h in headers)
         separator_line = "-" * len(header_line)
-
-        # Set default values for missing columns
-        defaults = {
-            "File": 1,
-            "Total": 0,  # Calculated per group
-            "Frame#": 0,
-            "Dir": "",
-            "R (m)": 0.0,
-            "Theta": 0.0,
-            "L(cm)": FC_DEFAULT_LENGTH_CM,
-            "dR(cm)": FC_DEFAULT_DR_CM,
-            "L/dR": FC_DEFAULT_L_OVER_R,
-            "Aspect": FC_DEFAULT_ASPECT,
-            "Time": FC_DEFAULT_TIME,
-            "Latitude": FC_DEFAULT_LATITUDE,
-            "Longitude": FC_DEFAULT_LONGITUDE,
-            "Pan": FC_DEFAULT_PAN,
-            "Tilt": FC_DEFAULT_TILT,
-            "Roll": FC_DEFAULT_ROLL,
-            "Species": FC_DEFAULT_SPECIES,
-            "Motion": FC_DEFAULT_MOTION,
-            "Q": FC_DEFAULT_QUALITY,
-            "N": FC_DEFAULT_REPEAT_COUNT,
-            "Comment": FC_DEFAULT_COMMENT,
-        }
 
         for file_name, group_df in df.groupby("Source.Name"):
             match = re.search(r"(\d{4}-\d{2}-\d{2})", file_name)
@@ -330,12 +268,14 @@ class FCExporter(BaseInferenceExporter):
                 # Select only header columns in order
                 export_df = group_df[headers]
 
-                # Convert to string and pad
-                rows = [
-                    "  ".join(f"{str(val):<10}" for val in row)
-                    for row in export_df.values
-                ]
-                lines.extend(r + "\n" for r in rows)
+                for row in export_df.itertuples(index=False):
+                    lines.append(
+                        "".join(
+                            f"{str(val):>{column_widths[headers[i]]}}"
+                            for i, val in enumerate(row)
+                        )
+                        + "\n"
+                    )
 
             file_stem = Path(str(file_name)).stem
             out_file = os.path.join(self.output_dir, f"FCe_{file_stem}_ID_.txt")

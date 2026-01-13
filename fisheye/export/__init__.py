@@ -5,4 +5,5 @@ from .inference import (
     FCExporter,
     MOTExporter,
     parse_export_options,
+    FC_SCHEMA,
 )
