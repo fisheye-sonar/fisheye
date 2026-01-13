@@ -15,8 +15,7 @@ from fisheye.configs import YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, LengthEstimationConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
-from fisheye.export import save_to_disk, MOTExporter
-from fisheye.export.schema import FC_SCHEMA
+from fisheye.export import save_to_disk, MOTExporter, FC_SCHEMA
 from fisheye.format import tracker_output_to_dict_rows, dict_rows_to_mot_format
 from fisheye.lengths.processor import LengthProcessor
 from fisheye.pipelines import ObjectDetectionPipeline
