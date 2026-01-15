@@ -11,7 +11,7 @@ import pandas as pd
 import structlog
 
 from fisheye.enums import ExportType
-from fisheye.export.schema import FC_SCHEMA
+from fisheye.export.schema import FC_SCHEMA, get_zero_and_length_points
 from fisheye.utils import (
     get_unwarped_distance_and_theta,
     convert_pixels_to_coords_meters,
@@ -355,9 +355,8 @@ class XMLExporter(BaseInferenceExporter):
         root = ET.Element("MarkedFishMeasurements")
 
         for d in flattened_data:
-            output_path = os.path.join(
-                self.output_dir, f"FC_{d.get('Source.Name')}_ID_.xml"
-            )
+            source_name = Path(d.get("Source.Name")).stem
+            output_path = os.path.join(self.output_dir, f"FCe_{source_name}_ID_.xml")
 
             marked = ET.SubElement(
                 root,
@@ -377,17 +376,10 @@ class XMLExporter(BaseInferenceExporter):
             )
             left_point, right_point = world_points[:2]
 
-            # Figure out point order so first node is always length=0
-            if self.upstream_direction == "left":
-                if d["Dir"] == "Up":
-                    zero_point, length_point = right_point, left_point
-                else:
-                    zero_point, length_point = left_point, right_point
-            else:
-                if d["Dir"] == "Up":
-                    zero_point, length_point = left_point, right_point
-                else:
-                    zero_point, length_point = right_point, left_point
+            # Figure out point order so first point is always length=0 (head)
+            zero_point, length_point = get_zero_and_length_points(
+                self.upstream_direction, d["Dir"], left_point, right_point
+            )
 
             ET.SubElement(
                 marked,

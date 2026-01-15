@@ -66,6 +66,10 @@ def run_pipeline(cfg: DictConfig):
     runtime_config = dict(platform_cfg.inference)
     if "length_config" in runtime_config:
         length_cfg_dict = dict(runtime_config["length_config"])
+        if length_cfg_dict["weights"]:
+            length_cfg_dict["weights"] = (
+                project_root / length_cfg_dict["weights"]
+            ).resolve()
         model_type = length_cfg_dict.pop("type", LengthEstimatorType.UNET.value)
         runtime_config["length_config"] = get_length_model_config(
             model_type, **length_cfg_dict

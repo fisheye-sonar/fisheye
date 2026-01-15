@@ -453,3 +453,128 @@ def test_detect_track_count_pipeline_integration():
 
         # Verify length processor was called
         mock_processor.process_from_tracks.assert_called_once()
+
+
+def test_formatted_crossings_frame_fallback():
+    """Test that Frame# falls back to crossing frame when frame_id_closest_to_mean is missing.
+
+    Specific testing this logic in pipelines/pipeline.py:
+        "Frame#": len_outputs.get(track_id, {}).get("frame_id_closest_to_mean", frame)
+
+    Three scenarios:
+    1. len_outputs has frame_id_closest_to_mean -> use it
+    2. len_outputs missing track_id entirely -> fall back to crossing frame
+    3. len_outputs has track_id but missing frame_id_closest_to_mean -> fall back to crossing frame
+    """
+
+    # Mock detection pipeline
+    detect_pipe = MagicMock()
+    detect_pipe.metadata.image_meter_width = 1.0
+    detect_pipe.metadata.image_meter_height = 1.0
+    detect_pipe.metadata.xdim = 1920
+    detect_pipe.metadata.ydim = 1080
+    detect_pipe.apply_length_estimates_batchwise = True
+
+    # Mock detection output
+    detect_pipe.return_value = (
+        {(0, 0): torch.tensor([[100, 100, 200, 200, 0.9, 0]])},  # low_preds
+        {},  # high_preds
+        {(0, 0): {0: {"pred_kpts_global_px": [[100, 100], [200, 200]]}}},  # low_lengths
+        {},  # high_lengths
+    )
+
+    pipeline = DetectTrackCountPipeline(detect_pipe=detect_pipe)
+
+    with patch.object(pipeline, "_estimate_lengths") as mock_estimate_lengths, patch(
+        "fisheye.pipelines.pipeline.run_tracker"
+    ) as mock_run_tracker, patch(
+        "fisheye.pipelines.pipeline.Count"
+    ) as MockCount, patch(
+        "fisheye.pipelines.pipeline.save_to_disk"
+    ), patch(
+        "fisheye.pipelines.pipeline.asdict"
+    ) as mock_asdict, patch(
+        "fisheye.pipelines.pipeline.tracker_output_to_dict_rows"
+    ) as mock_tracker_to_dict:
+
+        # Set up the len_outputs with our three test scenarios
+        mock_estimate_lengths.return_value = {
+            # Scenario 1: Has frame_id_closest_to_mean (should use 42)
+            1: {
+                "filtered_lengths_cm": 15.0,
+                "frame_id_closest_to_mean": 42,
+                "global_coords_px": [[100, 100], [200, 200]],
+            },
+            # Scenario 2: Missing frame_id_closest_to_mean (should fall back to crossing frame)
+            2: {
+                "filtered_lengths_cm": 20.0,
+                "global_coords_px": [[150, 150], [250, 250]],
+            },
+            # Scenario 3: track_id 3 is completely missing from len_outputs
+        }
+
+        mock_tracker_output = TrackerOutput(
+            start_frame=0,
+            end_frame=1,
+            image_meter_width=1.0,
+            image_meter_height=1.0,
+            frames=[],
+            metadata=[],
+        )
+        mock_run_tracker.return_value = mock_tracker_output
+
+        # Return a dict representation of the tracker output
+        mock_asdict.return_value = {
+            "frames": [],
+            "start_frame": 0,
+            "end_frame": 1,
+            "image_meter_width": 1.0,
+            "image_meter_height": 1.0,
+            "metadata": [],
+        }
+
+        # Mock tracker output to dict rows
+        mock_tracker_to_dict.return_value = []
+
+        # Mock crossing frames with different track IDs and frame numbers
+        MockCount.return_value.count.return_value = (
+            (3, 0),  # 3 left crossings, 0 right
+            {
+                "left": [
+                    (1, 10, [100, 100, 100, 100]),  # track_id=1, frame=10
+                    (2, 20, [150, 150, 100, 100]),  # track_id=2, frame=20
+                    (
+                        3,
+                        30,
+                        [200, 200, 100, 100],
+                    ),  # track_id=3, frame=30 (not in len_outputs)
+                ],
+                "right": [],
+            },
+        )
+
+        result = pipeline._run(file="dummy.aris", output_dir=".")
+
+        # Verify we got 3 crossings
+        assert len(result) == 3
+
+        # Scenario 1: track_id=1 should use frame_id_closest_to_mean=42
+        crossing_1 = next(c for c in result if c["ID"] == 1)
+        assert crossing_1["Frame#"] == 42, (
+            f"Expected Frame# to be 42 (from frame_id_closest_to_mean), "
+            f"but got {crossing_1['Frame#']}"
+        )
+
+        # Scenario 2: track_id=2 should fall back to crossing frame=20
+        crossing_2 = next(c for c in result if c["ID"] == 2)
+        assert crossing_2["Frame#"] == 20, (
+            f"Expected Frame# to fall back to crossing frame 20, "
+            f"but got {crossing_2['Frame#']}"
+        )
+
+        # Scenario 3: track_id=3 should fall back to crossing frame=30
+        crossing_3 = next(c for c in result if c["ID"] == 3)
+        assert crossing_3["Frame#"] == 30, (
+            f"Expected Frame# to fall back to crossing frame 30, "
+            f"but got {crossing_3['Frame#']}"
+        )
