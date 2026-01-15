@@ -42,7 +42,7 @@ def create_length_estimator(
         )
         return None
 
-    weights = Path(weights)
+    weights = Path(weights).resolve()
     if not weights.exists():
         logger.warning(
             "weights_path_not_found",

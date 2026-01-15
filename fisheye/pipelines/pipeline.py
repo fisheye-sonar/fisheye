@@ -114,7 +114,9 @@ class DetectTrackCountPipeline:
             formatted_crossings = [
                 {
                     "Source.Name": Path(file).name,
-                    "Frame#": frame,
+                    "Frame#": len_outputs.get(track_id, {}).get(
+                        "frame_id_closest_to_mean", frame
+                    ),
                     "Dir": "Up" if upstream_direction == "left" else "Down",
                     "ID": track_id,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
@@ -133,7 +135,9 @@ class DetectTrackCountPipeline:
             ] + [
                 {
                     "Source.Name": Path(file).name,
-                    "Frame#": frame,
+                    "Frame#": len_outputs.get(track_id, {}).get(
+                        "frame_id_closest_to_mean", frame
+                    ),
                     "Dir": "Up" if upstream_direction == "right" else "Down",
                     "ID": track_id,
                     "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space

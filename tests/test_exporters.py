@@ -215,11 +215,11 @@ def test_xml_with_sample_data(tmp_path):
     nodes1 = m1.findall("FishMeasureNode")
     assert len(nodes1) == 2
     assert nodes1[0].attrib["Length"] == "0"
-    assert nodes1[0].attrib["WorldPointX"] == str(world_coords1[1][0])
-    assert nodes1[0].attrib["WorldPointY"] == str(world_coords1[1][1])
+    assert nodes1[0].attrib["WorldPointX"] == str(world_coords1[0][0])
+    assert nodes1[0].attrib["WorldPointY"] == str(world_coords1[0][1])
     assert nodes1[1].attrib["Length"] == "60"
-    assert nodes1[1].attrib["WorldPointX"] == str(world_coords1[0][0])
-    assert nodes1[1].attrib["WorldPointY"] == str(world_coords1[0][1])
+    assert nodes1[1].attrib["WorldPointX"] == str(world_coords1[1][0])
+    assert nodes1[1].attrib["WorldPointY"] == str(world_coords1[1][1])
 
     # Second measurement
     m2 = measurements[1]
@@ -229,8 +229,8 @@ def test_xml_with_sample_data(tmp_path):
     nodes2 = m2.findall("FishMeasureNode")
     assert len(nodes2) == 2
     assert nodes2[0].attrib["Length"] == "0"  # [[600, 700], [703, 826]],
-    assert nodes2[0].attrib["WorldPointX"] == str(world_coords2[0][0])
-    assert nodes2[0].attrib["WorldPointY"] == str(world_coords2[0][1])
+    assert nodes2[0].attrib["WorldPointX"] == str(world_coords2[1][0])
+    assert nodes2[0].attrib["WorldPointY"] == str(world_coords2[1][1])
     assert nodes2[1].attrib["Length"] == "80"
-    assert nodes2[1].attrib["WorldPointX"] == str(world_coords2[1][0])
-    assert nodes2[1].attrib["WorldPointY"] == str(world_coords2[1][1])
+    assert nodes2[1].attrib["WorldPointX"] == str(world_coords2[0][0])
+    assert nodes2[1].attrib["WorldPointY"] == str(world_coords2[0][1])
