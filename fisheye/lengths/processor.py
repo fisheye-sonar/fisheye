@@ -7,9 +7,10 @@ for tracked fish across video frames.
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+import numpy as np
 import structlog
 
-from fisheye.configs.inference import LengthEstimationConfig
+from fisheye.configs.inference import LengthEstimationConfig, FishSizeConfig
 from fisheye.lengths.filters import LengthFilter
 from fisheye.lengths.measure_utils import get_cone_edges
 
@@ -62,12 +63,36 @@ class LengthProcessor:
             cone_eq_params_right[1],  # br
         )
 
+    def _is_valid_fish_size(
+        self,
+        estimate: LengthEstimate,
+        min_length_m: float,
+        max_length_m: float,
+    ) -> bool:
+        """Check if fish passes biological size constraints."""
+        if np.isnan(estimate.filtered_lengths_cm):
+            return False
+
+        length_m = estimate.filtered_lengths_cm / 100.0
+
+        # Check min length
+        if length_m < min_length_m:
+            return False
+
+        # Check maximum (only if enabled)
+        if max_length_m > 0 and length_m > max_length_m:
+            return False
+
+        return True
+
     def process_from_tracks(
         self,
         frames_preds: List[Dict],
         low_length_estimates: Optional[Dict] = None,
         high_length_estimates: Optional[Dict] = None,
         batch_size: int = 1,
+        min_length_m: float = FishSizeConfig.min_length,
+        max_length_m: float = FishSizeConfig.max_length,
     ) -> Dict[int, LengthEstimate]:
         """Process length estimates from tracking predictions.
 
@@ -76,6 +101,8 @@ class LengthProcessor:
             low_length_estimates: Optional dict of low-confidence length estimates
             high_length_estimates: Optional dict of high-confidence length estimates
             batch_size: Batch size used during detection
+            min_length_m: Minimum length of fish in meters
+            max_length_m: Maximum length of fish in meters
 
         Returns:
             Dictionary mapping fish_id to LengthEstimate
@@ -95,7 +122,12 @@ class LengthProcessor:
         # Process each fish
         len_outputs = {}
         for fish_id, data in all_length_estimates.items():
-            len_outputs[fish_id] = self._process_single_fish(fish_id, data)
+            estimate = self._process_single_fish(fish_id, data)
+            # Filter by biological size constraints
+            if estimate is not None and self._is_valid_fish_size(
+                estimate, min_length_m, max_length_m
+            ):
+                len_outputs[fish_id] = estimate
 
         return len_outputs
 

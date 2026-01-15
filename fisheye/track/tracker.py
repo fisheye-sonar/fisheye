@@ -1,5 +1,5 @@
 import json
-from collections import Counter
+from collections import Counter, defaultdict
 from copy import deepcopy
 
 import numpy as np
@@ -99,7 +99,6 @@ class Tracker:
             )
         new_frame_entries = sorted(new_frame_entries, key=lambda k: k["fish_id"])
 
-        new_frame_entries = sorted(new_frame_entries, key=lambda k: k["fish_id"])
         self.json_data["frames"].append(
             {"frame_num": self.frame_id, "fish": new_frame_entries}
         )
@@ -113,88 +112,127 @@ class Tracker:
         min_length,
         min_travel,
         output_path=None,
-    ):  # vert_margin=0.0
-        json_data = deepcopy(self.json_data)
+    ):
+        # Determine valid fish IDs based on min_hits threshold
+        valid_fish_ids = {
+            fish_id
+            for fish_id, count in self.fish_ids.items()
+            if count >= self.min_hits
+        }
 
-        # map (valid) fish IDs to 0, 1, 2, ...
-        fish_id_map = {}
-        for fish_id, count in self.fish_ids.items():
-            if count >= self.min_hits:
-                fish_id_map[fish_id] = len(fish_id_map)
+        # Early return if no valid tracks
+        if not valid_fish_ids:
+            result = {
+                **self.json_data,
+                "fish": [],
+                "frames": [
+                    {"frame_num": frame["frame_num"], "fish": []}
+                    for frame in self.json_data["frames"]
+                ],
+            }
+            if output_path is not None:
+                with open(output_path, "w") as output:
+                    json.dump(result, output, indent=2)
+            return result
 
-        # separate frame boxes into tracks, keyed by mapped IDs
-        # each track is a list of tuples ( bbox, frame_num )
-        tracks = {v: [] for v in fish_id_map.values()}
-        for frame in json_data["frames"]:
-            for bbox in frame["fish"]:
-                # check if valid
-                if bbox["fish_id"] in fish_id_map.keys():
-                    track_id = fish_id_map[bbox["fish_id"]]
-                    tracks[track_id].append(
+        tracks = defaultdict(list)
+
+        for frame in self.json_data["frames"]:
+            for bbox_data in frame["fish"]:
+                fish_id = bbox_data["fish_id"]
+                if fish_id in valid_fish_ids:
+                    tracks[fish_id].append(
                         {
-                            "bbox": bbox["bbox"],
+                            "bbox": bbox_data["bbox"],
                             "frame_num": frame["frame_num"],
-                            "bbox_index": bbox["bbox_index"],
-                            "det_index": bbox["det_index"],
+                            "bbox_index": bbox_data["bbox_index"],
+                            "det_index": bbox_data["det_index"],
                         }
                     )
 
-        # map IDs and keep frame['fish'] sorted by ID
-        for frame in json_data["frames"]:
-            new_frame_entries = []
-            for frame_entry in frame["fish"]:
-                if frame_entry["fish_id"] in fish_id_map:
-                    frame_entry["fish_id"] = fish_id_map[frame_entry["fish_id"]]
-                    new_frame_entries.append(frame_entry)
-            frame["fish"] = sorted(new_frame_entries, key=lambda k: k["fish_id"])
+        # Create ID mapping (valid fish IDs -> 0, 1, 2, ...)
+        fish_id_map = {
+            old_id: new_id for new_id, old_id in enumerate(sorted(valid_fish_ids))
+        }
 
-        # create summary 'fish' entry for json data
-        json_data["fish"] = []
-        for track_id, boxes in tracks.items():
-            fish_entry = {"id": track_id, "length": -1}
-
+        # Build fish summary with metrics
+        fish_summary = []
+        for old_id, boxes in tracks.items():
+            track_id = fish_id_map[old_id]
             start_bbox = boxes[0]["bbox"]
             end_bbox = boxes[-1]["bbox"]
 
-            fish_entry["travel_dist"] = FishMetrics.get_travel_distance(
-                start_bbox,
-                end_bbox,
-                json_data["image_meter_width"],
-                json_data["image_meter_height"],
+            fish_entry = {
+                "id": track_id,
+                "length": -1,  # Will be populated by add_lengths
+                "travel_dist": FishMetrics.get_travel_distance(
+                    start_bbox,
+                    end_bbox,
+                    self.json_data["image_meter_width"],
+                    self.json_data["image_meter_height"],
+                ),
+                "start_frame_index": boxes[0]["frame_num"],
+                "end_frame_index": boxes[-1]["frame_num"],
+            }
+            fish_summary.append(fish_entry)
+
+        # Sort by track ID for consistency
+        fish_summary.sort(key=lambda x: x["id"])
+
+        # Add length estimates
+        result = {
+            **self.json_data,
+            "fish": fish_summary,
+        }
+        result = FishMetrics.add_lengths(result)
+
+        # Determine which IDs to keep after length/travel filtering
+        if min_length != -1.0:
+            valid_track_ids = {
+                fish["id"]
+                for fish in result["fish"]
+                # if fish["length"] > min_length and fish["travel_dist"] > min_travel
+                if fish["travel_dist"] > min_travel
+            }
+            result["fish"] = [
+                fish for fish in result["fish"] if fish["id"] in valid_track_ids
+            ]
+        else:
+            valid_track_ids = {fish["id"] for fish in result["fish"]}
+
+        # PASS 2: Remap and filter frames in a single pass
+        # This combines the old remapping pass and filtering pass
+        filtered_frames = []
+        for frame in self.json_data["frames"]:
+            filtered_fish = []
+            for bbox_data in frame["fish"]:
+                old_id = bbox_data["fish_id"]
+                if old_id in fish_id_map:
+                    new_id = fish_id_map[old_id]
+                    if new_id in valid_track_ids:
+                        filtered_fish.append(
+                            {
+                                **bbox_data,
+                                "fish_id": new_id,
+                            }
+                        )
+
+            # Keep fish sorted by ID
+            filtered_fish.sort(key=lambda x: x["fish_id"])
+            filtered_frames.append(
+                {
+                    "frame_num": frame["frame_num"],
+                    "fish": filtered_fish,
+                }
             )
 
-            fish_entry["start_frame_index"] = boxes[0]["frame_num"]
-            fish_entry["end_frame_index"] = boxes[-1]["frame_num"]
+        result["frames"] = filtered_frames
 
-            json_data["fish"].append(fish_entry)
-
-        # filter 'fish' field by fish length and travel distance
-        json_data = FishMetrics.add_lengths(json_data)
-        invalid_ids = []
-        if min_length != -1.0:
-            new_fish = []
-            for fish in json_data["fish"]:
-                if fish["length"] > min_length and fish["travel_dist"] > min_travel:
-                    new_fish.append(fish)
-                else:
-                    invalid_ids.append(fish["id"])
-            json_data["fish"] = new_fish
-
-        # filter 'frames' field by fish length
-        if len(invalid_ids):
-            for frame in json_data["frames"]:
-                new_fish = []
-                for fish in frame["fish"]:
-                    if fish["fish_id"] not in invalid_ids:
-                        new_fish.append(fish)
-                # MAH 2025-11-26 16:00:01 TODO check if this line does anything?
-                frame["fish"] = new_fish
-
-        if output_path is not None:
+        if output_path:
             with open(output_path, "w") as output:
-                json.dump(json_data, output, indent=2)
+                json.dump(result, output, indent=2)
 
-        return json_data
+        return result
 
 
 def run_tracker(
