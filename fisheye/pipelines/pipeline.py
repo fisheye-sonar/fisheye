@@ -15,8 +15,12 @@ from fisheye.configs import YOLODatasetConfig
 from fisheye.configs.inference import TrackerConfig, LengthEstimationConfig
 from fisheye.count.counter import Count
 from fisheye.enums import ExportType, UpstreamDirectionTypes
-from fisheye.export import save_to_disk, MOTExporter, FC_SCHEMA
-from fisheye.format import tracker_output_to_dict_rows, dict_rows_to_mot_format
+from fisheye.export import save_to_disk, MOTExporter
+from fisheye.format import (
+    tracker_output_to_dict_rows,
+    dict_rows_to_mot_format,
+    format_single_crossing,
+)
 from fisheye.lengths.processor import LengthProcessor
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.track.tracker import run_tracker
@@ -110,54 +114,34 @@ class DetectTrackCountPipeline:
         )
 
         if crossing_frames and (left_count or right_count):
-            # Using the same naming conventions in ARISFish Software
             formatted_crossings = [
-                {
-                    "Source.Name": Path(file).name,
-                    "Frame#": len_outputs.get(track_id, {}).get(
-                        "frame_id_closest_to_mean", frame
-                    ),
-                    "Dir": "Up" if upstream_direction == "left" else "Down",
-                    "ID": track_id,
-                    "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
-                    "metadata": metadata,
-                    "global_coords_px": len_outputs.get(track_id, {}).get(
-                        "global_coords_px"
-                    ),
-                    "L(cm)": round(
-                        len_outputs.get(track_id, {}).get(
-                            "filtered_lengths_cm", FC_SCHEMA["L(cm)"].default
-                        ),
-                        2,
-                    ),
-                }
+                format_single_crossing(
+                    Path(file).name,
+                    metadata,
+                    track_id,
+                    frame,
+                    bbox,
+                    upstream_direction,
+                    "left",
+                    len_outputs,
+                )
                 for track_id, frame, bbox in crossing_frames["left"]
             ] + [
-                {
-                    "Source.Name": Path(file).name,
-                    "Frame#": len_outputs.get(track_id, {}).get(
-                        "frame_id_closest_to_mean", frame
-                    ),
-                    "Dir": "Up" if upstream_direction == "right" else "Down",
-                    "ID": track_id,
-                    "bbox": bbox,  # [x_center, y_center, width, height] relative to original image space
-                    "metadata": metadata,
-                    "global_coords_px": len_outputs.get(track_id, {}).get(
-                        "global_coords_px"
-                    ),
-                    "L(cm)": round(
-                        len_outputs.get(track_id, {}).get(
-                            "filtered_lengths_cm", FC_SCHEMA["L(cm)"].default
-                        ),
-                        2,
-                    ),
-                }
+                format_single_crossing(
+                    Path(file).name,
+                    metadata,
+                    track_id,
+                    frame,
+                    bbox,
+                    upstream_direction,
+                    "right",
+                    len_outputs,
+                )
                 for track_id, frame, bbox in crossing_frames["right"]
             ]
 
             # TODO (MHV): Try/except is temporary until this logic has been tested more vigorously
             try:
-                formated_yolo_tracks = None
                 # Extract unique track IDs
                 unique_ids = {row["id"] for row in formatted_yolo_tracks}
                 num_tracks = len(unique_ids)
@@ -189,18 +173,7 @@ class DetectTrackCountPipeline:
                 pass
 
         else:
-            formatted_crossings = [
-                {
-                    "Source.Name": Path(file).name,
-                    "Frame#": None,
-                    "Dir": None,
-                    "ID": None,
-                    "bbox": None,
-                    "metadata": metadata,
-                    "global_coords_px": None,
-                    "L(cm)": None,
-                }
-            ]
+            formatted_crossings = [format_single_crossing(Path(file).name, metadata)]
 
             logger.warning("no_counts", file_path=str(file))
 

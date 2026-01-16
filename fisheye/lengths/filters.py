@@ -108,7 +108,7 @@ class LengthFilter:
         mean_length_cm = float(np.mean(pred_lens_cm))
 
         if num_passed == 0:
-            filtered_mean_length_cm = np.nan
+            filtered_mean_length_cm = None
             closest_to_mean_idx = None
         else:
             filtered_lengths = [

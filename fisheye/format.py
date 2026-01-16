@@ -1,5 +1,8 @@
 from typing import Union, Dict, List
 
+from fisheye.configs.datasets import ARISMetadata
+from fisheye.export import FC_SCHEMA
+
 
 def tracker_output_to_dict_rows(data: Dict):
     """Convert tracker output containing bounding boxes from original image space in [x1, y1, x2, y2] format to
@@ -113,3 +116,62 @@ def dict_rows_to_mot_format(rows: List[Dict], img_width, img_height) -> List[Dic
         row["z"] = -1  # Ignore and fill with -1
 
     return rows
+
+
+def format_single_crossing(
+    filename: str,
+    metadata: ARISMetadata,
+    track_id: int = None,
+    frame: int = None,
+    bbox: list = None,
+    upstream_direction: str = None,
+    crossing_direction: str = None,
+    len_outputs: dict = None,
+) -> dict:
+    """Format a single crossing event for export.
+
+    This uses the same naming conventions in ARISFish Software
+
+    Args:
+        filename: Source file name
+        metadata: ARIS metadata
+        track_id: Fish track ID
+        frame: Frame number where crossing occurred. If frame_id_closest_to_mean doesn't exist, default to using
+        the frame identified in the Counter.
+        bbox: Bounding box coordinates [x_center, y_center, width, height] relative to original image space
+        upstream_direction: Upstream direction setting. Value from UpstreamDirectionTypes
+        crossing_direction: Which side the fish crossed ("left" or "right")
+        len_outputs: Length estimation results
+
+    Returns:
+        Formatted crossing dictionary
+    """
+    if track_id is None:
+        return {
+            "Source.Name": filename,
+            "Frame#": None,
+            "Dir": None,
+            "ID": None,
+            "bbox": None,
+            "metadata": metadata,
+            "global_coords_px": None,
+            "L(cm)": None,
+        }
+
+    len_outputs = len_outputs or {}
+
+    return {
+        "Source.Name": filename,
+        "Frame#": len_outputs.get(track_id, {}).get("frame_id_closest_to_mean")
+        or frame,
+        "Dir": "Up" if upstream_direction == crossing_direction else "Down",
+        "ID": track_id,
+        "bbox": bbox,
+        "metadata": metadata,
+        "global_coords_px": len_outputs.get(track_id, {}).get("global_coords_px"),
+        "L(cm)": round(
+            len_outputs.get(track_id, {}).get("filtered_lengths_cm")
+            or FC_SCHEMA["L(cm)"].default,
+            2,
+        ),
+    }
