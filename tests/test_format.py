@@ -60,7 +60,7 @@ class TestFormatCrossingEvent:
             frame=100,
             bbox=[0.5, 0.5, 0.1, 0.1],
             upstream_direction="left",
-            direction="left",
+            crossing_direction="left",
             len_outputs=sample_len_outputs,
         )
 
@@ -84,7 +84,7 @@ class TestFormatCrossingEvent:
             frame=195,
             bbox=[0.6, 0.6, 0.15, 0.15],
             upstream_direction="right",
-            direction="left",
+            crossing_direction="left",
             len_outputs=sample_len_outputs,
         )
 
@@ -104,7 +104,7 @@ class TestFormatCrossingEvent:
             frame=500,
             bbox=[0.7, 0.7, 0.2, 0.2],
             upstream_direction="left",
-            direction="right",
+            crossing_direction="right",
             len_outputs=len_outputs,
         )
 
@@ -125,7 +125,7 @@ class TestFormatCrossingEvent:
             frame=300,
             bbox=[0.8, 0.8, 0.1, 0.1],
             upstream_direction="left",
-            direction="left",
+            crossing_direction="left",
             len_outputs=sample_len_outputs,
         )
 
@@ -150,7 +150,7 @@ class TestFormatCrossingEvent:
             frame=100,
             bbox=[0.5, 0.5, 0.1, 0.1],
             upstream_direction="left",
-            direction="left",
+            crossing_direction="left",
             len_outputs=len_outputs,
         )
 
@@ -165,7 +165,7 @@ class TestFormatCrossingEvent:
             frame=100,
             bbox=[0.5, 0.5, 0.1, 0.1],
             upstream_direction="left",
-            direction="left",
+            crossing_direction="left",
             len_outputs=None,
         )
 
@@ -190,7 +190,7 @@ class TestFormatCrossingEvent:
                 frame=100,
                 bbox=[0.5, 0.5, 0.1, 0.1],
                 upstream_direction=upstream,
-                direction=crossing,
+                crossing_direction=crossing,
                 len_outputs=sample_len_outputs,
             )
 

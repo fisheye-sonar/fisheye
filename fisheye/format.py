@@ -125,7 +125,7 @@ def format_single_crossing(
     frame: int = None,
     bbox: list = None,
     upstream_direction: str = None,
-    direction: str = None,
+    crossing_direction: str = None,
     len_outputs: dict = None,
 ) -> dict:
     """Format a single crossing event for export.
@@ -140,7 +140,7 @@ def format_single_crossing(
         the frame identified in the Counter.
         bbox: Bounding box coordinates [x_center, y_center, width, height] relative to original image space
         upstream_direction: Upstream direction setting. Value from UpstreamDirectionTypes
-        direction: Which side the fish crossed ("left" or "right")
+        crossing_direction: Which side the fish crossed ("left" or "right")
         len_outputs: Length estimation results
 
     Returns:
@@ -164,7 +164,7 @@ def format_single_crossing(
         "Source.Name": filename,
         "Frame#": len_outputs.get(track_id, {}).get("frame_id_closest_to_mean")
         or frame,
-        "Dir": "Up" if upstream_direction == direction else "Down",
+        "Dir": "Up" if upstream_direction == crossing_direction else "Down",
         "ID": track_id,
         "bbox": bbox,
         "metadata": metadata,
