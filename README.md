@@ -12,7 +12,7 @@ FishEye is a Python library for automated fish counting from imaging sonar data 
 
   * Recommend using [pyenv](https://github.com/pyenv/pyenv) for Python and virtual environment management
 * **Poetry**: [https://python-poetry.org/docs/](https://python-poetry.org/docs/) (dependency management & packaging)
-
+* **PyTorch/torchvision**: If using CUDA, you may need to install a different PyTorch wheel for your CUDA version. Refer to [PyTorch Get Started](https://pytorch.org/get-started/locally/) for the correct installation command.
 ---
 
 ### Environment Setup
