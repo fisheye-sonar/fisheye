@@ -261,4 +261,4 @@ The builder produces:
 ---
 
 ## Did you find a bug?
-If you're experiencing a bug or unexpected behavior in the FishEye software, please follow the steps below to [submit an issue in GitHub](https://github.com/fisheye-sonar/fisheye/issues/new?template=bug_report.md). This helps us identify and fix the issue quickly.
+If you're experiencing a bug or unexpected behavior in the FishEye software, please [submit an issue in GitHub](https://github.com/fisheye-sonar/fisheye/issues/new?template=bug_report.md). This helps us identify and fix the issue quickly.
