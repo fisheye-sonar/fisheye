@@ -8,7 +8,7 @@ FishEye is a Python library for automated fish counting from imaging sonar data 
 
 ### Requirements
 
-* **Python**: 3.10.14
+* **Python**: 3.10.14 (or 3.8 for NVIDIA Jetson)
 
   * Recommend using [pyenv](https://github.com/pyenv/pyenv) for Python and virtual environment management
 * **Poetry**: [https://python-poetry.org/docs/](https://python-poetry.org/docs/) (dependency management & packaging)
