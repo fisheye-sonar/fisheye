@@ -57,24 +57,16 @@ class DIDSON:
         big_ydim = self.info["ydim"]
         big_xdim = self.info["xdim"]
 
-        # IMPORTANT: order is (ydim, xdim)
-        out_ydim = 896
-        out_xdim = 442
+        self.out_ydim = 896
+        self.out_xdim = 442
 
-        (
-            self._bin_pix,
-            self._bin_read_i,
-            self._bin_count_safe,
-            self._out_ydim,
-            self._out_xdim,
-        ) = self.precompute_binned_accum_arrays(
+        self._pix_area, self._count_area = self.precompute_area_like_pix_and_count(
             self.write_rows,
             self.write_cols,
-            self.read_i,
             big_ydim,
             big_xdim,
-            out_ydim,
-            out_xdim,
+            self.out_ydim,
+            self.out_xdim,
         )
 
     def read_header(self, file: Union[str, Path]):
@@ -670,6 +662,31 @@ class DIDSON:
 
             return np.array(frames, dtype=np.uint8)
 
+    def precompute_area_like_pix_and_count(
+        self, big_write_rows, big_write_cols, big_ydim, big_xdim, out_ydim, out_xdim
+    ):
+        # Project big pixel centers into small grid coordinates
+        y_f = (big_write_rows.astype(np.float32) + 0.5) * (out_ydim / big_ydim) - 0.5
+        x_f = (big_write_cols.astype(np.float32) + 0.5) * (out_xdim / big_xdim) - 0.5
+
+        small_r = np.floor(y_f).astype(np.int64)
+        small_c = np.floor(x_f).astype(np.int64)
+
+        small_r = np.clip(small_r, 0, out_ydim - 1)
+        small_c = np.clip(small_c, 0, out_xdim - 1)
+
+        pix = (small_r * out_xdim + small_c).astype(np.int64)
+        n_pix = out_ydim * out_xdim
+
+        count = np.bincount(pix, minlength=n_pix).astype(np.float32)
+        count_safe = np.maximum(count, 1.0).astype(np.float32)
+
+        # This should always be exactly n_pix if pix is in range
+        if count_safe.shape[0] != n_pix:
+            raise RuntimeError(f"count length {count_safe.shape[0]} != n_pix {n_pix}")
+
+        return pix, count_safe
+
     def precompute_binned_accum_arrays(
         self,
         big_write_rows,
@@ -712,6 +729,59 @@ class DIDSON:
         count = np.bincount(pix, minlength=n_pix).astype(np.uint16)
         count_safe = np.maximum(count, 1)
         return pix, count, count_safe
+
+    def sanitize_mapping(self, read_i, pix, Nraw, extra_arrays=()):
+        """
+        Filters mapping entries where read_i is out of bounds.
+        Returns filtered read_i, pix, and any extra arrays filtered in the same way.
+        """
+        read_i = np.asarray(read_i)
+        pix = np.asarray(pix)
+
+        valid = (read_i >= 0) & (read_i < Nraw)
+        if not np.all(valid):
+            bad = np.count_nonzero(~valid)
+            # Keep this print/log if you want to monitor mapping quality
+            print(
+                f"MAH sanitize_mapping: dropping {bad}/{read_i.size} out-of-bounds read_i"
+            )
+
+        read_i_f = read_i[valid].astype(np.int64)
+        pix_f = pix[valid].astype(np.int64)
+
+        filtered_extras = []
+        for a in extra_arrays:
+            a = np.asarray(a)
+            filtered_extras.append(a[valid])
+
+        return read_i_f, pix_f, filtered_extras
+
+    def warp_area_rms(self, data, read_i, pix, count_safe, out_ydim, out_xdim):
+        """
+        data: (T, Nraw)
+        read_i: (A,) indices into Nraw
+        pix: (A,) flat output pixel indices into out_ydim*out_xdim
+        """
+        Nraw = data.shape[1]
+        n_pix = out_ydim * out_xdim
+
+        # Filter mapping entries that would index out of bounds
+        read_i_f, pix_f, _ = self.sanitize_mapping(read_i, pix, Nraw)
+
+        # Recompute counts based on filtered pix (important!)
+        count = np.bincount(pix_f, minlength=n_pix).astype(np.float32)
+        count_safe_f = np.maximum(count, 1.0).astype(np.float32)
+        inv_count = (1.0 / count_safe_f).astype(np.float32)
+
+        out = np.empty((data.shape[0], out_ydim, out_xdim), dtype=np.uint8)
+
+        for t in range(data.shape[0]):
+            v = data[t, read_i_f].astype(np.float32)
+            s2 = np.bincount(pix_f, weights=v * v, minlength=n_pix).astype(np.float32)
+            img = np.sqrt(s2 * inv_count).reshape(out_ydim, out_xdim)
+            out[t] = np.clip(img, 0, 255).astype(np.uint8)
+
+        return out
 
     def warp_accum_mean_binned(
         self, data, pix, read_i, count_safe, out_ydim, out_xdim, out_dtype=np.uint8
@@ -810,13 +880,23 @@ class DIDSON:
         #     xdim=442,
         # )
 
-        frames = self.warp_accum_mean_binned(
-            data,
-            self._bin_pix,
-            self._bin_read_i,
-            self._bin_count_safe,
-            self._out_ydim,
-            self._out_xdim,
+        # frames = self.warp_accum_mean_binned(
+        #     data,
+        #     self._bin_pix,
+        #     self._bin_read_i,
+        #     self._bin_count_safe,
+        #     self._out_ydim,
+        #     self._out_xdim,
+        # )
+
+        frames = self.warp_area_rms(
+            data=data,
+            read_i=self.read_i,
+            pix=self._pix_area,
+            count_safe=self._count_area,  # not used after sanitize+recount, but ok to pass if you keep signature
+            out_ydim=self.out_ydim,
+            out_xdim=self.out_xdim,
         )
+        # print(f"{frames.shape=}")
 
         return frames, unwarped_frames

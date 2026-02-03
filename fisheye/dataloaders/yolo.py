@@ -50,12 +50,12 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         img_original = img.copy() if return_original_image else None
 
         h0, w0 = img.shape[:2]  # original height and width
-        r = img_size / max(h0, w0)  # resize ratio
-        interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
-        resized_img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
+        # r = img_size / max(h0, w0)  # resize ratio
+        # interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
+        # resized_img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
 
         # returns resized_img, original hw, resized hw, original img
-        return resized_img, (h0, w0), resized_img.shape[:2], img_original
+        return img_original, (h0, w0), img_original.shape[:2], img_original
 
     def _postprocess(
         self,
