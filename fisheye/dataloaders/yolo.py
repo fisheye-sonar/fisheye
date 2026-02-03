@@ -12,6 +12,40 @@ from fisheye.dataloaders.utils import to_chw_tensor
 logger = structlog.get_logger()
 
 
+def pad_to_shape(img: np.ndarray, out_hw, pad_value=114):
+    """
+    Center-pad HWC image to (out_h, out_w). No resizing.
+    Returns: padded_img, (1.0, 1.0), (dw, dh) where dw/dh are half-pads.
+    """
+    out_h, out_w = int(out_hw[0]), int(out_hw[1])
+    h, w = img.shape[:2]
+
+    if h > out_h or w > out_w:
+        raise ValueError(
+            f"Input ({h},{w}) larger than target ({out_h},{out_w}); this function pads only."
+        )
+
+    dh = (out_h - h) // 2
+    dw = (out_w - w) // 2
+    top, bottom = dh, out_h - h - dh
+    left, right = dw, out_w - w - dw
+
+    # Create output and fill
+    if img.ndim == 3:
+        out = np.empty((out_h, out_w, img.shape[2]), dtype=img.dtype)
+    else:
+        out = np.empty((out_h, out_w), dtype=img.dtype)
+
+    # Fill background
+    # If pad_value is scalar, numpy broadcasts; if tuple/list matches channels, also broadcasts.
+    out[...] = pad_value
+
+    # Paste original image
+    out[top : top + h, left : left + w, ...] = img
+
+    return out, (1.0, 1.0), (float(dw), float(dh))
+
+
 class YOLOARISBatchedDataset(ARISBatchedDataset):
     """YOLOARISBatchedDataset
 
@@ -84,10 +118,23 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             resized_img, (h0, w0), (h, w), img_original = self.load_image(
                 image, return_original_image=return_original_image
             )
-            # Apply letterboxing to resize and pad images
-            resized_img, ratio, pad = letterbox(
-                resized_img, self.shape, auto=False, scaleup=False, stride=self.stride
-            )
+
+            # print(f"{resized_img.shape=} {self.stride=} {self.shape=}")
+
+            if True:
+                # Apply just padding instead of letterboxing
+                resized_img, ratio, pad = pad_to_shape(resized_img, self.shape)
+            else:
+                # Apply letterboxing to resize and pad images
+                resized_img, ratio, pad = letterbox(
+                    resized_img,
+                    self.shape,
+                    auto=False,
+                    scaleup=False,
+                    stride=self.stride,
+                )
+            # print(f"after {resized_img.shape=} {ratio=} {pad=}")
+
             shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
 
             resized_img_tensor = to_chw_tensor(resized_img)
