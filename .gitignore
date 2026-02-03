@@ -42,3 +42,4 @@ tests/sample_midlength.aris
 weights/
 *.pt
 outputs/
+no_resize/

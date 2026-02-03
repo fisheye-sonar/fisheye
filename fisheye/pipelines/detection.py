@@ -15,6 +15,8 @@ from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
 from fisheye.enums import LengthEstimatorType
 from fisheye.lengths.factory import create_length_estimator
+import cv2
+import numpy as np
 
 logger = structlog.get_logger()
 
@@ -100,6 +102,17 @@ class ObjectDetectionPipeline:
                     original_img = original_img.to(self.device, non_blocking=True)
 
                 img = self.preprocess(img)
+                # print(f"MAH img.shape: {img.shape}")
+
+                # if batch_idx == 0:
+                #     for i, im in enumerate(img):
+                #         # save the image
+                #         cv2.imwrite(
+                #             f"/home/mahobley/Code/fisheye/img_{batch_idx}_{i}.png",
+                #             (im.cpu().permute(1, 2, 0).numpy() * 255).astype(np.uint8),
+                #         )
+                #         print(f"MAH test image {batch_idx}_{i}")
+
                 size = tuple(img.shape)
                 nb, _, height, width = size  # batch size, channels, height, width
 

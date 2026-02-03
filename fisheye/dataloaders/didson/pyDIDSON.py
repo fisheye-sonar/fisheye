@@ -27,7 +27,9 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
 class DIDSON:
-    def __init__(self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1):
+    def __init__(
+        self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1, img_load_size=2688
+    ):
         """Load header info from DIDSON file and precompute some warps.
 
         Parameters
@@ -49,7 +51,30 @@ class DIDSON:
 
         info = self.read_header(file)
         self.info, self.write_rows, self.write_cols, self.read_i = (
-            DIDSON.compute_image_metadata(info, beam_width_dir, ixsize)
+            DIDSON.compute_image_metadata(info, beam_width_dir, ixsize, img_load_size)
+        )
+
+        big_ydim = self.info["ydim"]
+        big_xdim = self.info["xdim"]
+
+        # IMPORTANT: order is (ydim, xdim)
+        out_ydim = 896
+        out_xdim = 442
+
+        (
+            self._bin_pix,
+            self._bin_read_i,
+            self._bin_count_safe,
+            self._out_ydim,
+            self._out_xdim,
+        ) = self.precompute_binned_accum_arrays(
+            self.write_rows,
+            self.write_cols,
+            self.read_i,
+            big_ydim,
+            big_xdim,
+            out_ydim,
+            out_xdim,
         )
 
     def read_header(self, file: Union[str, Path]):
@@ -143,7 +168,10 @@ class DIDSON:
 
     @staticmethod
     def compute_image_metadata(
-        info: dict, beam_width_dir: Path = BEAM_WIDTH_DIR, ixsize: int = -1
+        info: dict,
+        beam_width_dir: Path = BEAM_WIDTH_DIR,
+        ixsize: int = -1,
+        img_load_size: int = 2688,
     ):
         """Computes derived sonar parameters, and precomputes pixel mapping for warping sonar data into to-scale images.
 
@@ -155,7 +183,8 @@ class DIDSON:
             Path to beam width CSV files (for ARIS).
         ixsize : int
             Target x-dimension (overrides default if provided).
-
+        img_load_size: int
+            Target y-dimension (overrides default if provided).
         Returns
         -------
         info : dict
@@ -291,6 +320,24 @@ class DIDSON:
                     additional_pixel_padding_y=0,
                 )
             )
+
+            if img_load_size is not None and ydim != img_load_size:
+                print(f"MAH ydim {ydim} != desired_size_y {img_load_size}")
+                print(
+                    f"MAH resetting image bounds to match desired size y:{img_load_size}"
+                )
+                scale_factor_y = img_load_size / ydim
+
+                pixel_meter_size = pixel_meter_size / scale_factor_y
+                xdim, ydim, x_meter_start, y_meter_start, x_meter_stop, y_meter_stop = (
+                    pyARIS.compute_image_bounds(
+                        pixel_meter_size,
+                        aris_frame,
+                        beam_width_data,
+                        additional_pixel_padding_x=0,
+                        additional_pixel_padding_y=0,
+                    )
+                )
 
             if ixsize != -1:
                 pixel_meter_size = pixel_meter_size * xdim / ixsize
@@ -623,6 +670,68 @@ class DIDSON:
 
             return np.array(frames, dtype=np.uint8)
 
+    def precompute_binned_accum_arrays(
+        self,
+        big_write_rows,
+        big_write_cols,
+        big_read_i,
+        big_ydim,
+        big_xdim,
+        out_ydim,
+        out_xdim,
+    ):
+        small_r = (big_write_rows.astype(np.int64) * out_ydim) // big_ydim
+        small_c = (big_write_cols.astype(np.int64) * out_xdim) // big_xdim
+        small_r = np.clip(small_r, 0, out_ydim - 1)
+        small_c = np.clip(small_c, 0, out_xdim - 1)
+
+        pix = (small_r * out_xdim + small_c).astype(np.int64)
+        read_i = big_read_i.astype(np.int64)
+
+        n_pix = out_ydim * out_xdim
+        count = np.bincount(pix, minlength=n_pix).astype(np.float32)
+        count_safe = np.maximum(count, 1.0).astype(np.float32)
+
+        # Strong sanity check: bincount must be exactly n_pix long
+        if count_safe.shape[0] != n_pix:
+            raise RuntimeError(
+                f"count_safe length {count_safe.shape[0]} != n_pix {n_pix}"
+            )
+
+        return pix, read_i, count_safe, out_ydim, out_xdim
+
+    def _precompute_accumulation(self, write_rows, write_cols, ydim, xdim):
+        """
+        Returns:
+        pix      : (A,) flat output pixel indices
+        count    : (ydim*xdim,) uint16 counts per pixel (constant across frames)
+        count_safe: same but with zeros replaced by 1 (for division)
+        """
+        pix = write_rows.astype(np.int64) * xdim + write_cols.astype(np.int64)
+        n_pix = ydim * xdim
+        count = np.bincount(pix, minlength=n_pix).astype(np.uint16)
+        count_safe = np.maximum(count, 1)
+        return pix, count, count_safe
+
+    def warp_accum_mean_binned(
+        self, data, pix, read_i, count_safe, out_ydim, out_xdim, out_dtype=np.uint8
+    ):
+        n_pix = out_ydim * out_xdim
+        T = data.shape[0]
+        out = np.empty((T, out_ydim, out_xdim), dtype=out_dtype)
+
+        for t in range(T):
+            s = np.bincount(
+                pix,
+                weights=data[t, read_i].astype(np.float32),
+                minlength=n_pix,
+            ).astype(np.float32)
+
+            img = (s / count_safe).reshape(out_ydim, out_xdim)
+            out[t] = np.clip(img, 0, 255).astype(out_dtype)
+
+        return out
+
     def load_raw_data(self, file=None, start_frame=-1, end_frame=-1):
         """
         Public interface to self.__FasterDIDSONRead
@@ -684,9 +793,30 @@ class DIDSON:
             # indexing error without it
         else:
             unwarped_frames = None
-        frames = np.zeros(
-            (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
+        # frames = np.zeros(
+        #     (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
+        # )
+        # frames[:, self.write_rows, self.write_cols] = data[:, self.read_i]
+        # frames = self.warp_accum_mean_from_mapping(data, self._binned)
+
+        # frames = self.warp_accum_mean(
+        #     data=data,
+        #     read_i=self.read_i,
+        #     pix=self._pix,
+        #     count_safe=self._count_safe,
+        #     # ydim=self.info["ydim"],
+        #     # xdim=self.info["xdim"],
+        #     ydim=896,
+        #     xdim=442,
+        # )
+
+        frames = self.warp_accum_mean_binned(
+            data,
+            self._bin_pix,
+            self._bin_read_i,
+            self._bin_count_safe,
+            self._out_ydim,
+            self._out_xdim,
         )
-        frames[:, self.write_rows, self.write_cols] = data[:, self.read_i]
 
         return frames, unwarped_frames

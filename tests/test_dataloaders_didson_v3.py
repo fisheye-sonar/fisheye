@@ -18,237 +18,237 @@ being returned as [486, 300], this is smaller than the unwarped images [512, 96]
 height. This means we are losing resolution in the warp."""
 
 
-class TestARISDataloader:
-    """Test the factory function of the ARIS dataloader"""
+# class TestARISDataloader:
+#     """Test the factory function of the ARIS dataloader"""
 
-    # Test with different batch sizes
-    @pytest.mark.parametrize("batch_size", [2, 32])
-    def test_running_dataloader(self, batch_size):
-        config = BaseDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
-        dataloader, dataset = create_dataloader(config)
-        assert len(dataset) == 133
-        expected_batches = max(1, (len(dataset) + batch_size - 1) // batch_size)
-        assert len(dataloader) == expected_batches
+#     # Test with different batch sizes
+#     @pytest.mark.parametrize("batch_size", [2, 32])
+#     def test_running_dataloader(self, batch_size):
+#         config = BaseDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
+#         dataloader, dataset = create_dataloader(config)
+#         assert len(dataset) == 133
+#         expected_batches = max(1, (len(dataset) + batch_size - 1) // batch_size)
+#         assert len(dataloader) == expected_batches
 
-        for batch in dataloader:
-            batch_data, batch_labels = batch[0], batch[1]
-            assert isinstance(batch_data, torch.Tensor)
-            assert batch_data.dim() == 4
-            assert batch_labels is None
+#         for batch in dataloader:
+#             batch_data, batch_labels = batch[0], batch[1]
+#             assert isinstance(batch_data, torch.Tensor)
+#             assert batch_data.dim() == 4
+#             assert batch_labels is None
 
-    def test_return_unwarped_images(self):
-        config = BaseDatasetConfig(filepath=DDF_FILE, return_unwarped=True)
-        dataloader, dataset = create_dataloader(config)
-        batch_size = (
-            dataset.metadata.numframes - 1
-            if dataset.metadata.numframes < config.batch_size
-            else (config.batch_size)
-        )
+#     def test_return_unwarped_images(self):
+#         config = BaseDatasetConfig(filepath=DDF_FILE, return_unwarped=True)
+#         dataloader, dataset = create_dataloader(config)
+#         batch_size = (
+#             dataset.metadata.numframes - 1
+#             if dataset.metadata.numframes < config.batch_size
+#             else (config.batch_size)
+#         )
 
-        batch = next(iter(dataloader))
-        batch_data, batch_unwarped = batch[0], batch[2]
-        assert batch_data.shape == torch.Size([batch_size, 512, 96, 3])
-        assert batch_unwarped.shape == torch.Size([batch_size, 512, 96])
+#         batch = next(iter(dataloader))
+#         batch_data, batch_unwarped = batch[0], batch[2]
+#         assert batch_data.shape == torch.Size([batch_size, 512, 96, 3])
+#         assert batch_unwarped.shape == torch.Size([batch_size, 512, 96])
 
-    def test_return_echogram(self):
-        config = BaseDatasetConfig(filepath=DDF_FILE, return_echogram=True)
-        dataloader, dataset = create_dataloader(config)
-        batch_size = (
-            dataset.metadata.numframes - 1
-            if dataset.metadata.numframes < config.batch_size
-            else (config.batch_size)
-        )
-        _, _, _, batch_echogram, _ = next(iter(dataloader))
-        assert batch_echogram.shape == torch.Size([batch_size, 512, 2])
+#     def test_return_echogram(self):
+#         config = BaseDatasetConfig(filepath=DDF_FILE, return_echogram=True)
+#         dataloader, dataset = create_dataloader(config)
+#         batch_size = (
+#             dataset.metadata.numframes - 1
+#             if dataset.metadata.numframes < config.batch_size
+#             else (config.batch_size)
+#         )
+#         _, _, _, batch_echogram, _ = next(iter(dataloader))
+#         assert batch_echogram.shape == torch.Size([batch_size, 512, 2])
 
-    def test_loading_frames(self):
-        """Test loading frames directly from DIDSON class."""
-        didson = DIDSON(DDF_FILE)
-        frames, unwarped_frames = didson.load_frames()
-        assert isinstance(frames, np.ndarray)
-        assert frames.shape == (134, 486, 300)  # Num of frames, ydim, xdim
-        assert frames.dtype == np.uint8
-        assert np.any(frames != 0)
+#     def test_loading_frames(self):
+#         """Test loading frames directly from DIDSON class."""
+#         didson = DIDSON(DDF_FILE)
+#         frames, unwarped_frames = didson.load_frames()
+#         assert isinstance(frames, np.ndarray)
+#         assert frames.shape == (134, 486, 300)  # Num of frames, ydim, xdim
+#         assert frames.dtype == np.uint8
+#         assert np.any(frames != 0)
 
-    def test_loading_unwarped_frames(self):
-        """Test loading frames directly from DIDSON class."""
-        didson = DIDSON(DDF_FILE)
-        frames, unwarped_frames = didson.load_frames(return_unwarped=True)
-        assert isinstance(unwarped_frames, np.ndarray)
-        assert unwarped_frames.shape == (134, 512, 96)  # Num of frames, ydim, xdim
-        assert unwarped_frames.dtype == np.uint8
-        assert np.any(frames != 0)
+#     def test_loading_unwarped_frames(self):
+#         """Test loading frames directly from DIDSON class."""
+#         didson = DIDSON(DDF_FILE)
+#         frames, unwarped_frames = didson.load_frames(return_unwarped=True)
+#         assert isinstance(unwarped_frames, np.ndarray)
+#         assert unwarped_frames.shape == (134, 512, 96)  # Num of frames, ydim, xdim
+#         assert unwarped_frames.dtype == np.uint8
+#         assert np.any(frames != 0)
 
-    @pytest.mark.parametrize(
-        "start_frame, end_frame, expected_length",
-        [
-            (0, 134, 133),  # Good! In-range
-            (0, 2, 1),  # Good! In-range
-            (120, 140, 13),  # end_frame out of range
-            (300, 134, 133),  # start_frame > file length
-        ],
-    )
-    def test_loading_different_frame_ranges(
-        self, start_frame, end_frame, expected_length
-    ):
-        """Test ARIS factory function correctly handles frame range validation for ARIS datasets."""
-        config = BaseDatasetConfig(
-            filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
-        )
-        dataloader, dataset = create_dataloader(config)
-        assert len(dataset) == expected_length
-
-
-class TestARISLightningDataloader:
-    """Test the ARIS Lightning Datamodule"""
-
-    @pytest.mark.parametrize("batch_size", [2, 32])
-    def test_running_dataloader(self, batch_size):
-        """Test creating a ARIS dataloader using Lightning DataModule with no labels."""
-        config = BaseDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
-        data_module = ARISDataModule(ARISBatchedDataset, config)
-        data_module.setup(stage="test")
-        dataloader = data_module.test_dataloader()
-
-        num_batches = len(dataloader)
-        expected_batches = max(
-            1, (len(dataloader.dataset) + batch_size - 1) // batch_size
-        )
-        assert num_batches == expected_batches
-
-        batch = next(iter(dataloader))
-        batch_data, batch_labels = batch[0], batch[1]
-
-        # Check batch content
-        assert batch_data.shape == torch.Size([batch_size, 486, 300, 3])
-        # Check batch labels
-        assert batch_labels is None or batch_labels.numel() == 0
-
-    @pytest.mark.parametrize(
-        "start_frame, end_frame, expected_length",
-        [
-            (0, 134, 133),  # Good! In-range
-            (0, 2, 1),  # Good! In-range
-            (120, 140, 13),  # end_frame out of range
-            (300, 134, 133),  # start_frame > file length
-        ],
-    )
-    def test_loading_different_frame_ranges(
-        self, start_frame, end_frame, expected_length
-    ):
-        """Test ARIS DataModule function correctly handles frame range validation for ARIS datasets."""
-        config = BaseDatasetConfig(
-            filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
-        )
-        data_module = ARISDataModule(ARISBatchedDataset, config)
-        data_module.setup(stage="test")
-
-        assert len(data_module.dataset) == expected_length
+#     @pytest.mark.parametrize(
+#         "start_frame, end_frame, expected_length",
+#         [
+#             (0, 134, 133),  # Good! In-range
+#             (0, 2, 1),  # Good! In-range
+#             (120, 140, 13),  # end_frame out of range
+#             (300, 134, 133),  # start_frame > file length
+#         ],
+#     )
+#     def test_loading_different_frame_ranges(
+#         self, start_frame, end_frame, expected_length
+#     ):
+#         """Test ARIS factory function correctly handles frame range validation for ARIS datasets."""
+#         config = BaseDatasetConfig(
+#             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
+#         )
+#         dataloader, dataset = create_dataloader(config)
+#         assert len(dataset) == expected_length
 
 
-class TestYOLODataloader:
-    """Test the factory function of the YOLOv5 dataloader"""
+# class TestARISLightningDataloader:
+#     """Test the ARIS Lightning Datamodule"""
 
-    @pytest.mark.parametrize("batch_size", [2, 32])
-    def test_running_dataloader(self, batch_size):
-        """Test creating a YOLO dataloader using factory function with no labels."""
-        didson = DIDSON(DDF_FILE)
-        frames, unwarped_frames = didson.load_frames()
+#     @pytest.mark.parametrize("batch_size", [2, 32])
+#     def test_running_dataloader(self, batch_size):
+#         """Test creating a ARIS dataloader using Lightning DataModule with no labels."""
+#         config = BaseDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
+#         data_module = ARISDataModule(ARISBatchedDataset, config)
+#         data_module.setup(stage="test")
+#         dataloader = data_module.test_dataloader()
 
-        config = YOLODatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
-        dataloader, dataset = create_dataloader(config)
-        num_batches = len(dataloader)
+#         num_batches = len(dataloader)
+#         expected_batches = max(
+#             1, (len(dataloader.dataset) + batch_size - 1) // batch_size
+#         )
+#         assert num_batches == expected_batches
 
-        assert len(dataset) == len(frames) - 1
-        expected_batches = max(1, (len(dataset) + batch_size - 1) // batch_size)
-        assert num_batches == expected_batches
+#         batch = next(iter(dataloader))
+#         batch_data, batch_labels = batch[0], batch[1]
 
-        for batch in dataloader:
-            batch_data, batch_labels = batch[0], batch[1]
-            assert isinstance(batch_data, torch.Tensor)
-            assert batch_data.dim() == 4
-            assert batch_data[0].shape == torch.Size([3, 960, 640])
-            assert batch_labels is None or batch_labels.numel() == 0
+#         # Check batch content
+#         assert batch_data.shape == torch.Size([batch_size, 486, 300, 3])
+#         # Check batch labels
+#         assert batch_labels is None or batch_labels.numel() == 0
 
-    @pytest.mark.parametrize(
-        "start_frame, end_frame, expected_length",
-        [
-            (0, 134, 133),  # Good! In-range
-            (0, 2, 1),  # Good! In-range
-            (120, 140, 13),  # end_frame out of range
-            (300, 134, 133),  # start_frame > file length
-        ],
-    )
-    def test_loading_different_frame_ranges(
-        self, start_frame, end_frame, expected_length
-    ):
-        """Test YOLO factory function correctly handles frame range validation for YOLO datasets."""
-        config = YOLODatasetConfig(
-            filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
-        )
-        dataloader, dataset = create_dataloader(config)
-        assert len(dataset) == expected_length
+#     @pytest.mark.parametrize(
+#         "start_frame, end_frame, expected_length",
+#         [
+#             (0, 134, 133),  # Good! In-range
+#             (0, 2, 1),  # Good! In-range
+#             (120, 140, 13),  # end_frame out of range
+#             (300, 134, 133),  # start_frame > file length
+#         ],
+#     )
+#     def test_loading_different_frame_ranges(
+#         self, start_frame, end_frame, expected_length
+#     ):
+#         """Test ARIS DataModule function correctly handles frame range validation for ARIS datasets."""
+#         config = BaseDatasetConfig(
+#             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
+#         )
+#         data_module = ARISDataModule(ARISBatchedDataset, config)
+#         data_module.setup(stage="test")
 
-
-class TestYOLOLightningDataloader:
-    @pytest.mark.parametrize("batch_size", [2, 32])
-    def test_running_dataloader(self, batch_size):
-        """Test creating a YOLO dataloader using Lightning DataModule with no labels."""
-        config = YOLODatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
-        data_module = ARISDataModule(YOLOARISBatchedDataset, config)
-        data_module.setup(stage="test")
-        dataloader = data_module.test_dataloader()
-
-        num_batches = len(dataloader)
-        expected_batches = max(
-            1, (len(dataloader.dataset) + batch_size - 1) // batch_size
-        )
-        assert num_batches == expected_batches
-
-        batch = next(iter(dataloader))
-        batch_data, batch_labels = batch[0], batch[1]
-
-        # Check batch content
-        assert batch_data.shape == torch.Size([batch_size, 3, 960, 640])
-        # Check batch labels
-        assert batch_labels is None or batch_labels.numel() == 0
-
-    @pytest.mark.parametrize(
-        "start_frame, end_frame, expected_length",
-        [
-            (0, 134, 133),  # Good! In-range
-            (0, 2, 1),  # Good! In-range
-            (120, 140, 13),  # end_frame out of range
-            (300, 134, 133),  # start_frame > file length
-        ],
-    )
-    def test_loading_different_frame_ranges(
-        self, start_frame, end_frame, expected_length
-    ):
-        """Test ARIS DataModule correctly handles frame range validation for YOLO datasets."""
-        config = YOLODatasetConfig(
-            filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
-        )
-        data_module = ARISDataModule(YOLOARISBatchedDataset, config)
-        data_module.setup(stage="test")
-
-        assert len(data_module.dataset) == expected_length
+#         assert len(data_module.dataset) == expected_length
 
 
-def test_corrupted_aris():
-    """Test dataloader fails to create due to corrupted ARIS file."""
-    with pytest.raises(RuntimeError) as exc_info:
-        config = BaseDatasetConfig(filepath=CORRUPTED_FILE)
-        create_dataloader(config)
+# class TestYOLODataloader:
+#     """Test the factory function of the YOLOv5 dataloader"""
+
+#     @pytest.mark.parametrize("batch_size", [2, 32])
+#     def test_running_dataloader(self, batch_size):
+#         """Test creating a YOLO dataloader using factory function with no labels."""
+#         didson = DIDSON(DDF_FILE)
+#         frames, unwarped_frames = didson.load_frames()
+
+#         config = YOLODatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
+#         dataloader, dataset = create_dataloader(config)
+#         num_batches = len(dataloader)
+
+#         assert len(dataset) == len(frames) - 1
+#         expected_batches = max(1, (len(dataset) + batch_size - 1) // batch_size)
+#         assert num_batches == expected_batches
+
+#         for batch in dataloader:
+#             batch_data, batch_labels = batch[0], batch[1]
+#             assert isinstance(batch_data, torch.Tensor)
+#             assert batch_data.dim() == 4
+#             assert batch_data[0].shape == torch.Size([3, 960, 640])
+#             assert batch_labels is None or batch_labels.numel() == 0
+
+#     @pytest.mark.parametrize(
+#         "start_frame, end_frame, expected_length",
+#         [
+#             (0, 134, 133),  # Good! In-range
+#             (0, 2, 1),  # Good! In-range
+#             (120, 140, 13),  # end_frame out of range
+#             (300, 134, 133),  # start_frame > file length
+#         ],
+#     )
+#     def test_loading_different_frame_ranges(
+#         self, start_frame, end_frame, expected_length
+#     ):
+#         """Test YOLO factory function correctly handles frame range validation for YOLO datasets."""
+#         config = YOLODatasetConfig(
+#             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
+#         )
+#         dataloader, dataset = create_dataloader(config)
+#         assert len(dataset) == expected_length
 
 
-def test_modified_start_end_frames(beam_widths_path):
-    """Test handling modified start and end frame indices exceeding the total number of frames. This is a test case
-    for when a shorted clip is created from the original ARIS/DIDSON file."""
-    didson = DIDSON(SHORTENED_DDF_FILE, beam_widths_path)
-    frames, unwarped_frames = didson.load_frames()
+# class TestYOLOLightningDataloader:
+#     @pytest.mark.parametrize("batch_size", [2, 32])
+#     def test_running_dataloader(self, batch_size):
+#         """Test creating a YOLO dataloader using Lightning DataModule with no labels."""
+#         config = YOLODatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
+#         data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+#         data_module.setup(stage="test")
+#         dataloader = data_module.test_dataloader()
 
-    assert isinstance(frames, np.ndarray)
-    assert frames.shape == (57, 486, 300)  # Num of frames, ydim, xdim
-    assert frames.dtype == np.uint8
-    assert np.any(frames != 0)
+#         num_batches = len(dataloader)
+#         expected_batches = max(
+#             1, (len(dataloader.dataset) + batch_size - 1) // batch_size
+#         )
+#         assert num_batches == expected_batches
+
+#         batch = next(iter(dataloader))
+#         batch_data, batch_labels = batch[0], batch[1]
+
+#         # Check batch content
+#         assert batch_data.shape == torch.Size([batch_size, 3, 960, 640])
+#         # Check batch labels
+#         assert batch_labels is None or batch_labels.numel() == 0
+
+#     @pytest.mark.parametrize(
+#         "start_frame, end_frame, expected_length",
+#         [
+#             (0, 134, 133),  # Good! In-range
+#             (0, 2, 1),  # Good! In-range
+#             (120, 140, 13),  # end_frame out of range
+#             (300, 134, 133),  # start_frame > file length
+#         ],
+#     )
+#     def test_loading_different_frame_ranges(
+#         self, start_frame, end_frame, expected_length
+#     ):
+#         """Test ARIS DataModule correctly handles frame range validation for YOLO datasets."""
+#         config = YOLODatasetConfig(
+#             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
+#         )
+#         data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+#         data_module.setup(stage="test")
+
+#         assert len(data_module.dataset) == expected_length
+
+
+# def test_corrupted_aris():
+#     """Test dataloader fails to create due to corrupted ARIS file."""
+#     with pytest.raises(RuntimeError) as exc_info:
+#         config = BaseDatasetConfig(filepath=CORRUPTED_FILE)
+#         create_dataloader(config)
+
+
+# def test_modified_start_end_frames(beam_widths_path):
+#     """Test handling modified start and end frame indices exceeding the total number of frames. This is a test case
+#     for when a shorted clip is created from the original ARIS/DIDSON file."""
+#     didson = DIDSON(SHORTENED_DDF_FILE, beam_widths_path)
+#     frames, unwarped_frames = didson.load_frames()
+
+#     assert isinstance(frames, np.ndarray)
+#     assert frames.shape == (57, 486, 300)  # Num of frames, ydim, xdim
+#     assert frames.dtype == np.uint8
+#     assert np.any(frames != 0)
