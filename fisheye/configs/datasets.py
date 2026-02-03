@@ -67,6 +67,6 @@ class YOLODatasetConfig(BaseDatasetConfig):
 
     stride: int = 64
     pad: float = 0.5
-    img_size: int = 896
+    img_size: int = (960, 512)
 
-    img_load_size: int = 2688
+    img_load_size: int = 2340

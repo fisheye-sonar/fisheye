@@ -57,8 +57,10 @@ class DIDSON:
         big_ydim = self.info["ydim"]
         big_xdim = self.info["xdim"]
 
-        self.out_ydim = 896
-        self.out_xdim = 442
+        # self.out_ydim = 896
+        # self.out_xdim = 442
+        self.out_ydim = 960
+        self.out_xdim = 473
 
         self._pix_area, self._count_area = self.precompute_area_like_pix_and_count(
             self.write_rows,

@@ -63,26 +63,62 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
 
         self.stride = config.stride
         self.pad = config.pad
-        self.img_size = config.img_size
+        self.model_input_img_size = config.img_size
         self.original_shape = (self.metadata.ydim, self.metadata.xdim)
-        self.shape = self._compute_resized_shape()
+        self.resize_image_shape = self._compute_resized_shape()
+        print(f"{self.resize_image_shape=}")
 
-    def _compute_resized_shape(self):
-        """Computes the shape for resizing images based on aspect ratio."""
-        aspect_ratio = self.original_shape[0] / self.original_shape[1]
-        shape = [1, 1 / aspect_ratio] if aspect_ratio > 1 else [aspect_ratio, 1]
-        return (
-            np.ceil(np.array(shape) * self.img_size / self.stride + self.pad).astype(
-                int
-            )
-            * self.stride
+    def _compute_resized_shape(self, snap_to_stride: bool = False):
+        """
+        Compute resized (H, W) that preserves aspect ratio and fits inside img_size.
+        One dimension will equal img_size, the other will be <= img_size.
+        (You will pad to img_size afterward.)
+
+        If snap_to_stride=True, the non-saturating dimension is floored to a stride multiple
+        (and the saturating dimension is kept at img_size).
+        """
+        oh, ow = int(self.original_shape[0]), int(self.original_shape[1])
+        out_h, out_w = int(self.model_input_img_size[0]), int(
+            self.model_input_img_size[1]
         )
+        stride = int(self.stride)
+
+        # scale to fit within out_h x out_w (keeps aspect ratio)
+        s = min(out_h / oh, out_w / ow)
+
+        new_h = int(round(oh * s))
+        new_w = int(round(ow * s))
+
+        # guarantee we don't exceed target due to rounding
+        new_h = min(new_h, out_h)
+        new_w = min(new_w, out_w)
+
+        # Ensure at least 1 pixel
+        new_h = max(new_h, 1)
+        new_w = max(new_w, 1)
+
+        # Optional: make the "smaller" side a stride multiple (common in some pipelines)
+        if snap_to_stride:
+            # Only adjust the dimension that is NOT already at its max.
+            if new_h < out_h:
+                new_h = max(
+                    (new_h // stride) * stride, stride if out_h >= stride else 1
+                )
+            if new_w < out_w:
+                new_w = max(
+                    (new_w // stride) * stride, stride if out_w >= stride else 1
+                )
+
+            # Don’t let snapping push anything over the target
+            new_h = min(new_h, out_h)
+            new_w = min(new_w, out_w)
+
+        return np.array([new_h, new_w], dtype=int)
 
     @classmethod
     def load_image(cls, img, img_size=896, return_original_image=False):
         """Loads and resizes an image for YOLOv5 inference."""
         img_original = img.copy() if return_original_image else None
-
         h0, w0 = img.shape[:2]  # original height and width
         # r = img_size / max(h0, w0)  # resize ratio
         # interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
@@ -115,20 +151,22 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         frame_labels = frame_labels or [None for _ in frame_images]
         for image, labels in zip(frame_images, frame_labels):
             # resized_img, original hw, resized hw, original img
-            resized_img, (h0, w0), (h, w), img_original = self.load_image(
-                image, return_original_image=return_original_image
-            )
-
-            # print(f"{resized_img.shape=} {self.stride=} {self.shape=}")
+            resized_img = image
+            # print(f"{image.shape=}")
+            h0, w0 = image.shape[:2]
+            h, w = image.shape[:2]
+            img_original = None
 
             if True:
                 # Apply just padding instead of letterboxing
-                resized_img, ratio, pad = pad_to_shape(resized_img, self.shape)
+                resized_img, ratio, pad = pad_to_shape(
+                    resized_img, self.model_input_img_size
+                )
             else:
                 # Apply letterboxing to resize and pad images
                 resized_img, ratio, pad = letterbox(
                     resized_img,
-                    self.shape,
+                    self.resize_image_shape,
                     auto=False,
                     scaleup=False,
                     stride=self.stride,
