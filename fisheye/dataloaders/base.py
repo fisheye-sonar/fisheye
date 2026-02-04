@@ -167,7 +167,7 @@ class BaseDataset(Dataset):
             # 3] not was [t,h,w])
 
             if original_frames is not None:
-                # MAH 2026-02-04 11:06:11 TODO put back
+                # MAH 2026-02-04 11:06:11 TODO put back, this isnt doing 3 channel
                 original_frames = np.expand_dims(original_frames[:-1], -1)
                 # original_frames = (
                 #     self._stack_preprocessed_channels(
