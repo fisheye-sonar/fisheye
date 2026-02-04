@@ -51,7 +51,11 @@ class BaseDataset(Dataset):
                 self.end_frame - self.start_frame,
                 self.num_frames_bg_subtract // self.batch_size * self.batch_size + 1,
             )
-            frames_for_bg_subtract, unwarped_frames_for_bg_subtract = self.load_frames(
+            (
+                frames_for_bg_subtract,
+                unwarped_frames_for_bg_subtract,
+                original_frames_for_bg_subtract,
+            ) = self.load_frames(
                 self.start_frame,
                 self.start_frame + num_frames_bg,
                 return_unwarped=self.return_unwarped or self.return_echogram,
@@ -68,15 +72,19 @@ class BaseDataset(Dataset):
             self.mean_blurred_frame, self.mean_normalization_value = (
                 self._compute_bg_subtraction(frames_for_bg_subtract)
             )
+            if original_frames_for_bg_subtract is not None:
+                (
+                    self.mean_blurred_original_frame,
+                    self.mean_normalization_value_original,
+                ) = self._compute_bg_subtraction(original_frames_for_bg_subtract)
 
     def _compute_bg_subtraction(self, frames_for_bg_subtract):
         """Calculate the mean blurred frame and normalization value."""
         if not self.use_blur:
             mean_blurred_frame = np.mean(frames_for_bg_subtract, axis=0)
             max_blurred_frame = np.max(np.abs(frames_for_bg_subtract), axis=0).astype(
-                np.float64
+                np.float32
             )
-
         else:
             mean_blurred_frame = np.zeros(
                 [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
@@ -128,25 +136,48 @@ class BaseDataset(Dataset):
 
         else:
 
-            frames, unwarped_frames = self.load_frames(
+            frames, unwarped_frames, original_frames = self.load_frames(
                 self.start_frame + idx,
                 self.start_frame + final_idx + 1,
                 return_unwarped=self.return_unwarped or self.return_echogram,
             )
+            # print(f"{frames.shape=} {original_frames.shape=}")
 
             if self.return_unwarped:
-                frame_images = unwarped_frames
+                frame_images = (
+                    self._stack_preprocessed_channels(
+                        unwarped_frames,
+                        self.unwarped_mean_blurred_frame,
+                        self.unwarped_mean_normalization_value,
+                    )
+                    if self.do_bg_subtract
+                    else np.expand_dims(frame_images[:-1], -1)
+                )
             else:
-                frame_images = frames
+                frame_images = (
+                    self._stack_preprocessed_channels(
+                        frames, self.mean_blurred_frame, self.mean_normalization_value
+                    )
+                    if self.do_bg_subtract
+                    else np.expand_dims(frame_images[:-1], -1)
+                )
 
             # MAH 2025-02-07 17:13:36 Question, why are we removing the last frame? whether or not we are doing
             # background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w,
             # 3] not was [t,h,w])
-            frame_images = (
-                self._stack_preprocessed_channels(frame_images)
-                if self.do_bg_subtract
-                else np.expand_dims(frame_images[:-1], -1)
-            )
+
+            if original_frames is not None:
+                # MAH 2026-02-04 11:06:11 TODO put back
+                original_frames = np.expand_dims(original_frames[:-1], -1)
+                # original_frames = (
+                #     self._stack_preprocessed_channels(
+                #         original_frames,
+                #         self.mean_blurred_original_frame,
+                #         self.mean_normalization_value_original,
+                #     )
+                #     if self.do_bg_subtract
+                #     else np.expand_dims(original_frames[:-1], -1)
+                # )
             if self.return_unwarped or self.return_echogram:
                 unwarped_frames = unwarped_frames[:-1]
 
@@ -166,10 +197,13 @@ class BaseDataset(Dataset):
             frame_labels,
             unwarped_frames,
             echogram,
-            self.return_original_image,
+            original_frames,
+            # self.return_original_image,
         )
 
-    def _stack_preprocessed_channels(self, frames: np.ndarray):
+    def _stack_preprocessed_channels(
+        self, frames: np.ndarray, mean_blurred_frame, mean_normalization_value
+    ):
         """Generate a 3-channel representation of the frames.
 
         This method:
@@ -181,6 +215,9 @@ class BaseDataset(Dataset):
                 - Channel 1: blurred + normalized frames
                 - Channel 2: temporal difference between consecutive blurred frames
         """
+        T, H, W = frames.shape
+        frame_image = np.empty((T - 1, H, W, 3), dtype=np.uint8)
+        frame_image[..., 0] = frames[:-1]
         if not self.use_blur:
             blurred_frames = frames.astype(np.float32)
 
@@ -200,25 +237,17 @@ class BaseDataset(Dataset):
                 for i in range(frames.shape[0]):
                     blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
 
-        if self.return_unwarped:
-            blurred_frames -= self.unwarped_mean_blurred_frame
-            blurred_frames /= self.unwarped_mean_normalization_value
-        else:
-            blurred_frames -= self.mean_blurred_frame
-            blurred_frames /= self.mean_normalization_value
+        blurred_frames -= mean_blurred_frame
+        blurred_frames /= mean_normalization_value
 
         # MAH 2025-11-24 17:09:09 I think we should not do this here and instead we should only take the positive values of the bgs
         blurred_frames += 1
         blurred_frames /= 2
 
-        frame_image = np.stack(
-            [
-                frames[:-1],
-                blurred_frames[:-1] * 255,
-                np.abs(blurred_frames[1:] - blurred_frames[:-1]) * 255,
-            ],
-            axis=-1,
-        ).astype(np.uint8, copy=False)
+        frame_image[..., 1] = (blurred_frames[:-1] * 255).astype(np.uint8)
+        frame_image[..., 2] = (
+            np.abs(blurred_frames[1:] - blurred_frames[:-1]) * 255
+        ).astype(np.uint8)
 
         return frame_image
 
@@ -228,7 +257,7 @@ class BaseDataset(Dataset):
         frame_labels,
         unwarped_frames,
         echogram,
-        return_original_image,
+        original_frames,
     ):
         """Postprocess frames before returning."""
         return (
@@ -236,7 +265,7 @@ class BaseDataset(Dataset):
             frame_labels,
             unwarped_frames,
             echogram,
-            return_original_image,
+            original_frames,
         )
 
     def _get_echogram(self, unwarped_frames):

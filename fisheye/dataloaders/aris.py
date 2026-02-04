@@ -3,7 +3,7 @@ import structlog
 from fisheye.configs import BaseDatasetConfig
 from fisheye.configs.datasets import ARISMetadata, BEAM_WIDTH_DIR
 from fisheye.dataloaders.base import BaseDataset
-from fisheye.dataloaders.didson.pyDIDSON import DIDSON
+from fisheye.dataloaders.didson.pyDIDSON import DIDSON, compute_resized_shape
 
 logger = structlog.get_logger()
 
@@ -27,6 +27,9 @@ class ARISBatchedDataset(BaseDataset):
                 config.filepath,
                 beam_width_dir=BEAM_WIDTH_DIR,
                 img_load_size=config.img_load_size,
+                img_size=config.img_size,
+                stride=config.stride,
+                return_original_image=config.return_original_image,
             )
         except Exception as e:
             logger.error(

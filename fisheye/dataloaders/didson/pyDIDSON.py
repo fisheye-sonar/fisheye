@@ -22,13 +22,69 @@ import pandas as pd
 from . import pyARIS
 from .pyDIDSON_format import *
 
+# from fisheye.dataloaders import YOLOARISBatchedDataset
+
+
+# /home/mahobley/Code/fisheye/fisheye/dataloaders/yolo.py
 BASE = Path(__file__).parent.parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
+def compute_resized_shape(
+    original_shape, model_input_img_size, stride, snap_to_stride: bool = False
+):
+    """
+    Compute resized (H, W) that preserves aspect ratio and fits inside img_size.
+    One dimension will equal img_size, the other will be <= img_size.
+    (You will pad to img_size afterward.)
+
+    If snap_to_stride=True, the non-saturating dimension is floored to a stride multiple
+    (and the saturating dimension is kept at img_size).
+    """
+    print(f"AAAAAAAAA {original_shape=} {model_input_img_size=} {stride=}")
+    oh, ow = int(original_shape[0]), int(original_shape[1])
+    out_h, out_w = int(model_input_img_size[0]), int(model_input_img_size[1])
+    stride = int(stride)
+
+    # scale to fit within out_h x out_w (keeps aspect ratio)
+    s = min(out_h / oh, out_w / ow)
+
+    new_h = int(round(oh * s))
+    new_w = int(round(ow * s))
+
+    # guarantee we don't exceed target due to rounding
+    new_h = min(new_h, out_h)
+    new_w = min(new_w, out_w)
+
+    # Ensure at least 1 pixel
+    new_h = max(new_h, 1)
+    new_w = max(new_w, 1)
+
+    # Optional: make the "smaller" side a stride multiple (common in some pipelines)
+    if snap_to_stride:
+        # Only adjust the dimension that is NOT already at its max.
+        if new_h < out_h:
+            new_h = max((new_h // stride) * stride, stride if out_h >= stride else 1)
+        if new_w < out_w:
+            new_w = max((new_w // stride) * stride, stride if out_w >= stride else 1)
+
+        # Don’t let snapping push anything over the target
+        new_h = min(new_h, out_h)
+        new_w = min(new_w, out_w)
+    print(f"{[new_h, new_w]=}")
+    return np.array([new_h, new_w], dtype=int)
+
+
 class DIDSON:
     def __init__(
-        self, file, beam_width_dir=BEAM_WIDTH_DIR, ixsize=-1, img_load_size=2688
+        self,
+        file,
+        beam_width_dir=BEAM_WIDTH_DIR,
+        ixsize=-1,
+        img_load_size=2688,
+        img_size=(960, 512),
+        stride=64,
+        return_original_image=False,
     ):
         """Load header info from DIDSON file and precompute some warps.
 
@@ -48,7 +104,7 @@ class DIDSON:
             Dictionary of extracted headers and computed sonar values.
 
         """
-
+        self.return_original_image = return_original_image
         info = self.read_header(file)
         self.info, self.write_rows, self.write_cols, self.read_i = (
             DIDSON.compute_image_metadata(info, beam_width_dir, ixsize, img_load_size)
@@ -57,10 +113,18 @@ class DIDSON:
         big_ydim = self.info["ydim"]
         big_xdim = self.info["xdim"]
 
-        # self.out_ydim = 896
-        # self.out_xdim = 442
-        self.out_ydim = 960
-        self.out_xdim = 473
+        if self.return_original_image:
+            self.big_ydim = big_ydim
+            self.big_xdim = big_xdim
+            self.big_write_rows = self.write_rows
+            self.big_write_cols = self.write_cols
+            self.big_read_i = self.read_i
+
+        # get size
+
+        y, x = compute_resized_shape((big_ydim, big_xdim), img_size, stride)
+        self.out_ydim = y
+        self.out_xdim = x
 
         self._pix_area, self._count_area = self.precompute_area_like_pix_and_count(
             self.write_rows,
@@ -785,24 +849,24 @@ class DIDSON:
 
         return out
 
-    def warp_accum_mean_binned(
-        self, data, pix, read_i, count_safe, out_ydim, out_xdim, out_dtype=np.uint8
-    ):
-        n_pix = out_ydim * out_xdim
-        T = data.shape[0]
-        out = np.empty((T, out_ydim, out_xdim), dtype=out_dtype)
+    # def warp_accum_mean_binned(
+    #     self, data, pix, read_i, count_safe, out_ydim, out_xdim, out_dtype=np.uint8
+    # ):
+    #     n_pix = out_ydim * out_xdim
+    #     T = data.shape[0]
+    #     out = np.empty((T, out_ydim, out_xdim), dtype=out_dtype)
 
-        for t in range(T):
-            s = np.bincount(
-                pix,
-                weights=data[t, read_i].astype(np.float32),
-                minlength=n_pix,
-            ).astype(np.float32)
+    #     for t in range(T):
+    #         s = np.bincount(
+    #             pix,
+    #             weights=data[t, read_i].astype(np.float32),
+    #             minlength=n_pix,
+    #         ).astype(np.float32)
 
-            img = (s / count_safe).reshape(out_ydim, out_xdim)
-            out[t] = np.clip(img, 0, 255).astype(out_dtype)
+    #         img = (s / count_safe).reshape(out_ydim, out_xdim)
+    #         out[t] = np.clip(img, 0, 255).astype(out_dtype)
 
-        return out
+    #     return out
 
     def load_raw_data(self, file=None, start_frame=-1, end_frame=-1):
         """
@@ -899,6 +963,15 @@ class DIDSON:
             out_ydim=self.out_ydim,
             out_xdim=self.out_xdim,
         )
-        # print(f"{frames.shape=}")
 
-        return frames, unwarped_frames
+        if self.return_original_image:
+            original_frames = np.zeros(
+                (data.shape[0], self.big_ydim, self.big_xdim), dtype=np.uint8
+            )
+            original_frames[:, self.big_write_rows, self.big_write_cols] = data[
+                :, self.big_read_i
+            ]
+        else:
+            original_frames = None
+
+        return frames, unwarped_frames, original_frames

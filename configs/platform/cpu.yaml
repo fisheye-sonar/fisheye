@@ -3,7 +3,6 @@ dataset:
   workers: 0
   use_multithreading: false
   max_workers: 2  # For multithreading
-  use_blur: true
 
 model:
   type: yolov5

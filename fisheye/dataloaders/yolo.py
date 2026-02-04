@@ -8,6 +8,7 @@ from yolov5.utils.general import xyxy2xywh
 from fisheye.configs import YOLODatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset
 from fisheye.dataloaders.utils import to_chw_tensor
+from fisheye.dataloaders.didson.pyDIDSON import compute_resized_shape
 
 logger = structlog.get_logger()
 
@@ -65,67 +66,22 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         self.pad = config.pad
         self.model_input_img_size = config.img_size
         self.original_shape = (self.metadata.ydim, self.metadata.xdim)
-        self.resize_image_shape = self._compute_resized_shape()
+        self.resize_image_shape = compute_resized_shape(
+            self.original_shape, self.model_input_img_size, self.stride
+        )
         print(f"{self.resize_image_shape=}")
 
-    def _compute_resized_shape(self, snap_to_stride: bool = False):
-        """
-        Compute resized (H, W) that preserves aspect ratio and fits inside img_size.
-        One dimension will equal img_size, the other will be <= img_size.
-        (You will pad to img_size afterward.)
+    # @classmethod
+    # def load_image(cls, img, img_size=896, return_original_image=False):
+    #     """Loads and resizes an image for YOLOv5 inference."""
+    #     img_original = img.copy() if return_original_image else None
+    #     h0, w0 = img.shape[:2]  # original height and width
+    #     # r = img_size / max(h0, w0)  # resize ratio
+    #     # interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
+    #     # resized_img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
 
-        If snap_to_stride=True, the non-saturating dimension is floored to a stride multiple
-        (and the saturating dimension is kept at img_size).
-        """
-        oh, ow = int(self.original_shape[0]), int(self.original_shape[1])
-        out_h, out_w = int(self.model_input_img_size[0]), int(
-            self.model_input_img_size[1]
-        )
-        stride = int(self.stride)
-
-        # scale to fit within out_h x out_w (keeps aspect ratio)
-        s = min(out_h / oh, out_w / ow)
-
-        new_h = int(round(oh * s))
-        new_w = int(round(ow * s))
-
-        # guarantee we don't exceed target due to rounding
-        new_h = min(new_h, out_h)
-        new_w = min(new_w, out_w)
-
-        # Ensure at least 1 pixel
-        new_h = max(new_h, 1)
-        new_w = max(new_w, 1)
-
-        # Optional: make the "smaller" side a stride multiple (common in some pipelines)
-        if snap_to_stride:
-            # Only adjust the dimension that is NOT already at its max.
-            if new_h < out_h:
-                new_h = max(
-                    (new_h // stride) * stride, stride if out_h >= stride else 1
-                )
-            if new_w < out_w:
-                new_w = max(
-                    (new_w // stride) * stride, stride if out_w >= stride else 1
-                )
-
-            # Don’t let snapping push anything over the target
-            new_h = min(new_h, out_h)
-            new_w = min(new_w, out_w)
-
-        return np.array([new_h, new_w], dtype=int)
-
-    @classmethod
-    def load_image(cls, img, img_size=896, return_original_image=False):
-        """Loads and resizes an image for YOLOv5 inference."""
-        img_original = img.copy() if return_original_image else None
-        h0, w0 = img.shape[:2]  # original height and width
-        # r = img_size / max(h0, w0)  # resize ratio
-        # interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
-        # resized_img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
-
-        # returns resized_img, original hw, resized hw, original img
-        return img_original, (h0, w0), img_original.shape[:2], img_original
+    #     # returns resized_img, original hw, resized hw, original img
+    #     return img_original, (h0, w0), img_original.shape[:2], img_original
 
     def _postprocess(
         self,
@@ -133,7 +89,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         frame_labels,
         unwarped_frames,
         echogram,
-        return_original_image,
+        original_frames,
     ):
         """
         Return a batch of data in the format used by ScaledYOLOv4.
@@ -149,13 +105,19 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         """
         outputs = []
         frame_labels = frame_labels or [None for _ in frame_images]
-        for image, labels in zip(frame_images, frame_labels):
+        if original_frames is None:
+            original_frames = [None for _ in frame_images]
+        for image, labels, original_frame in zip(
+            frame_images, frame_labels, original_frames
+        ):
             # resized_img, original hw, resized hw, original img
             resized_img = image
-            # print(f"{image.shape=}")
+            # MAH 2026-02-04 10:13:24 TODO should one of these be the original frame size?
             h0, w0 = image.shape[:2]
             h, w = image.shape[:2]
-            img_original = None
+            img_original = original_frame
+
+            # print(f"{image.shape=} {img_original.shape=}")
 
             if True:
                 # Apply just padding instead of letterboxing
