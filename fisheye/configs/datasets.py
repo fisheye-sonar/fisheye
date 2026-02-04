@@ -29,7 +29,7 @@ class BaseDatasetConfig:
     use_multithreading: bool = True  # For dataloader threading
     max_workers: int = 2
     use_blur: bool = True  # For background subtraction blurring
-    return_original_image: bool = True
+    return_original_image: bool = False
     img_load_size: int = None
 
 
@@ -67,6 +67,5 @@ class YOLODatasetConfig(BaseDatasetConfig):
 
     stride: int = 64
     pad: float = 0.5
-    img_load_size: int = 2881
-    # img_size: int = None
-    img_size: int = (960, 512)
+    img_load_size: int = 2689
+    img_size: int = 896

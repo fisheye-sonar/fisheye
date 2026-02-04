@@ -30,47 +30,11 @@ BASE = Path(__file__).parent.parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
-def compute_resized_shape(
-    original_shape, model_input_img_size, stride, snap_to_stride: bool = False
-):
-    """
-    Compute resized (H, W) that preserves aspect ratio and fits inside img_size.
-    One dimension will equal img_size, the other will be <= img_size.
-    (You will pad to img_size afterward.)
-
-    If snap_to_stride=True, the non-saturating dimension is floored to a stride multiple
-    (and the saturating dimension is kept at img_size).
-    """
-    oh, ow = int(original_shape[0]), int(original_shape[1])
-    out_h, out_w = int(model_input_img_size[0]), int(model_input_img_size[1])
-    stride = int(stride)
-
-    # scale to fit within out_h x out_w (keeps aspect ratio)
-    s = min(out_h / oh, out_w / ow)
-
-    new_h = int(round(oh * s))
-    new_w = int(round(ow * s))
-
-    # guarantee we don't exceed target due to rounding
-    new_h = min(new_h, out_h)
-    new_w = min(new_w, out_w)
-
-    # Ensure at least 1 pixel
-    new_h = max(new_h, 1)
-    new_w = max(new_w, 1)
-
-    # Optional: make the "smaller" side a stride multiple (common in some pipelines)
-    if snap_to_stride:
-        # Only adjust the dimension that is NOT already at its max.
-        if new_h < out_h:
-            new_h = max((new_h // stride) * stride, stride if out_h >= stride else 1)
-        if new_w < out_w:
-            new_w = max((new_w // stride) * stride, stride if out_w >= stride else 1)
-
-        # Don’t let snapping push anything over the target
-        new_h = min(new_h, out_h)
-        new_w = min(new_w, out_w)
-    return np.array([new_h, new_w], dtype=int)
+def compute_resized_shape(original_shape, img_size, stride, pad=0):
+    """Computes the shape for resizing images based on aspect ratio."""
+    aspect_ratio = original_shape[0] / original_shape[1]
+    shape = [1, 1 / aspect_ratio] if aspect_ratio > 1 else [aspect_ratio, 1]
+    return np.ceil(np.array(shape) * img_size / stride + pad).astype(int) * stride
 
 
 class DIDSON:
@@ -120,7 +84,7 @@ class DIDSON:
 
         if img_size is not None:
             # get size
-            y, x = compute_resized_shape((big_ydim, big_xdim), img_size, stride)
+            y, x = img_size, int(np.ceil(img_size / (big_ydim / big_xdim)))
             print(
                 f"Given the load size ({big_ydim},{big_xdim}), the model input size {img_size} and the stride {stride}, images will be indexed to size ({y},{x})"
             )

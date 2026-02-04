@@ -102,7 +102,6 @@ class ObjectDetectionPipeline:
                     original_img = original_img.to(self.device, non_blocking=True)
 
                 img = self.preprocess(img)
-                # print(f"MAH img.shape: {img.shape}")
 
                 # if batch_idx == 0:
                 #     for i, im in enumerate(img):

@@ -63,16 +63,24 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
 
         self.stride = config.stride
         self.pad = config.pad
-        self.model_input_img_size = config.img_size
+        self.img_size = config.img_size
         self.original_shape = (self.metadata.ydim, self.metadata.xdim)
-        self.resize_image_shape = compute_resized_shape(
-            self.original_shape, self.model_input_img_size, self.stride
-        )
-        print(
-            f"images are generated at {self.resize_image_shape=} and padded to {self.model_input_img_size=}"
+
+        y, x = config.img_size, int(
+            np.ceil(config.img_size / (self.metadata.ydim / self.metadata.xdim))
         )
 
-        self.pad = CenterPad(self.resize_image_shape, self.model_input_img_size)
+        self.resize_image_shape = self.resize_image_shape = compute_resized_shape(
+            self.original_shape, self.img_size, self.stride, self.pad
+        )
+        print(
+            f"images are originally loaded in at {self.original_shape} then indexed to ({y},{x}) and padded to {self.resize_image_shape=}"
+        )
+
+        self.pad = CenterPad(
+            (y, x),
+            self.resize_image_shape,
+        )
 
     def _postprocess(
         self,
