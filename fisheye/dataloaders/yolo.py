@@ -65,11 +65,12 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         self.pad = config.pad
         self.model_input_img_size = config.img_size
         self.original_shape = (self.metadata.ydim, self.metadata.xdim)
-        print(f"{self.metadata.ydim=} {self.metadata.xdim=}")
         self.resize_image_shape = compute_resized_shape(
             self.original_shape, self.model_input_img_size, self.stride
         )
-        print(f"{self.model_input_img_size=} {self.resize_image_shape=}")
+        print(
+            f"images are generated at {self.resize_image_shape=} and padded to {self.model_input_img_size=}"
+        )
 
         self.pad = CenterPad(self.resize_image_shape, self.model_input_img_size)
 
