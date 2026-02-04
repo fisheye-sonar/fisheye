@@ -103,15 +103,6 @@ class ObjectDetectionPipeline:
 
                 img = self.preprocess(img)
 
-                # if batch_idx == 0:
-                #     for i, im in enumerate(img):
-                #         # save the image
-                #         cv2.imwrite(
-                #             f"/home/mahobley/Code/fisheye/img_{batch_idx}_{i}.png",
-                #             (im.cpu().permute(1, 2, 0).numpy() * 255).astype(np.uint8),
-                #         )
-                #         print(f"MAH test image {batch_idx}_{i}")
-
                 size = tuple(img.shape)
                 nb, _, height, width = size  # batch size, channels, height, width
 

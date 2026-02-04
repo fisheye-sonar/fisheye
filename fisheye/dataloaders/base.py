@@ -141,7 +141,6 @@ class BaseDataset(Dataset):
                 self.start_frame + final_idx + 1,
                 return_unwarped=self.return_unwarped or self.return_echogram,
             )
-            # print(f"{frames.shape=} {original_frames.shape=}")
 
             if self.return_unwarped:
                 frame_images = (
