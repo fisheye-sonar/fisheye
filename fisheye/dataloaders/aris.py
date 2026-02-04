@@ -23,12 +23,15 @@ class ARISBatchedDataset(BaseDataset):
             config (BaseDatasetConfig): Configuration object containing all dataset parameters.
         """
         try:
+            img_size = getattr(config, "img_size", None)
+            stride = getattr(config, "stride", None)
+
             self.didson = DIDSON(
                 config.filepath,
                 beam_width_dir=BEAM_WIDTH_DIR,
                 img_load_size=config.img_load_size,
-                img_size=config.img_size,
-                stride=config.stride,
+                img_size=img_size,
+                stride=stride,
                 return_original_image=config.return_original_image,
             )
         except Exception as e:

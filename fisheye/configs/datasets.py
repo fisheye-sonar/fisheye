@@ -30,6 +30,7 @@ class BaseDatasetConfig:
     max_workers: int = 2
     use_blur: bool = True  # For background subtraction blurring
     return_original_image: bool = True
+    img_load_size: int = None
 
 
 @dataclass
@@ -66,5 +67,6 @@ class YOLODatasetConfig(BaseDatasetConfig):
 
     stride: int = 64
     pad: float = 0.5
-    img_size: int = (960, 512)
     img_load_size: int = 2881
+    # img_size: int = None
+    img_size: int = (960, 512)

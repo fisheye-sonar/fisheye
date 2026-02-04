@@ -41,7 +41,6 @@ def compute_resized_shape(
     If snap_to_stride=True, the non-saturating dimension is floored to a stride multiple
     (and the saturating dimension is kept at img_size).
     """
-    print(f"AAAAAAAAA {original_shape=} {model_input_img_size=} {stride=}")
     oh, ow = int(original_shape[0]), int(original_shape[1])
     out_h, out_w = int(model_input_img_size[0]), int(model_input_img_size[1])
     stride = int(stride)
@@ -71,7 +70,6 @@ def compute_resized_shape(
         # Don’t let snapping push anything over the target
         new_h = min(new_h, out_h)
         new_w = min(new_w, out_w)
-    print(f"{[new_h, new_w]=}")
     return np.array([new_h, new_w], dtype=int)
 
 
@@ -81,8 +79,8 @@ class DIDSON:
         file,
         beam_width_dir=BEAM_WIDTH_DIR,
         ixsize=-1,
-        img_load_size=2688,
-        img_size=(960, 512),
+        img_load_size=None,
+        img_size=None,
         stride=64,
         return_original_image=False,
     ):
@@ -120,20 +118,34 @@ class DIDSON:
             self.big_write_cols = self.write_cols
             self.big_read_i = self.read_i
 
-        # get size
+        if img_size is not None:
+            # get size
+            y, x = compute_resized_shape((big_ydim, big_xdim), img_size, stride)
+            print(
+                f"Given the load size ({big_ydim},{big_xdim}), the model input size {img_size} and the stride {stride}, images will be indexed to size ({y},{x})"
+            )
+            self.out_ydim = y
+            self.out_xdim = x
 
-        y, x = compute_resized_shape((big_ydim, big_xdim), img_size, stride)
-        self.out_ydim = y
-        self.out_xdim = x
-
-        self._pix_area, self._count_area = self.precompute_area_like_pix_and_count(
-            self.write_rows,
-            self.write_cols,
-            big_ydim,
-            big_xdim,
-            self.out_ydim,
-            self.out_xdim,
-        )
+            self._pix_area, self._count_area = self.precompute_area_like_pix_and_count(
+                self.write_rows,
+                self.write_cols,
+                big_ydim,
+                big_xdim,
+                self.out_ydim,
+                self.out_xdim,
+            )
+        else:
+            self._pix_area, self._count_area = self.precompute_area_like_pix_and_count(
+                self.write_rows,
+                self.write_cols,
+                self.info["ydim"],
+                self.info["xdim"],
+                self.info["ydim"],
+                self.info["xdim"],
+            )
+            self.out_ydim = self.info["ydim"]
+            self.out_xdim = self.info["xdim"]
 
     def read_header(self, file: Union[str, Path]):
         """Reads the header from a DIDSON or ARIS file.
@@ -380,12 +392,10 @@ class DIDSON:
             )
 
             if img_load_size is not None and ydim != img_load_size:
-                print(f"MAH ydim {ydim} != desired_size_y {img_load_size}")
                 print(
-                    f"MAH resetting image bounds to match desired size y:{img_load_size}"
+                    f"Default size {ydim}x{xdim} does not match img_load_size in the y-axis {img_load_size}"
                 )
                 scale_factor_y = img_load_size / ydim
-
                 pixel_meter_size = pixel_meter_size / scale_factor_y
                 xdim, ydim, x_meter_start, y_meter_start, x_meter_stop, y_meter_stop = (
                     pyARIS.compute_image_bounds(
@@ -396,6 +406,7 @@ class DIDSON:
                         additional_pixel_padding_y=0,
                     )
                 )
+                print(f"Reset the load size to {ydim}x{xdim}")
 
             if ixsize != -1:
                 pixel_meter_size = pixel_meter_size * xdim / ixsize
@@ -753,49 +764,6 @@ class DIDSON:
 
         return pix, count_safe
 
-    def precompute_binned_accum_arrays(
-        self,
-        big_write_rows,
-        big_write_cols,
-        big_read_i,
-        big_ydim,
-        big_xdim,
-        out_ydim,
-        out_xdim,
-    ):
-        small_r = (big_write_rows.astype(np.int64) * out_ydim) // big_ydim
-        small_c = (big_write_cols.astype(np.int64) * out_xdim) // big_xdim
-        small_r = np.clip(small_r, 0, out_ydim - 1)
-        small_c = np.clip(small_c, 0, out_xdim - 1)
-
-        pix = (small_r * out_xdim + small_c).astype(np.int64)
-        read_i = big_read_i.astype(np.int64)
-
-        n_pix = out_ydim * out_xdim
-        count = np.bincount(pix, minlength=n_pix).astype(np.float32)
-        count_safe = np.maximum(count, 1.0).astype(np.float32)
-
-        # Strong sanity check: bincount must be exactly n_pix long
-        if count_safe.shape[0] != n_pix:
-            raise RuntimeError(
-                f"count_safe length {count_safe.shape[0]} != n_pix {n_pix}"
-            )
-
-        return pix, read_i, count_safe, out_ydim, out_xdim
-
-    def _precompute_accumulation(self, write_rows, write_cols, ydim, xdim):
-        """
-        Returns:
-        pix      : (A,) flat output pixel indices
-        count    : (ydim*xdim,) uint16 counts per pixel (constant across frames)
-        count_safe: same but with zeros replaced by 1 (for division)
-        """
-        pix = write_rows.astype(np.int64) * xdim + write_cols.astype(np.int64)
-        n_pix = ydim * xdim
-        count = np.bincount(pix, minlength=n_pix).astype(np.uint16)
-        count_safe = np.maximum(count, 1)
-        return pix, count, count_safe
-
     def sanitize_mapping(self, read_i, pix, Nraw, extra_arrays=()):
         """
         Filters mapping entries where read_i is out of bounds.
@@ -848,25 +816,6 @@ class DIDSON:
             out[t] = np.clip(img, 0, 255).astype(np.uint8)
 
         return out
-
-    # def warp_accum_mean_binned(
-    #     self, data, pix, read_i, count_safe, out_ydim, out_xdim, out_dtype=np.uint8
-    # ):
-    #     n_pix = out_ydim * out_xdim
-    #     T = data.shape[0]
-    #     out = np.empty((T, out_ydim, out_xdim), dtype=out_dtype)
-
-    #     for t in range(T):
-    #         s = np.bincount(
-    #             pix,
-    #             weights=data[t, read_i].astype(np.float32),
-    #             minlength=n_pix,
-    #         ).astype(np.float32)
-
-    #         img = (s / count_safe).reshape(out_ydim, out_xdim)
-    #         out[t] = np.clip(img, 0, 255).astype(out_dtype)
-
-    #     return out
 
     def load_raw_data(self, file=None, start_frame=-1, end_frame=-1):
         """
@@ -929,31 +878,6 @@ class DIDSON:
             # indexing error without it
         else:
             unwarped_frames = None
-        # frames = np.zeros(
-        #     (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
-        # )
-        # frames[:, self.write_rows, self.write_cols] = data[:, self.read_i]
-        # frames = self.warp_accum_mean_from_mapping(data, self._binned)
-
-        # frames = self.warp_accum_mean(
-        #     data=data,
-        #     read_i=self.read_i,
-        #     pix=self._pix,
-        #     count_safe=self._count_safe,
-        #     # ydim=self.info["ydim"],
-        #     # xdim=self.info["xdim"],
-        #     ydim=896,
-        #     xdim=442,
-        # )
-
-        # frames = self.warp_accum_mean_binned(
-        #     data,
-        #     self._bin_pix,
-        #     self._bin_read_i,
-        #     self._bin_count_safe,
-        #     self._out_ydim,
-        #     self._out_xdim,
-        # )
 
         frames = self.warp_area_rms(
             data=data,

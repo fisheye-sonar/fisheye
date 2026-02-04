@@ -1,21 +1,21 @@
-import numpy as np
-import pytest
-import torch
+# import numpy as np
+# import pytest
+# import torch
 
-from fisheye.dataloaders import (
-    create_dataloader,
-    ARISBatchedDataset,
-    YOLOARISBatchedDataset,
-)
-from fisheye.dataloaders.data_module import ARISDataModule
-from fisheye.dataloaders.didson.pyDIDSON import DIDSON
-from conftest import CORRUPTED_FILE, DDF_FILE, SHORTENED_DDF_FILE
+# from fisheye.dataloaders import (
+#     create_dataloader,
+#     ARISBatchedDataset,
+#     YOLOARISBatchedDataset,
+# )
+# from fisheye.dataloaders.data_module import ARISDataModule
+# from fisheye.dataloaders.didson.pyDIDSON import DIDSON
+# from conftest import CORRUPTED_FILE, DDF_FILE, SHORTENED_DDF_FILE
 
-from fisheye.configs import BaseDatasetConfig, YOLODatasetConfig
+# from fisheye.configs import BaseDatasetConfig, YOLODatasetConfig
 
-"""The same as test_dataloaders but now running on a didson version 3 file NOTE: Currently the warped images are 
-being returned as [486, 300], this is smaller than the unwarped images [512, 96] when it should be at least the same 
-height. This means we are losing resolution in the warp."""
+# """The same as test_dataloaders but now running on a didson version 3 file NOTE: Currently the warped images are
+# being returned as [486, 300], this is smaller than the unwarped images [512, 96] when it should be at least the same
+# height. This means we are losing resolution in the warp."""
 
 
 # class TestARISDataloader:
@@ -24,7 +24,10 @@ height. This means we are losing resolution in the warp."""
 #     # Test with different batch sizes
 #     @pytest.mark.parametrize("batch_size", [2, 32])
 #     def test_running_dataloader(self, batch_size):
-#         config = BaseDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
+#         config = BaseDatasetConfig(
+#             filepath=DDF_FILE,
+#             batch_size=batch_size,
+#         )
 #         dataloader, dataset = create_dataloader(config)
 #         assert len(dataset) == 133
 #         expected_batches = max(1, (len(dataset) + batch_size - 1) // batch_size)
@@ -37,7 +40,10 @@ height. This means we are losing resolution in the warp."""
 #             assert batch_labels is None
 
 #     def test_return_unwarped_images(self):
-#         config = BaseDatasetConfig(filepath=DDF_FILE, return_unwarped=True)
+#         config = BaseDatasetConfig(
+#             filepath=DDF_FILE,
+#             return_unwarped=True,
+#         )
 #         dataloader, dataset = create_dataloader(config)
 #         batch_size = (
 #             dataset.metadata.numframes - 1
@@ -51,7 +57,10 @@ height. This means we are losing resolution in the warp."""
 #         assert batch_unwarped.shape == torch.Size([batch_size, 512, 96])
 
 #     def test_return_echogram(self):
-#         config = BaseDatasetConfig(filepath=DDF_FILE, return_echogram=True)
+#         config = BaseDatasetConfig(
+#             filepath=DDF_FILE,
+#             return_echogram=True,
+#         )
 #         dataloader, dataset = create_dataloader(config)
 #         batch_size = (
 #             dataset.metadata.numframes - 1
@@ -63,8 +72,10 @@ height. This means we are losing resolution in the warp."""
 
 #     def test_loading_frames(self):
 #         """Test loading frames directly from DIDSON class."""
-#         didson = DIDSON(DDF_FILE)
-#         frames, unwarped_frames = didson.load_frames()
+#         didson = DIDSON(
+#             DDF_FILE,
+#         )
+#         frames, unwarped_frames, original_frames = didson.load_frames()
 #         assert isinstance(frames, np.ndarray)
 #         assert frames.shape == (134, 486, 300)  # Num of frames, ydim, xdim
 #         assert frames.dtype == np.uint8
@@ -72,8 +83,12 @@ height. This means we are losing resolution in the warp."""
 
 #     def test_loading_unwarped_frames(self):
 #         """Test loading frames directly from DIDSON class."""
-#         didson = DIDSON(DDF_FILE)
-#         frames, unwarped_frames = didson.load_frames(return_unwarped=True)
+#         didson = DIDSON(
+#             DDF_FILE,
+#         )
+#         frames, unwarped_frames, original_frames = didson.load_frames(
+#             return_unwarped=True
+#         )
 #         assert isinstance(unwarped_frames, np.ndarray)
 #         assert unwarped_frames.shape == (134, 512, 96)  # Num of frames, ydim, xdim
 #         assert unwarped_frames.dtype == np.uint8
@@ -93,7 +108,9 @@ height. This means we are losing resolution in the warp."""
 #     ):
 #         """Test ARIS factory function correctly handles frame range validation for ARIS datasets."""
 #         config = BaseDatasetConfig(
-#             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
+#             filepath=DDF_FILE,
+#             start_frame=start_frame,
+#             end_frame=end_frame,
 #         )
 #         dataloader, dataset = create_dataloader(config)
 #         assert len(dataset) == expected_length
@@ -105,7 +122,10 @@ height. This means we are losing resolution in the warp."""
 #     @pytest.mark.parametrize("batch_size", [2, 32])
 #     def test_running_dataloader(self, batch_size):
 #         """Test creating a ARIS dataloader using Lightning DataModule with no labels."""
-#         config = BaseDatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
+#         config = BaseDatasetConfig(
+#             filepath=DDF_FILE,
+#             batch_size=batch_size,
+#         )
 #         data_module = ARISDataModule(ARISBatchedDataset, config)
 #         data_module.setup(stage="test")
 #         dataloader = data_module.test_dataloader()
@@ -138,7 +158,9 @@ height. This means we are losing resolution in the warp."""
 #     ):
 #         """Test ARIS DataModule function correctly handles frame range validation for ARIS datasets."""
 #         config = BaseDatasetConfig(
-#             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
+#             filepath=DDF_FILE,
+#             start_frame=start_frame,
+#             end_frame=end_frame,
 #         )
 #         data_module = ARISDataModule(ARISBatchedDataset, config)
 #         data_module.setup(stage="test")
@@ -152,8 +174,10 @@ height. This means we are losing resolution in the warp."""
 #     @pytest.mark.parametrize("batch_size", [2, 32])
 #     def test_running_dataloader(self, batch_size):
 #         """Test creating a YOLO dataloader using factory function with no labels."""
-#         didson = DIDSON(DDF_FILE)
-#         frames, unwarped_frames = didson.load_frames()
+#         didson = DIDSON(
+#             DDF_FILE,
+#         )
+#         frames, unwarped_frames, original_frames = didson.load_frames()
 
 #         config = YOLODatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
 #         dataloader, dataset = create_dataloader(config)
@@ -184,7 +208,9 @@ height. This means we are losing resolution in the warp."""
 #     ):
 #         """Test YOLO factory function correctly handles frame range validation for YOLO datasets."""
 #         config = YOLODatasetConfig(
-#             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
+#             filepath=DDF_FILE,
+#             start_frame=start_frame,
+#             end_frame=end_frame,
 #         )
 #         dataloader, dataset = create_dataloader(config)
 #         assert len(dataset) == expected_length
@@ -194,7 +220,10 @@ height. This means we are losing resolution in the warp."""
 #     @pytest.mark.parametrize("batch_size", [2, 32])
 #     def test_running_dataloader(self, batch_size):
 #         """Test creating a YOLO dataloader using Lightning DataModule with no labels."""
-#         config = YOLODatasetConfig(filepath=DDF_FILE, batch_size=batch_size)
+#         config = YOLODatasetConfig(
+#             filepath=DDF_FILE,
+#             batch_size=batch_size,
+#         )
 #         data_module = ARISDataModule(YOLOARISBatchedDataset, config)
 #         data_module.setup(stage="test")
 #         dataloader = data_module.test_dataloader()
@@ -227,7 +256,9 @@ height. This means we are losing resolution in the warp."""
 #     ):
 #         """Test ARIS DataModule correctly handles frame range validation for YOLO datasets."""
 #         config = YOLODatasetConfig(
-#             filepath=DDF_FILE, start_frame=start_frame, end_frame=end_frame
+#             filepath=DDF_FILE,
+#             start_frame=start_frame,
+#             end_frame=end_frame,
 #         )
 #         data_module = ARISDataModule(YOLOARISBatchedDataset, config)
 #         data_module.setup(stage="test")
@@ -245,10 +276,40 @@ height. This means we are losing resolution in the warp."""
 # def test_modified_start_end_frames(beam_widths_path):
 #     """Test handling modified start and end frame indices exceeding the total number of frames. This is a test case
 #     for when a shorted clip is created from the original ARIS/DIDSON file."""
-#     didson = DIDSON(SHORTENED_DDF_FILE, beam_widths_path)
-#     frames, unwarped_frames = didson.load_frames()
+#     didson = DIDSON(
+#         SHORTENED_DDF_FILE,
+#         beam_widths_path,
+#     )
+#     frames, unwarped_frames, original_frames = didson.load_frames()
 
 #     assert isinstance(frames, np.ndarray)
 #     assert frames.shape == (57, 486, 300)  # Num of frames, ydim, xdim
 #     assert frames.dtype == np.uint8
 #     assert np.any(frames != 0)
+
+
+# # MAH 2026-02-04 12:09:58 remove
+# def test_running_dataloader(self, batch_size):
+#     """Test creating a YOLO dataloader using Lightning DataModule with no labels."""
+#     config = YOLODatasetConfig(
+#         filepath=DDF_FILE, batch_size=batch_size, img_size=(960, 640)
+#     )
+#     data_module = ARISDataModule(YOLOARISBatchedDataset, config)
+#     data_module.setup(stage="test")
+#     dataloader = data_module.test_dataloader()
+
+#     num_batches = len(dataloader)
+#     expected_batches = max(1, (len(dataloader.dataset) + batch_size - 1) // batch_size)
+#     assert num_batches == expected_batches
+
+#     batch = next(iter(dataloader))
+#     batch_data, batch_labels = batch[0], batch[1]
+
+#     print(f"{batch_data.shape=}")
+#     # Check batch content
+#     assert batch_data.shape == torch.Size([batch_size, 3, 960, 640])
+#     # Check batch labels
+#     assert batch_labels is None or batch_labels.numel() == 0
+
+
+# test_running_dataloader(None, 32)

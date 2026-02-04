@@ -13,38 +13,37 @@ from fisheye.dataloaders.didson.pyDIDSON import compute_resized_shape
 logger = structlog.get_logger()
 
 
-def pad_to_shape(img: np.ndarray, out_hw, pad_value=114):
-    """
-    Center-pad HWC image to (out_h, out_w). No resizing.
-    Returns: padded_img, (1.0, 1.0), (dw, dh) where dw/dh are half-pads.
-    """
-    out_h, out_w = int(out_hw[0]), int(out_hw[1])
-    h, w = img.shape[:2]
+class CenterPad:
+    def __init__(self, in_hw, out_hw, pad_value=114):
+        self.in_h, self.in_w = in_hw
+        self.out_h, self.out_w = out_hw
+        self.pad_value = pad_value
 
-    if h > out_h or w > out_w:
-        raise ValueError(
-            f"Input ({h},{w}) larger than target ({out_h},{out_w}); this function pads only."
+        if self.in_h > self.out_h or self.in_w > self.out_w:
+            raise ValueError(
+                f"Input ({self.in_h},{self.in_w}) larger than target ({self.out_h},{self.out_w}); pads only."
+            )
+
+        self.dh = (self.out_h - self.in_h) // 2
+        self.dw = (self.out_w - self.in_w) // 2
+        self.top = self.dh
+        self.left = self.dw
+
+    def __call__(self, img: np.ndarray):
+        out = np.full(
+            (
+                (self.out_h, self.out_w, img.shape[2])
+                if img.ndim == 3
+                else (self.out_h, self.out_w)
+            ),
+            self.pad_value,
+            dtype=img.dtype,
         )
-
-    dh = (out_h - h) // 2
-    dw = (out_w - w) // 2
-    top, bottom = dh, out_h - h - dh
-    left, right = dw, out_w - w - dw
-
-    # Create output and fill
-    if img.ndim == 3:
-        out = np.empty((out_h, out_w, img.shape[2]), dtype=img.dtype)
-    else:
-        out = np.empty((out_h, out_w), dtype=img.dtype)
-
-    # Fill background
-    # If pad_value is scalar, numpy broadcasts; if tuple/list matches channels, also broadcasts.
-    out[...] = pad_value
-
-    # Paste original image
-    out[top : top + h, left : left + w, ...] = img
-
-    return out, (1.0, 1.0), (float(dw), float(dh))
+        # out[...] = self.pad_value
+        out[self.top : self.top + self.in_h, self.left : self.left + self.in_w, ...] = (
+            img
+        )
+        return out, (1.0, 1.0), (float(self.dw), float(self.dh))
 
 
 class YOLOARISBatchedDataset(ARISBatchedDataset):
@@ -66,22 +65,13 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         self.pad = config.pad
         self.model_input_img_size = config.img_size
         self.original_shape = (self.metadata.ydim, self.metadata.xdim)
+        print(f"{self.metadata.ydim=} {self.metadata.xdim=}")
         self.resize_image_shape = compute_resized_shape(
             self.original_shape, self.model_input_img_size, self.stride
         )
-        print(f"{self.resize_image_shape=}")
+        print(f"{self.model_input_img_size=} {self.resize_image_shape=}")
 
-    # @classmethod
-    # def load_image(cls, img, img_size=896, return_original_image=False):
-    #     """Loads and resizes an image for YOLOv5 inference."""
-    #     img_original = img.copy() if return_original_image else None
-    #     h0, w0 = img.shape[:2]  # original height and width
-    #     # r = img_size / max(h0, w0)  # resize ratio
-    #     # interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
-    #     # resized_img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
-
-    #     # returns resized_img, original hw, resized hw, original img
-    #     return img_original, (h0, w0), img_original.shape[:2], img_original
+        self.pad = CenterPad(self.resize_image_shape, self.model_input_img_size)
 
     def _postprocess(
         self,
@@ -117,23 +107,8 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             h, w = image.shape[:2]
             img_original = original_frame
 
-            # print(f"{image.shape=} {img_original.shape=}")
-
-            if True:
-                # Apply just padding instead of letterboxing
-                resized_img, ratio, pad = pad_to_shape(
-                    resized_img, self.model_input_img_size
-                )
-            else:
-                # Apply letterboxing to resize and pad images
-                resized_img, ratio, pad = letterbox(
-                    resized_img,
-                    self.resize_image_shape,
-                    auto=False,
-                    scaleup=False,
-                    stride=self.stride,
-                )
-            # print(f"after {resized_img.shape=} {ratio=} {pad=}")
+            # Apply just padding instead of letterboxing
+            resized_img, ratio, pad = self.pad(resized_img)
 
             shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
 
