@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 
 from fisheye.common.generic import run_with_threads
 from fisheye.configs import BaseDatasetConfig
+from concurrent.futures import ThreadPoolExecutor
 
 
 class BaseDataset(Dataset):
@@ -132,18 +133,30 @@ class BaseDataset(Dataset):
             )
 
             if self.return_unwarped:
-                frame_images = unwarped_frames
+                frame_images = (
+                    self._stack_preprocessed_channels(
+                        unwarped_frames,
+                        self.unwarped_mean_blurred_frame,
+                        self.unwarped_mean_normalization_value,
+                    )
+                    if self.do_bg_subtract
+                    else np.expand_dims(frames[:-1], -1)
+                )
             else:
-                frame_images = frames
+                frame_images = (
+                    self._stack_preprocessed_channels(
+                        frames,
+                        self.mean_blurred_frame,
+                        self.mean_normalization_value,
+                    )
+                    if self.do_bg_subtract
+                    else np.expand_dims(frames[:-1], -1)
+                )
 
             # MAH 2025-02-07 17:13:36 Question, why are we removing the last frame? whether or not we are doing
             # background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w,
             # 3] not was [t,h,w])
-            frame_images = (
-                self._stack_preprocessed_channels(frame_images)
-                if self.do_bg_subtract
-                else np.expand_dims(frame_images[:-1], -1)
-            )
+
             if self.return_unwarped or self.return_echogram:
                 unwarped_frames = unwarped_frames[:-1]
 
@@ -166,7 +179,9 @@ class BaseDataset(Dataset):
             self.return_original_image,
         )
 
-    def _stack_preprocessed_channels(self, frames: np.ndarray):
+    def _stack_preprocessed_channels(
+        self, frames: np.ndarray, mean_blurred_frame, mean_normalization_value
+    ):
         """Generate a 3-channel representation of the frames.
 
         This method:
@@ -178,45 +193,49 @@ class BaseDataset(Dataset):
                 - Channel 1: blurred + normalized frames
                 - Channel 2: temporal difference between consecutive blurred frames
         """
+        T, H, W = frames.shape
+
+        frame_image = np.empty((T - 1, H, W, 3), dtype=np.uint8)
+        frame_image[..., 0] = frames[:-1]
+
+        # Convert once
+        frames_f32 = (
+            frames.astype(np.float32, copy=False)
+            if frames.dtype == np.float32
+            else frames.astype(np.float32)
+        )
+
         if not self.use_blur:
-            blurred_frames = frames.astype(np.float32)
-
+            blurred_frames = frames_f32  # reuse
         else:
+            blurred_frames = np.empty_like(frames_f32)
+
             if self.use_multithreading:
-                blurred_frames = np.zeros_like(frames, dtype=np.float32)
-                blurred_frames_list = run_with_threads(
-                    lambda i: cv2.GaussianBlur(frames[i], (5, 5), 0),
-                    list(range(frames.shape[0])),
-                    max_workers=self.max_workers,
-                )
 
-                for i in range(frames.shape[0]):
-                    blurred_frames[i] = blurred_frames_list[i]
+                def worker(i):
+                    # input is float32, output is float32
+                    blurred_frames[i] = cv2.GaussianBlur(frames_f32[i], (5, 5), 0)
+
+                with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
+                    list(ex.map(worker, range(T)))
             else:
-                blurred_frames = frames.astype(np.float32)
-                for i in range(frames.shape[0]):
-                    blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
+                for i in range(T):
+                    blurred_frames[i] = cv2.GaussianBlur(frames_f32[i], (5, 5), 0)
 
-        if self.return_unwarped:
-            blurred_frames -= self.unwarped_mean_blurred_frame
-            blurred_frames /= self.unwarped_mean_normalization_value
-        else:
-            blurred_frames -= self.mean_blurred_frame
-            blurred_frames /= self.mean_normalization_value
+        # Normalize in-place (float32)
+        blurred_frames -= mean_blurred_frame
+        blurred_frames /= mean_normalization_value
+        blurred_frames = (blurred_frames + 1.0) * 0.5  # combine two ops
 
-        # MAH 2025-11-24 17:09:09 I think we should not do this here and instead we should only take the positive values of the bgs
-        blurred_frames += 1
-        blurred_frames /= 2
+        # Convert to uint8 channels
+        # If you KNOW values are in [0,1], clip can be skipped; otherwise keep it.
+        ch1 = np.clip(blurred_frames[:-1] * 255.0, 0, 255).astype(np.uint8)
+        ch2 = np.clip(
+            np.abs(blurred_frames[1:] - blurred_frames[:-1]) * 255.0, 0, 255
+        ).astype(np.uint8)
 
-        frame_image = np.stack(
-            [
-                frames[:-1],
-                blurred_frames[:-1] * 255,
-                np.abs(blurred_frames[1:] - blurred_frames[:-1]) * 255,
-            ],
-            axis=-1,
-        ).astype(np.uint8, copy=False)
-
+        frame_image[..., 1] = ch1
+        frame_image[..., 2] = ch2
         return frame_image
 
     def _postprocess(
