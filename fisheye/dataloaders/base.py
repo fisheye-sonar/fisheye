@@ -102,7 +102,7 @@ class BaseDataset(Dataset):
                     mean_blurred_frame += blurred
                     max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
 
-        mean_blurred_frame /= frames_for_bg_subtract.shape[0]
+            mean_blurred_frame /= frames_for_bg_subtract.shape[0]
         max_blurred_frame -= mean_blurred_frame
         mean_normalization_value = np.max(max_blurred_frame)
 
@@ -248,6 +248,7 @@ class BaseDataset(Dataset):
         if self.return_echogram_with_bg_subtracted:
             unwarped_frames_bgs -= self.unwarped_mean_blurred_frame
             unwarped_frames_bgs /= self.unwarped_mean_normalization_value
+
         echogram = np.max(unwarped_frames_bgs.astype(np.float32), axis=2).astype(
             np.float32
         )

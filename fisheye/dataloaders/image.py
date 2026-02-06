@@ -16,7 +16,7 @@ class ImageDataset(BaseDataset):
         batch_size,
         num_frames_bg_subtract=1000,
         do_bg_subtract=True,
-        return_echogram_with_bg_subtracted=False,
+        return_echogram_with_bg_subtracted=True,
         **kwargs
     ):
         """
