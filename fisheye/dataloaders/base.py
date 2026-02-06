@@ -28,6 +28,9 @@ class BaseDataset(Dataset):
         self.cache_bg_frames = config.cache_bg_frames
         self.num_frames_bg_subtract = config.num_frames_bg_subtract
         self.do_bg_subtract = config.do_bg_subtract
+        self.return_echogram_with_bg_subtracted = (
+            config.return_echogram_with_bg_subtracted
+        )
         self.extracted_frames = []
         self.frame_labels = []
         self.extracted_unwarped_frames = []
@@ -242,8 +245,9 @@ class BaseDataset(Dataset):
         The return channels are the magnitude and the normalised angle between -0.5 and 0.5
         """
         unwarped_frames_bgs = unwarped_frames.astype(np.float32)
-        unwarped_frames_bgs -= self.unwarped_mean_blurred_frame
-        unwarped_frames_bgs /= self.unwarped_mean_normalization_value
+        if self.return_echogram_with_bg_subtracted:
+            unwarped_frames_bgs -= self.unwarped_mean_blurred_frame
+            unwarped_frames_bgs /= self.unwarped_mean_normalization_value
         echogram = np.max(unwarped_frames_bgs.astype(np.float32), axis=2).astype(
             np.float32
         )
