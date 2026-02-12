@@ -14,7 +14,7 @@ inference:
   use_multithreading: false
   max_workers: 2  # For multithreading
   apply_nms_batchwise: true
-  apply_length_estimates_batchwise: true
+  apply_length_estimates_batchwise: false
   length_config:
     type: unet
     weights: null

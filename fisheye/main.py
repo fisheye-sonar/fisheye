@@ -62,6 +62,9 @@ def run_pipeline(cfg: DictConfig):
     detector_cfg.weights = resolved_weights_path
     detector = DETECTOR_CLASS_REGISTRY[detector_type](detector_cfg)
 
+    # Build dataset configs
+    dataset_cfg = YOLODatasetConfig(**dataset_config)
+
     # Build runtime configs
     runtime_config = dict(platform_cfg.inference)
     if "length_config" in runtime_config:
@@ -75,10 +78,10 @@ def run_pipeline(cfg: DictConfig):
             model_type, **length_cfg_dict
         )
 
-    runtime_config["model"] = detector_cfg
+        if runtime_config.get("apply_length_estimates_batchwise", False):
+            dataset_cfg.return_original_image = True
 
-    # Build dataset configs
-    dataset_cfg = YOLODatasetConfig(**dataset_config)
+    runtime_config["model"] = detector_cfg
 
     start_time = time.time()
     logger.info("inference_started", start_time=start_time)
