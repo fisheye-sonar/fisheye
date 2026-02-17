@@ -90,6 +90,10 @@ class BaseInferenceExporter(ABC):
                 get_unwarped_distance_and_theta, axis=1, result_type="expand"
             )
 
+        if "metadata" in df.columns:
+            # Drop metadata column since we expanded it into individual columns
+            df = df.drop(columns=["metadata"])
+
         # Ensure columns exist
         if "R (m)" not in df.columns:
             df["R (m)"] = 0.0
@@ -134,18 +138,9 @@ class DetailedCSVExporter(BaseInferenceExporter):
 
         # Column ordering
         base_cols = ["Source.Name", "Frame#", "Dir", "R (m)", "Theta", "Date", "ID"]
-        meta_cols = [
-            c
-            for c in df.columns
-            if c not in base_cols and c not in ["bbox", "metadata"]
-        ]
-        remaining_cols = [
-            c
-            for c in df.columns
-            if c not in base_cols + meta_cols + ["bbox", "metadata"]
-        ]
+        meta_cols = [c for c in df.columns if c not in base_cols]
 
-        final_cols = base_cols + meta_cols + remaining_cols
+        final_cols = base_cols + meta_cols
         df = df[final_cols]
 
         with open(out_file, "w") as f:
