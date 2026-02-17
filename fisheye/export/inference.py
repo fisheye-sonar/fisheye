@@ -138,9 +138,7 @@ class DetailedCSVExporter(BaseInferenceExporter):
 
         # Column ordering
         base_cols = ["Source.Name", "Frame#", "Dir", "R (m)", "Theta", "Date", "ID"]
-        meta_cols = [
-            c for c in df.columns if c not in base_cols  # and c not in ["bbox"]
-        ]
+        meta_cols = [c for c in df.columns if c not in base_cols]
 
         final_cols = base_cols + meta_cols
         df = df[final_cols]

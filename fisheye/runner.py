@@ -3,11 +3,15 @@ from pathlib import Path
 from typing import List, Union
 
 import structlog
-
+from fisheye.builder import PipelineFactory
 from fisheye.common.file_system import is_valid_dir
+from fisheye.common.logging import setup_logging
+from fisheye.common.system import check_disk_space, generate_job_id
 from fisheye.enums import ExportType
-from fisheye.export import save_to_disk
+from fisheye.export import parse_export_options, save_to_disk
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
+from fisheye.version import __app_version__, get_version_from_detector
+from omegaconf import DictConfig
 
 logger = structlog.get_logger()
 
@@ -85,3 +89,55 @@ class PipelineRunner:
             distance_offset=distance_offset,
             upstream_direction=upstream_direction,
         )
+
+
+def run_job(cfg: DictConfig):
+    """Run the job defined by the configuration."""
+    job_id = generate_job_id()
+    setup_logging(file_logging=True, job_id=job_id)
+
+    input_path = cfg.input_path
+    output_dir = cfg.output_dir
+    export_options = cfg.export_options
+
+    # Parse export options
+    export_types = parse_export_options(export_options)
+
+    # Use specific platform config
+    platform_cfg = cfg.platform
+
+    # Check disk space
+    check_disk_space(path=output_dir if output_dir else input_path)
+
+    project_root = Path(__file__).resolve().parents[1]
+
+    # Build components
+    detector, resolved_weights_path, detector_cfg = PipelineFactory.build_detector(
+        platform_cfg, project_root
+    )
+
+    # Bind job ID, app, and detector version to logger
+    structlog.get_logger().bind(
+        job_id=job_id,
+        app_version=__app_version__,
+        detector_version=get_version_from_detector(resolved_weights_path),
+    )
+
+    dataset_cfg = PipelineFactory.build_dataset_config(platform_cfg.dataset)
+
+    runtime_config = PipelineFactory.build_runtime_config(
+        platform_cfg, project_root, detector_cfg
+    )
+
+    pipeline = PipelineFactory.build_pipeline(detector, runtime_config, dataset_cfg)
+
+    # Run
+    runner = PipelineRunner(pipeline)
+    return runner.run(
+        input_path,
+        output_dir,
+        export_types,
+        job_id,
+        cfg.upstream_direction,
+        cfg.distance_offset,
+    )

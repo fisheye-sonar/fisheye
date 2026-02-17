@@ -1,7 +1,5 @@
 from pathlib import Path
 
-from omegaconf import DictConfig
-
 from fisheye.configs import (
     ObjectDetectionConfig,
     YOLODatasetConfig,
@@ -12,6 +10,7 @@ from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
 from fisheye.enums import DetectorType, LengthEstimatorType
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
+from omegaconf import DictConfig
 
 
 class PipelineFactory:
