@@ -31,6 +31,20 @@ class BaseDataset(Dataset):
         self.return_echogram_with_bg_subtracted = (
             config.return_echogram_with_bg_subtracted
         )
+
+        self.return_echogram_with_how_wide_the_peak_as_third_channel = (
+            config.return_echogram_with_how_wide_the_peak_as_third_channel
+        )
+        self.return_echogram_with_no_bgs_as_third_channel = (
+            config.return_echogram_with_no_bgs_as_third_channel
+        )
+        self.return_echogram_with_distances_as_third_channel = (
+            config.return_echogram_with_distances_as_third_channel
+        )
+        if self.return_echogram_with_distances_as_third_channel:
+            print(
+                "return_echogram_with_distances_as_third_channel is True, but will only return zeros to be post processed to add in"
+            )
         self.extracted_frames = []
         self.frame_labels = []
         self.extracted_unwarped_frames = []
@@ -240,24 +254,108 @@ class BaseDataset(Dataset):
         )
 
     def _get_echogram(self, unwarped_frames):
-        """Generate Echogram from the frames.
-
-        The return channels are the magnitude and the normalised angle between -0.5 and 0.5
         """
-        unwarped_frames_bgs = unwarped_frames.astype(np.float32)
+        Generate Echogram from the frames.
+
+        Output channels:
+        0: magnitude (max over bins)
+        1: normalized argmax bin index in [-0.5, 0.5)
+        2: (optional) magnitude without bg subtraction (computed from raw frames)
+        2: (optional) peak width at 90% of peak (in bins, float32)
+        2: (optional) distances (bin index -> distance mapping, example implementation)
+        """
+        # assert cant have more than 3 channels
+        assert (
+            self.return_echogram_with_how_wide_the_peak_as_third_channel
+            + self.return_echogram_with_no_bgs_as_third_channel
+            + self.return_echogram_with_distances_as_third_channel
+            <= 1
+        ), "Cannot have more than 3 channels"
+
+        if (
+            self.return_echogram_with_distances_as_third_channel
+            or self.return_echogram_with_no_bgs_as_third_channel
+            or self.return_echogram_with_how_wide_the_peak_as_third_channel
+        ):
+            output = np.zeros(
+                (unwarped_frames.shape[0], unwarped_frames.shape[1], 3),
+                dtype=np.float32,
+            )
+        else:
+            output = np.zeros(
+                (unwarped_frames.shape[0], unwarped_frames.shape[1], 2),
+                dtype=np.float32,
+            )
+
+        # Work in float32 once
+        frames_f32 = unwarped_frames.astype(np.float32)
+
+        # Optional: raw echogram before any bg subtraction/normalization
+        no_bgs_echogram = None
+        if self.return_echogram_with_no_bgs_as_third_channel:
+            no_bgs_echogram = np.max(frames_f32, axis=2) / 255.0
+
+        # Apply bg subtraction / normalization if requested
+        proc = frames_f32
+
         if self.return_echogram_with_bg_subtracted:
-            unwarped_frames_bgs -= self.unwarped_mean_blurred_frame
-            unwarped_frames_bgs /= self.unwarped_mean_normalization_value
+            proc = proc - self.unwarped_mean_blurred_frame
+            proc = proc / self.unwarped_mean_normalization_value
 
-        echogram = np.max(unwarped_frames_bgs.astype(np.float32), axis=2).astype(
-            np.float32
-        )
-        col = np.argmax(unwarped_frames_bgs, axis=2).astype(np.float32)
-        col = col / unwarped_frames.shape[2]
-        col -= 0.5
-        echogram = np.stack([echogram, col], axis=2)
+        # Magnitude echogram
+        output[:, :, 0] = np.max(proc, axis=2)
+        # Angle echogram
+        angle_echogram = np.argmax(proc, axis=2)  # shape (H, W)
+        depth = unwarped_frames.shape[2]
+        col = angle_echogram.astype(np.float32) / float(depth)  # [0, 1)
+        col -= 0.5  # [-0.5, 0.5)
+        output[:, :, 1] = col.astype(np.float32)
 
-        return echogram
+        # Peak width echogram
+        if self.return_echogram_with_how_wide_the_peak_as_third_channel:
+            peak_vals = output[:, :, 0].astype(np.float32)  # (H, W)
+            peak_idx = angle_echogram  # (H, W)
+            thr = 0.25 * peak_vals  # (H, W)
+
+            above = proc >= thr[..., None]  # (H, W, D)
+
+            H, W, D = proc.shape
+            width = np.zeros((H, W), dtype=np.float32)
+
+            for r in range(H):
+                above_r = above[r]  # (W, D)
+                peak_r = peak_idx[r]  # (W,)
+                peakv_r = peak_vals[r]  # (W,)
+
+                for c in range(W):
+                    pv = float(peakv_r[c])
+                    if not np.isfinite(pv) or pv <= 0.0:
+                        width[r, c] = 0.0
+                        continue
+
+                    p = int(peak_r[c])
+
+                    # Walk left while staying above threshold
+                    l = p
+                    while l > 0 and above_r[c, l - 1]:
+                        l -= 1
+
+                    # Walk right while staying above threshold
+                    rr = p
+                    while rr < D - 1 and above_r[c, rr + 1]:
+                        rr += 1
+
+                    width[r, c] = float(rr - l + 1)
+
+            output[:, :, 2] = width
+
+        # No-bgs echogram channel
+        if self.return_echogram_with_no_bgs_as_third_channel:
+            output[:, :, 2] = no_bgs_echogram.astype(np.float32)
+
+        if self.return_echogram_with_distances_as_third_channel:
+            pass  # TODO: add distances echogram
+        return output
 
     def load_frames(self, idx, final_idx, return_unwarped):
         raise NotImplementedError("Subclasses should implement this method.")

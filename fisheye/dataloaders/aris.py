@@ -54,6 +54,7 @@ class ARISBatchedDataset(BaseDataset):
             sampleperiod=info.get("sampleperiod", 0),
             soundspeed=info.get("soundspeed", 0),
             windowstart=info.get("windowstart", 0),
+            windowlength=info.get("windowlength", 0),
             samplesperbeam=info.get("samplesperbeam", 0),
             BeamCount=info.get("BeamCount", 0),
             thesystemtype=info.get("thesystemtype", 0),

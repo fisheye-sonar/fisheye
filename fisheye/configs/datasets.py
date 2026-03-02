@@ -26,6 +26,9 @@ class BaseDatasetConfig:
     return_unwarped: bool = False
     return_echogram: bool = False
     return_echogram_with_bg_subtracted: bool = True
+    return_echogram_with_how_wide_the_peak_as_third_channel: bool = False
+    return_echogram_with_no_bgs_as_third_channel: bool = False
+    return_echogram_with_distances_as_third_channel: bool = False
     use_multithreading: bool = True  # For dataloader threading
     max_workers: int = 2
     use_blur: bool = True  # For background subtraction blurring
@@ -51,6 +54,7 @@ class ARISMetadata:
     sampleperiod: float
     soundspeed: float
     windowstart: float
+    windowlength: float
     samplesperbeam: float
     BeamCount: int
     thesystemtype: int

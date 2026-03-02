@@ -17,6 +17,9 @@ class ImageDataset(BaseDataset):
         num_frames_bg_subtract=1000,
         do_bg_subtract=True,
         return_echogram_with_bg_subtracted=True,
+        return_echogram_with_how_wide_the_peak_as_third_channel=False,
+        return_echogram_with_no_bgs_as_third_channel=False,
+        return_echogram_with_distances_as_third_channel=False,
         **kwargs
     ):
         """
@@ -32,6 +35,15 @@ class ImageDataset(BaseDataset):
         self.do_bg_subtract = do_bg_subtract
         self.num_frames_bg_subtract = num_frames_bg_subtract
         self.return_echogram_with_bg_subtracted = return_echogram_with_bg_subtracted
+        self.return_echogram_with_how_wide_the_peak_as_third_channel = (
+            return_echogram_with_how_wide_the_peak_as_third_channel
+        )
+        self.return_echogram_with_no_bgs_as_third_channel = (
+            return_echogram_with_no_bgs_as_third_channel
+        )
+        self.return_echogram_with_distances_as_third_channel = (
+            return_echogram_with_distances_as_third_channel
+        )
         self.image_paths = [
             os.path.join(image_folder, filename)
             for filename in os.listdir(image_folder)
@@ -44,6 +56,9 @@ class ImageDataset(BaseDataset):
             num_frames_bg_subtract=num_frames_bg_subtract,
             do_bg_subtract=do_bg_subtract,
             return_echogram_with_bg_subtracted=return_echogram_with_bg_subtracted,
+            return_echogram_with_how_wide_the_peak_as_third_channel=return_echogram_with_how_wide_the_peak_as_third_channel,
+            return_echogram_with_no_bgs_as_third_channel=return_echogram_with_no_bgs_as_third_channel,
+            return_echogram_with_distances_as_third_channel=return_echogram_with_distances_as_third_channel,
             **kwargs
         )
 
