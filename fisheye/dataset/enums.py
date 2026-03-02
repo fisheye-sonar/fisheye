@@ -6,4 +6,4 @@ class DatasetFormat(Enum):
 
     YOLO = "yolo"
     COCO = "coco"
-    MULTI = "multi"
+    SFFI = "sffi"

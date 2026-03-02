@@ -62,7 +62,7 @@ class COCOExporter(BaseDatasetExporter):
         raise NotImplementedError("COCO export not yet implemented")
 
 
-class MultiExporter(BaseDatasetExporter):
+class SingleFishFrameInstanceExporter(BaseDatasetExporter):
     """Multi dataset exporter."""
 
     def __init__(self, annotations_dir: Path):
@@ -112,5 +112,5 @@ class MultiExporter(BaseDatasetExporter):
 DATASET_EXPORTER_REGISTRY: Dict[DatasetFormat, Type[BaseDatasetExporter]] = {
     DatasetFormat.YOLO: YOLOExporter,
     DatasetFormat.COCO: COCOExporter,
-    DatasetFormat.MULTI: MultiExporter,
+    DatasetFormat.SFFI: SingleFishFrameInstanceExporter,
 }

@@ -9,6 +9,6 @@ out_dir: "/home/mahobley/Code/fisheye/xml_dataset"
 
 
 # Dataset export options
-dataset_format: multi  # See other options in DATASET_EXPORTER_REGISTRY
+dataset_format: sffi  # See other options in DATASET_EXPORTER_REGISTRY
 padding: 0.1
 min_padding_px: 30
