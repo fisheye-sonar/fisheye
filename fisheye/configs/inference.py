@@ -38,11 +38,14 @@ class LengthEstimationConfig:
 
 
 @dataclass
-class FishSizeConfig:
-    """Configuration for fish size in detection and tracking."""
+class TargetSizeConfig:
+    """Configuration for size-based filtering detections based on bounding box size.
 
-    min_length: float = 0.3  # Minimum fish length in meters
-    max_length: float = 0  # Maximum fish length in meters
+    This configuration defines constraints and filters bounding boxes within detection and tracking stages.
+    """
+
+    min_length: float = 0.3  # Minimum target length in meters
+    max_length: float = 0  # Maximum target length in meters
 
 
 @dataclass
@@ -55,7 +58,7 @@ class NMSConfig:
     max_nms: int = 30000  # Maximum number of boxes into torchvision.ops.nms()
     redundant: bool = True  # Require redundant detections
     merge: bool = False  # Use merge-NMS
-    fish_size: FishSizeConfig = field(default_factory=FishSizeConfig)
+    target_size: TargetSizeConfig = field(default_factory=TargetSizeConfig)
 
 
 @dataclass
@@ -71,7 +74,7 @@ class ObjectDetectionConfig(Generic[T]):
         True  # Apply length estimates batchwise for detection
     )
     nms_config: NMSConfig = field(default_factory=NMSConfig)
-    fish_size: FishSizeConfig = field(default_factory=FishSizeConfig)
+    target_size: TargetSizeConfig = field(default_factory=TargetSizeConfig)
     length_config: BaseLengthModelConfig = field(default_factory=UNetLengthModelConfig)
 
 

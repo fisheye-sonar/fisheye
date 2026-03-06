@@ -13,6 +13,9 @@ from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 from omegaconf import DictConfig
 
 
+from fisheye.configs.inference import TargetSizeConfig
+
+
 class PipelineFactory:
     """Builder class for constructing pipeline components."""
 
@@ -62,7 +65,10 @@ class PipelineFactory:
 
     @staticmethod
     def build_pipeline(
-        detector, runtime_config: dict, dataset_cfg: YOLODatasetConfig
+        detector,
+        runtime_config: dict,
+        dataset_cfg: YOLODatasetConfig,
+        target_size: TargetSizeConfig = None,
     ) -> DetectTrackCountPipeline:
         """Build the main processing pipeline."""
 
@@ -74,4 +80,6 @@ class PipelineFactory:
             model=detector, config=ObjectDetectionConfig(**runtime_config)
         )
 
-        return DetectTrackCountPipeline(detector_pipe, dataset_cfg=dataset_cfg)
+        return DetectTrackCountPipeline(
+            detector_pipe, dataset_cfg=dataset_cfg, target_size=target_size
+        )

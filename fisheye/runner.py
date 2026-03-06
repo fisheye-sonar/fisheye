@@ -7,6 +7,7 @@ from fisheye.builder import PipelineFactory
 from fisheye.common.file_system import is_valid_dir
 from fisheye.common.logging import setup_logging
 from fisheye.common.system import check_disk_space, generate_job_id
+from fisheye.configs.inference import TargetSizeConfig
 from fisheye.enums import ExportType
 from fisheye.export import parse_export_options, save_to_disk
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
@@ -129,7 +130,11 @@ def run_job(cfg: DictConfig):
         platform_cfg, project_root, detector_cfg
     )
 
-    pipeline = PipelineFactory.build_pipeline(detector, runtime_config, dataset_cfg)
+    target_size_cfg = TargetSizeConfig(**cfg.get("target_size", {}))
+
+    pipeline = PipelineFactory.build_pipeline(
+        detector, runtime_config, dataset_cfg, target_size=target_size_cfg
+    )
 
     # Run
     runner = PipelineRunner(pipeline)
