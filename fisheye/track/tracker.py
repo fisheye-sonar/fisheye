@@ -6,7 +6,7 @@ import numpy as np
 import structlog
 from tqdm import tqdm
 
-from fisheye.configs.inference import TrackerConfig, FishSizeConfig, TrackerOutput
+from fisheye.configs.inference import TrackerConfig, TargetSizeConfig, TrackerOutput
 from fisheye.enums import TrackingMethod
 from fisheye.track.bytetrack import ByteTracker
 from fisheye.track.sort import Sort
@@ -203,7 +203,7 @@ def run_tracker(
     image_meter_width,
     image_meter_height,
     tracking_config,
-    min_length=FishSizeConfig.min_length,
+    min_length=TargetSizeConfig.min_length,
     gp=None,
     verbose=False,
 ):
@@ -211,6 +211,7 @@ def run_tracker(
     logger.info(
         "initialized_tracker",
         tracker_type=tracking_config.type,
+        min_length=min_length,
         max_age=tracking_config.max_age,
         min_hits=tracking_config.min_hits,
         iou_threshold=tracking_config.iou_threshold,

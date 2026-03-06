@@ -393,7 +393,7 @@ def run_nms(
                     pix2width,
                     conf=nms_config.conf,
                     iou=nms_config.iou,
-                    max_length=nms_config.fish_size.max_length,
+                    max_length=nms_config.target_size.max_length,
                     max_det=nms_config.max_det,
                     max_nms=nms_config.max_nms,
                     redundant=nms_config.redundant,
