@@ -9,14 +9,15 @@ Portions of this code were adapted from SoundMetrics MATLAB code.
 __version__ = "b1.0.2"
 
 import contextlib
+import os
+import struct
 import warnings
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Union
 
 import numpy as np
-import os
-import struct
-from types import SimpleNamespace
-from pathlib import Path
+import pandas as pd
 
 from . import pyARIS
 from .pyDIDSON_format import *
@@ -198,6 +199,45 @@ class DIDSON:
             }[info["configflags"] & 0b1]
 
             info["halffov"] = 14.4
+            info["BeamCount"] = info["numbeams"]
+
+            total_fov = 2 * info["halffov"]
+            beam_width = total_fov / info["numbeams"]
+
+            centers = np.linspace(
+                -info["halffov"] + beam_width / 2,
+                info["halffov"] - beam_width / 2,
+                info["numbeams"],
+            )
+
+            left = centers - beam_width / 2
+            right = centers + beam_width / 2
+
+            beam_width_data = pd.DataFrame(
+                {
+                    "beam_num": np.arange(info["numbeams"]),
+                    "beam_center": centers,
+                    "beam_left": left,
+                    "beam_right": right,
+                }
+            )
+
+            soundspeed = 1500  # Default to common sound speed for DIDSON
+            sampleperiod = (
+                (info["windowlength"] / info["samplesperchannel"])
+                * 2
+                / soundspeed
+                * 1e6
+            )
+            info.update(
+                {
+                    "beam_width_dir": os.path.abspath(beam_width_dir),
+                    "beam_width_data": beam_width_data,
+                    "sampleperiod": sampleperiod,
+                    "soundspeed": soundspeed,
+                    "samplesperbeam": info["samplesperchannel"],
+                }
+            )
 
         elif version_id == 4:
             # Convert windowlength code to meters
@@ -209,6 +249,7 @@ class DIDSON:
             info["windowstart"] = 0.419 * info["windowstart"] * (2 - info["resolution"])
 
             info["halffov"] = 14.4
+
         elif version_id == 5:  # ARIS
             if info["pingmode"] in [1, 2]:
                 BeamCount = 48
@@ -315,20 +356,18 @@ class DIDSON:
             info["xdim"] = 300 if ixsize == -1 else ixsize
             ydim, xdim, write_rows, write_cols, read_i = DIDSON.mapscan(info)
 
-            # widthscale meters/pixels
-            pixel_meter_width = (
-                2
-                * (info["windowstart"] + info["windowlength"])
-                * np.sin(np.radians(14.25))
-                / xdim
-            )
-            # heightscale meters/pixels
-            pixel_meter_height = (
-                (info["windowstart"] + info["windowlength"])
-                - info["windowstart"] * np.cos(np.radians(14.25))
-            ) / ydim
+            rmin = info["windowstart"]
+            rmax = rmin + info["windowlength"]
+            halffov_rad = np.radians(info["halffov"])
 
-            pixel_meter_size = (pixel_meter_width + pixel_meter_height) / 2
+            pixel_meter_size = (2 * rmax * np.sin(halffov_rad)) / xdim
+            pixel_meter_width = pixel_meter_size
+            pixel_meter_height = pixel_meter_size
+
+            x_meter_start = -rmax * np.sin(halffov_rad)
+            x_meter_stop = rmax * np.sin(halffov_rad)
+            y_meter_start = rmax
+            y_meter_stop = rmin * np.cos(halffov_rad)
 
         unwarped_shape = [
             info["samplesperchannel"],
@@ -346,6 +385,10 @@ class DIDSON:
                 "pixel_meter_width": pixel_meter_width,
                 "pixel_meter_height": pixel_meter_height,
                 "pixel_meter_size": pixel_meter_size,
+                "x_meter_start": x_meter_start,
+                "x_meter_stop": x_meter_stop,
+                "y_meter_start": y_meter_start,
+                "y_meter_stop": y_meter_stop,
                 "unwarped_shape": unwarped_shape,
             }
         )

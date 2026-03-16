@@ -46,7 +46,7 @@ class ARISBatchedDataset(BaseDataset):
             ydim=info.get("ydim", 0),
             image_meter_width=info["xdim"] * info["pixel_meter_width"],
             image_meter_height=info["ydim"] * info["pixel_meter_height"],
-            pixel_meter_size=info.get("pixel_meter_width", 0),
+            pixel_meter_size=info.get("pixel_meter_size", 0),
             x_meter_start=info.get("x_meter_start", 0),
             x_meter_stop=info.get("x_meter_stop", 0),
             y_meter_start=info.get("y_meter_start", 0),
