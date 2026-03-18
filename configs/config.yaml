@@ -1,12 +1,12 @@
 defaults:
-  - platform: cpu  # Update with different YAML if you have another platform or different optimized configs
+  - platform: cuda  # Update with different YAML if you have another platform or different optimized configs
   - override hydra/hydra_logging: none
   - override hydra/job_logging: none
 
 
 # Add CLI-overridable arguments here, no need to add paths within quotes
-input_path:
-output_dir:
+input_path: /home/sevan/research/fisheye/inputs/kenai_lb_speedtest
+output_dir: /home/sevan/research/fisheye/tmp/speedtest
 export_options: ["summary_csv", "detailed_csv", "fc", "xml"]
 upstream_direction: left
 distance_offset: 0  # Distance offset in meters

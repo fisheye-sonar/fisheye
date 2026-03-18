@@ -1,8 +1,8 @@
 dataset:
   batch_size: 32
-  workers: 10  # For dataloader
+  workers: 0  # For dataloader
   use_multithreading: false
-  max_workers: 2  # For multithreading
+  max_workers: 4  # For multithreading
   use_blur: true
 
 model:
@@ -12,7 +12,7 @@ model:
 
 inference:
   use_multithreading: false
-  max_workers: 2  # For multithreading
+  max_workers: 4  # For multithreading
   apply_nms_batchwise: true
   apply_length_estimates_batchwise: false
   length_config:
