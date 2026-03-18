@@ -205,9 +205,7 @@ class DIDSON:
 
             # The following protocol is from
             # https://support.echoview.com/WebHelp/Reference/File_Formats/DIDSON_data_files.htm for DDF_03
-            soundspeed = (
-                1500  # Defaulted to the DIDSON specified sound speed of 1457m/s
-            )
+            soundspeed = 1500  # Defaulted to the DIDSON specified sound speed of 1500/s
 
             is_high_res = info["resolution"] == 1
             is_serial_num_gt_18 = info["serialnumber"] > 18
