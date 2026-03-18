@@ -179,25 +179,6 @@ class DIDSON:
             raise NotImplementedError
 
         elif version_id == 3:
-            # Convert windowlength code to meters
-            info["windowlength"] = {
-                0b00: [0.83, 2.5, 5, 10, 20, 40],  # DIDSON-S, Extended Windows
-                0b01: [1.125, 2.25, 4.5, 9, 18, 36],  # DIDSON-S, Classic Windows
-                0b10: [2.5, 5, 10, 20, 40, 70],  # DIDSON-LR, Extended Window
-                0b11: [2.25, 4.5, 9, 18, 36, 72],  # DIDSON-LR, Classic Windows
-            }[info["configflags"] & 0b11][
-                info["windowlength"] + 2 * (1 - info["resolution"])
-            ]
-
-            # Windowstart 1 to 31 times 0.75 (Lo) or 0.375 (Hi) or 0.419 for extended
-            info["windowstart"] = {
-                0b0: 0.419
-                * info["windowstart"]
-                * (2 - info["resolution"]),  # meters for extended DIDSON
-                0b1: 0.375 * info["windowstart"] * (2 - info["resolution"]),
-                # meters for standard or long range DIDSON
-            }[info["configflags"] & 0b1]
-
             info["halffov"] = 14.4
             info["BeamCount"] = info["numbeams"]
 
@@ -222,13 +203,25 @@ class DIDSON:
                 }
             )
 
-            soundspeed = 1500  # Default to common sound speed for DIDSON
-            sampleperiod = (
-                (info["windowlength"] / info["samplesperchannel"])
-                * 2
-                / soundspeed
-                * 1e6
+            # The following protocol is from
+            # https://support.echoview.com/WebHelp/Reference/File_Formats/DIDSON_data_files.htm for DDF_03
+            soundspeed = (
+                1500  # Defaulted to the DIDSON specified sound speed of 1457m/s
             )
+
+            is_high_res = info["resolution"] == 1
+            is_serial_num_gt_18 = info["serialnumber"] > 18
+            if is_high_res:
+                delay_period = 0.000572 if is_serial_num_gt_18 else 0.000512
+            else:
+                delay_period = 0.001144 if is_serial_num_gt_18 else 0.001024
+
+            info["windowstart"] = info["windowstart"] * delay_period * soundspeed / 2.0
+            info["windowlength"] = (
+                info["samplesperchannel"] * soundspeed / (2.0 * info["samplerate"])
+            )
+
+            sampleperiod = (1.0 / info["samplerate"]) * 1e6
             info.update(
                 {
                     "beam_width_dir": os.path.abspath(beam_width_dir),
