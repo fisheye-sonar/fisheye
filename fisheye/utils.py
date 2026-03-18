@@ -185,9 +185,11 @@ def get_unwarped_distance_and_theta(row: pd.Series):
             - theta: Beam center angle in degrees
     """
     metadata = row["metadata"]
-    metadata.beam_width_data, _ = pyARIS.load_beam_width_data(
-        frame=metadata, beam_width_dir=BEAM_WIDTH_DIR
-    )
+
+    if metadata.beam_width_data is None:
+        metadata.beam_width_data, _ = pyARIS.load_beam_width_data(
+            frame=metadata, beam_width_dir=BEAM_WIDTH_DIR
+        )
 
     bbox_xywh = np.array(row["bbox"]) * np.array(
         [metadata.xdim, metadata.ydim, metadata.xdim, metadata.ydim]

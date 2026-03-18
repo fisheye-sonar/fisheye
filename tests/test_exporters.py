@@ -46,7 +46,7 @@ def sample_data():
                     numframes=500,
                     largelens=0,
                     unwarped_shape=(0, 0),
-                    beam_width_data={},
+                    beam_width_data=None,
                 ),
             },
             {
@@ -83,7 +83,7 @@ def sample_data():
                     numframes=500,
                     largelens=0,
                     unwarped_shape=(0, 0),
-                    beam_width_data={},
+                    beam_width_data=None,
                 ),
             },
         ]
