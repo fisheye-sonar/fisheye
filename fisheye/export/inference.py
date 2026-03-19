@@ -265,9 +265,7 @@ class FCExporter(BaseInferenceExporter):
 
                 group_df["Date"] = date
                 group_df["Total"] = range(1, len(group_df) + 1)
-                group_df["Comment"] = group_df[
-                    "app_version"
-                ]  # __app_version__ or "unknown"
+                group_df["Comment"] = group_df["app_version"]
 
                 lines = [title + "\n\n", header_line + "\n", separator_line + "\n"]
 
