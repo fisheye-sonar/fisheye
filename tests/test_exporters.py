@@ -100,7 +100,7 @@ def test_detailed_csv_creates_file_and_content(tmp_path):
     assert len(out_files) == 1
 
     df = pd.read_csv(out_files[0])
-    assert len(df.columns) == 29
+    assert len(df.columns) == 30
     assert len(df) == 2
 
 

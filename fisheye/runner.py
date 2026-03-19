@@ -34,9 +34,6 @@ class PipelineRunner:
     ) -> List:
         """Run the pipeline and handle result orchestration."""
 
-        start_time = time.time()
-        logger.info("inference_started", start_time=start_time)
-
         results = self.pipeline.run(
             input_path,
             output_dir,
@@ -55,13 +52,6 @@ class PipelineRunner:
                 upstream_direction,
                 distance_offset,
             )
-
-        end_time = time.time()
-        logger.info(
-            "inference_completed",
-            inference_duration_sec=end_time - start_time,
-            num_files_processed=len(results),
-        )
 
         return results
 
@@ -117,11 +107,15 @@ def run_job(cfg: DictConfig):
         platform_cfg, project_root
     )
 
-    # Bind job ID, app, and detector version to logger
-    structlog.get_logger().bind(
+    detector_version = get_version_from_detector(resolved_weights_path)
+    # Log job details once at the beginning
+    start_time = time.time()
+    logger.info(
+        "job_started",
         job_id=job_id,
         app_version=__app_version__,
-        detector_version=get_version_from_detector(resolved_weights_path),
+        detector_version=detector_version,
+        start_time=start_time,
     )
 
     dataset_cfg = PipelineFactory.build_dataset_config(platform_cfg.dataset)
@@ -138,7 +132,7 @@ def run_job(cfg: DictConfig):
 
     # Run
     runner = PipelineRunner(pipeline)
-    return runner.run(
+    results = runner.run(
         input_path,
         output_dir,
         export_types,
@@ -146,3 +140,16 @@ def run_job(cfg: DictConfig):
         cfg.upstream_direction,
         cfg.distance_offset,
     )
+
+    end_time = time.time()
+    # Log job details once at the end
+    logger.info(
+        "job_finished",
+        job_id=job_id,
+        app_version=__app_version__,
+        detector_version=detector_version,
+        duration_sec=end_time - start_time,
+        num_files_processed=len(results) if results else 0,
+    )
+
+    return results
