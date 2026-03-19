@@ -27,8 +27,8 @@ FC_SCHEMA = {
     "Species": FCColumn(10, "Unknown"),
     "Motion": FCColumn(39, "Running <-->"),
     "Q": FCColumn(7, 5),
-    "N": FCColumn(4, 1),
-    "Comment": FCColumn(10, ""),
+    "N": FCColumn(8, 1),
+    "Comment": FCColumn(15, ""),
 }
 
 

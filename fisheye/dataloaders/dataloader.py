@@ -59,6 +59,7 @@ def create_dataloader(config: Union[BaseDatasetConfig, YOLODatasetConfig]):
         dataset_size=len(dataset),
         batch_size=batch_size,
         num_workers=nw,
+        filepath=config.filepath,
     )
 
     dataloader = torch.utils.data.dataloader.DataLoader(

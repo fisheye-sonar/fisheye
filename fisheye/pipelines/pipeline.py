@@ -62,7 +62,6 @@ class DetectTrackCountPipeline:
         if not output_dir:
             output_dir = file.parent
 
-        logger.info("file_processing_started", file_path=str(file))
         # Shallow copy of YOLODatasetConfig with updated fields
         self.dataset_cfg = replace(
             self.dataset_cfg, filepath=file, start_frame=0, end_frame=0
@@ -214,21 +213,21 @@ class DetectTrackCountPipeline:
 
         if not hasattr(self.detect_pipe, "apply_length_estimates_batchwise"):
             logger.warning(
-                "no_lengths",
+                "skip_length_estimation",
                 message="Length estimator not configured in detection pipeline",
             )
             return {}
 
         if not self.detect_pipe.apply_length_estimates_batchwise:
             logger.warning(
-                "no_lengths",
+                "skip_length_estimation",
                 message="Length estimation disabled (batchwise mode required)",
             )
             return {}
 
         if not low_length_estimates and not high_length_estimates:
             logger.warning(
-                "no_lengths",
+                "skip_length_estimation",
                 message="No length estimates available from detection pipeline",
             )
             return {}

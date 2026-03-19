@@ -16,6 +16,7 @@ from fisheye.utils import (
     get_unwarped_distance_and_theta,
     convert_pixels_to_coords_meters,
 )
+from fisheye.version import __app_version__
 
 logger = structlog.get_logger()
 
@@ -104,6 +105,8 @@ class BaseInferenceExporter(ABC):
         df["R (m)"] += self.distance_offset
         df["R (m)"] = df["R (m)"].round(2)
 
+        df["app_version"] = __app_version__ or "unknown"
+
         return df
 
     @abstractmethod
@@ -137,7 +140,16 @@ class DetailedCSVExporter(BaseInferenceExporter):
         df = df.sort_values(by="Frame#")
 
         # Column ordering
-        base_cols = ["Source.Name", "Frame#", "Dir", "R (m)", "Theta", "Date", "ID"]
+        base_cols = [
+            "Source.Name",
+            "Frame#",
+            "Dir",
+            "R (m)",
+            "Theta",
+            "Date",
+            "ID",
+            "app_version",
+        ]
         meta_cols = [c for c in df.columns if c not in base_cols]
 
         final_cols = base_cols + meta_cols
@@ -206,6 +218,7 @@ class SummaryCSVExporter(BaseInferenceExporter):
         final_result = file_counts.reset_index().rename(
             columns={"index": "Source.Name"}
         )
+        final_result["app_version"] = __app_version__ or "unknown"
 
         with open(out_file, "w") as f:
             final_result.to_csv(out_file, index=False)
@@ -252,6 +265,7 @@ class FCExporter(BaseInferenceExporter):
 
                 group_df["Date"] = date
                 group_df["Total"] = range(1, len(group_df) + 1)
+                group_df["Comment"] = group_df["app_version"]
 
                 lines = [title + "\n\n", header_line + "\n", separator_line + "\n"]
 
@@ -348,6 +362,7 @@ class XMLExporter(BaseInferenceExporter):
         flattened_data = self._flatten_list(data)
 
         root = ET.Element("MarkedFishMeasurements")
+        root.set("AppVersion", __app_version__ or "unknown")
 
         for d in flattened_data:
             source_name = Path(d.get("Source.Name")).stem
