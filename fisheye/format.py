@@ -92,7 +92,9 @@ def yolo_to_mot(bbox: Union[Dict, List], img_width, img_height):
     return bbox
 
 
-def dict_rows_to_mot_format(rows: List[Dict], img_width, img_height) -> List[Dict]:
+def dict_rows_to_mot_format(
+    rows: List[Dict], img_width, img_height, start_frame: int = 0
+) -> List[Dict]:
     """Convert tracking row dictionaries (YOLO format) to MOT formatted list of dictionaries.
 
     Args:
@@ -100,13 +102,14 @@ def dict_rows_to_mot_format(rows: List[Dict], img_width, img_height) -> List[Dic
         height] relative to original image space.
         img_width (int): Original image width.
         img_height (int): Original image height.
+        start_frame (int): The original starting frame offset.
 
     Returns:
         MOT formated dictionary containing bounding boxes in MOT format relative to original image space.
         frame, id, bb_left, bb_top, bb_width, bb_height, conf, x, y, z
     """
     for row in rows:
-        row["frame"] = row["frame"] + 1  # MOT is 1-based
+        row["frame"] = row["frame"] + start_frame + 1  # MOT is 1-based
         row["id"] = row["id"] + 1  # MOT is 1-based
 
         row = yolo_to_mot(row, img_width, img_height)
@@ -127,6 +130,7 @@ def format_single_crossing(
     upstream_direction: str = None,
     crossing_direction: str = None,
     len_outputs: dict = None,
+    start_frame: int = 0,
 ) -> dict:
     """Format a single crossing event for export.
 
@@ -142,6 +146,7 @@ def format_single_crossing(
         upstream_direction: Upstream direction setting. Value from UpstreamDirectionTypes
         crossing_direction: Which side the fish crossed ("left" or "right")
         len_outputs: Length estimation results
+        start_frame: The original starting frame offset.
 
     Returns:
         Formatted crossing dictionary
@@ -160,10 +165,14 @@ def format_single_crossing(
 
     len_outputs = len_outputs or {}
 
+    # Use frame_id_closest_to_mean if available, else fall back to the frame
+    recorded_frame = len_outputs.get(track_id, {}).get("frame_id_closest_to_mean")
+    if recorded_frame is None:
+        recorded_frame = frame
+
     return {
         "Source.Name": filename,
-        "Frame#": len_outputs.get(track_id, {}).get("frame_id_closest_to_mean")
-        or frame,
+        "Frame#": recorded_frame + start_frame,
         "Dir": "Up" if upstream_direction == crossing_direction else "Down",
         "ID": track_id,
         "bbox": bbox,

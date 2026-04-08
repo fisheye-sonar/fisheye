@@ -4,6 +4,8 @@ dataset:
   use_multithreading: true
   max_workers: 2  # For multithreading
   use_blur: true
+  start_frame: 0  # 0-indexed - valid only when input is a single file (not a directory)
+  end_frame: 0   # 0-indexed - set to 0 to process all frames. Only applies to single file (not a directory)
 
 model:
   type: yolov5

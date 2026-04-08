@@ -57,14 +57,22 @@ class DetectTrackCountPipeline:
         job_id: Optional[str] = None,
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
         distance_offset: Union[int, float] = 0.0,
+        is_batch: bool = False,
     ) -> List:
 
         if not output_dir:
             output_dir = file.parent
 
         # Shallow copy of YOLODatasetConfig with updated fields
+        # If processing a directory (batch), reset start and end frames to process entire files
+        start_frame = 0 if is_batch else self.dataset_cfg.start_frame
+        end_frame = 0 if is_batch else self.dataset_cfg.end_frame
+
         self.dataset_cfg = replace(
-            self.dataset_cfg, filepath=file, start_frame=0, end_frame=0
+            self.dataset_cfg,
+            filepath=file,
+            start_frame=start_frame,
+            end_frame=end_frame,
         )
 
         self.detect_pipe.load_dataset(self.dataset_cfg)
@@ -111,7 +119,10 @@ class DetectTrackCountPipeline:
 
         if ExportType.MOT in export_types_list:
             mot_tracks = dict_rows_to_mot_format(
-                formatted_yolo_tracks, metadata.xdim, metadata.ydim
+                formatted_yolo_tracks,
+                metadata.xdim,
+                metadata.ydim,
+                self.dataset_cfg.start_frame,
             )
             MOTExporter(output_dir=output_dir, filename=file.stem).export(mot_tracks)
 
@@ -130,6 +141,7 @@ class DetectTrackCountPipeline:
                     upstream_direction,
                     "left",
                     len_outputs,
+                    self.dataset_cfg.start_frame,
                 )
                 for track_id, frame, bbox in crossing_frames["left"]
             ] + [
@@ -142,6 +154,7 @@ class DetectTrackCountPipeline:
                     upstream_direction,
                     "right",
                     len_outputs,
+                    self.dataset_cfg.start_frame,
                 )
                 for track_id, frame, bbox in crossing_frames["right"]
             ]
@@ -279,9 +292,17 @@ class DetectTrackCountPipeline:
             )
             return []
 
+        is_batch = len(valid_files) > 1
+
         results = [
             self._run(
-                f, output_dir, export_types, job_id, upstream_direction, distance_offset
+                f,
+                output_dir,
+                export_types,
+                job_id,
+                upstream_direction,
+                distance_offset,
+                is_batch,
             )
             for f in valid_files
         ]
