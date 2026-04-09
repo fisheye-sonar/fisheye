@@ -6,7 +6,9 @@ import structlog
 import torch
 
 from fisheye.configs import BaseDatasetConfig, YOLODatasetConfig
+from fisheye.configs.datasets import ImageDatasetConfig
 from fisheye.dataloaders import ARISBatchedDataset, YOLOARISBatchedDataset
+from fisheye.dataloaders.image import ImageDataset
 from fisheye.dataloaders.samplers import OnePerBatchSampler
 from fisheye.common.collate import yolo_collate_fn
 from fisheye.common import torch_distributed_zero_first
@@ -22,12 +24,17 @@ def create_dataloader(config: Union[BaseDatasetConfig, YOLODatasetConfig]):
     collate_fn = None
 
     # Check if config is for ARIS or YOLO dataset and choose corresponding dataset class
-    if isinstance(config, YOLODatasetConfig):
+    if isinstance(config, ImageDatasetConfig):
+        dataset_class = ImageDataset
+        collate_fn = yolo_collate_fn
+
+    elif isinstance(config, YOLODatasetConfig):
         dataset_class = YOLOARISBatchedDataset
         collate_fn = yolo_collate_fn
 
     elif isinstance(config, BaseDatasetConfig):
         dataset_class = ARISBatchedDataset
+
     else:
         raise ValueError(f"Unsupported config type: {type(config)}")
 

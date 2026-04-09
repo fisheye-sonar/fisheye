@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Union
 
 from fisheye.configs import (
     ObjectDetectionConfig,
@@ -6,6 +7,7 @@ from fisheye.configs import (
     get_detector_config,
     get_length_model_config,
 )
+from fisheye.configs.datasets import ImageDatasetConfig
 from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
 from fisheye.enums import DetectorType, LengthEstimatorType
 from fisheye.pipelines import ObjectDetectionPipeline
@@ -37,8 +39,13 @@ class PipelineFactory:
         )
 
     @staticmethod
-    def build_dataset_config(dataset_config: DictConfig) -> YOLODatasetConfig:
+    def build_dataset_config(
+        dataset_config: DictConfig,
+    ) -> Union[YOLODatasetConfig, ImageDatasetConfig]:
         """Build the dataset configuration."""
+        if "image_folder" in dataset_config:
+            return ImageDatasetConfig(**dataset_config)
+
         return YOLODatasetConfig(**dataset_config)
 
     @staticmethod

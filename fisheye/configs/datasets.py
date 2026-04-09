@@ -67,3 +67,11 @@ class YOLODatasetConfig(BaseDatasetConfig):
     stride: int = 64
     pad: float = 0.5
     img_size: int = 896
+
+
+@dataclass
+class ImageDatasetConfig(YOLODatasetConfig):
+    """Image dataset configuration."""
+
+    image_folder: str = ""
+    metadata_file: str = ""

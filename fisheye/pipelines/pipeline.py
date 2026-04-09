@@ -12,6 +12,7 @@ from fisheye.boxes import (
 from fisheye.common.generic import safe_execution
 from fisheye.common.file_system import get_valid_files
 from fisheye.configs import YOLODatasetConfig
+from fisheye.configs.datasets import ImageDatasetConfig
 from fisheye.configs.inference import (
     TrackerConfig,
     LengthEstimationConfig,
@@ -68,12 +69,21 @@ class DetectTrackCountPipeline:
         start_frame = 0 if is_batch else self.dataset_cfg.start_frame
         end_frame = 0 if is_batch else self.dataset_cfg.end_frame
 
-        self.dataset_cfg = replace(
-            self.dataset_cfg,
-            filepath=file,
-            start_frame=start_frame,
-            end_frame=end_frame,
-        )
+        if isinstance(self.dataset_cfg, ImageDatasetConfig):
+            self.dataset_cfg = replace(
+                self.dataset_cfg,
+                image_folder=str(file),
+                filepath=file,
+                start_frame=start_frame,
+                end_frame=end_frame,
+            )
+        else:
+            self.dataset_cfg = replace(
+                self.dataset_cfg,
+                filepath=file,
+                start_frame=start_frame,
+                end_frame=end_frame,
+            )
 
         self.detect_pipe.load_dataset(self.dataset_cfg)
         low_preds, high_preds, low_length_estimates, high_length_estimates = (
@@ -284,7 +294,13 @@ class DetectTrackCountPipeline:
             dict: Tracking results and counts.
         """
 
-        valid_files = get_valid_files(file, output_dir)
+        if isinstance(self.dataset_cfg, ImageDatasetConfig):
+            if isinstance(file, (str, Path)):
+                file = [file]
+            valid_files = [Path(f) for f in file if Path(f).is_dir()]
+        else:
+            valid_files = get_valid_files(file, output_dir)
+
         if not valid_files:
             logger.error(
                 f"Unable to process valid files. Please verify that the file path is correct and that the "
