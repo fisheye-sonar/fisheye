@@ -286,8 +286,15 @@ class FCExporter(BaseInferenceExporter):
                         + "\n"
                     )
 
-            file_stem = Path(str(file_name)).stem
-            out_file = os.path.join(self.output_dir, f"FCe_{file_stem}_ID_.txt")
+            file_path = Path(str(file_name))
+            if file_path.suffix:
+                # Named file (e.g. .aris) — use stem with standard suffix
+                out_file = os.path.join(
+                    self.output_dir, f"FCe_{file_path.stem}_ID_.txt"
+                )
+            else:
+                # Directory-based source (image dataset) — use name as-is
+                out_file = os.path.join(self.output_dir, f"FCe_{file_name}.txt")
 
             with open(out_file, "w") as f:
                 f.writelines(lines)
@@ -365,8 +372,15 @@ class XMLExporter(BaseInferenceExporter):
         root.set("AppVersion", __app_version__ or "unknown")
 
         for d in flattened_data:
-            source_name = Path(d.get("Source.Name")).stem
-            output_path = os.path.join(self.output_dir, f"FCe_{source_name}_ID_.xml")
+            source_path = Path(d.get("Source.Name"))
+            if source_path.suffix:
+                output_path = os.path.join(
+                    self.output_dir, f"FCe_{source_path.stem}_ID_.xml"
+                )
+            else:
+                output_path = os.path.join(
+                    self.output_dir, f"FCe_{source_path.name}.xml"
+                )
 
             marked = ET.SubElement(
                 root,

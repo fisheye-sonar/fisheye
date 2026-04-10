@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Union
 
@@ -12,10 +13,21 @@ from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
 from fisheye.enums import DetectorType, LengthEstimatorType
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
+from fisheye.configs.inference import TargetSizeConfig
 from omegaconf import DictConfig
 
+_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
-from fisheye.configs.inference import TargetSizeConfig
+
+def _is_image_directory(path: str) -> bool:
+    """Return True if path is a directory containing images but no ARIS/DIDSON files."""
+    p = Path(path)
+    if not p.is_dir():
+        return False
+    entries = os.listdir(p)
+    has_images = any(Path(f).suffix.lower() in _IMAGE_EXTENSIONS for f in entries)
+    has_sonar = any(Path(f).suffix.lower() in {".aris", ".ddf"} for f in entries)
+    return has_images and not has_sonar
 
 
 class PipelineFactory:
@@ -41,10 +53,18 @@ class PipelineFactory:
     @staticmethod
     def build_dataset_config(
         dataset_config: DictConfig,
+        input_path: str = None,
     ) -> Union[YOLODatasetConfig, ImageDatasetConfig]:
-        """Build the dataset configuration."""
+        """Build the dataset configuration.
+
+        Uses ImageDatasetConfig when the dataset config explicitly includes
+        image_folder, or when input_path is a directory of images (auto-detected).
+        """
         if "image_folder" in dataset_config:
             return ImageDatasetConfig(**dataset_config)
+
+        if input_path and _is_image_directory(input_path):
+            return ImageDatasetConfig(image_folder="", **dataset_config)
 
         return YOLODatasetConfig(**dataset_config)
 

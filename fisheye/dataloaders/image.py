@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from fisheye.configs.datasets import ImageDatasetConfig, ARISMetadata
-
+from fisheye.common.generic import run_with_threads
 from fisheye.dataloaders.utils import to_chw_tensor
 from yolov5.utils.augmentations import letterbox
 from yolov5.utils.general import xyxy2xywh
@@ -26,6 +26,8 @@ class ImageDataset:
             config.return_echogram_with_bg_subtracted
         )
         self.return_original_image = config.return_original_image
+        self.use_multithreading = config.use_multithreading
+        self.max_workers = config.max_workers
         self.image_paths = sorted(
             [
                 os.path.join(self.image_folder, filename)
@@ -125,19 +127,22 @@ class ImageDataset:
         )
         return postprocessed
 
+    def _load_single_image(self, path: str) -> np.ndarray:
+        img = cv2.imread(path)
+        if img is None:
+            raise ValueError(f"Bad image: {path}")
+        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
     def load_frames(self, start_idx, end_idx, return_unwarped=False):
         paths = self.image_paths[start_idx:end_idx]
 
-        frames = []
-        for p in paths:
-            img = cv2.imread(p)
-            if img is None:
-                raise ValueError(f"Bad image: {p}")
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            frames.append(img)
-
-        if len(frames) == 0:
+        if not paths:
             return np.empty((0, 0, 0)), np.empty((0, 0, 0))
+
+        if self.use_multithreading and len(paths) > 1:
+            frames = run_with_threads(self._load_single_image, paths, self.max_workers)
+        else:
+            frames = [self._load_single_image(p) for p in paths]
 
         frames = np.stack(frames)
 
@@ -189,7 +194,6 @@ class ImageDataset:
         """
         outputs = []
         frame_labels = frame_labels or [None for _ in frame_images]
-        _debug_first = True
         for image, labels in zip(frame_images, frame_labels):
             resized_img, (h0, w0), (h, w), img_original = self.load_image(
                 image, return_original_image=return_original_image

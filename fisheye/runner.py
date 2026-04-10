@@ -118,7 +118,9 @@ def run_job(cfg: DictConfig):
         start_time=start_time,
     )
 
-    dataset_cfg = PipelineFactory.build_dataset_config(platform_cfg.dataset)
+    dataset_cfg = PipelineFactory.build_dataset_config(
+        platform_cfg.dataset, input_path=input_path
+    )
 
     runtime_config = PipelineFactory.build_runtime_config(
         platform_cfg, project_root, detector_cfg
