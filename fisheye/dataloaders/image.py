@@ -4,30 +4,20 @@ import os
 import cv2
 import numpy as np
 import pandas as pd
-import torch
 from fisheye.configs.datasets import ImageDatasetConfig, ARISMetadata
 from fisheye.common.generic import run_with_threads
-from fisheye.dataloaders.utils import to_chw_tensor
-from yolov5.utils.augmentations import letterbox
-from yolov5.utils.general import xyxy2xywh
+from fisheye.dataloaders.yolo_mixin import YOLOPostprocessMixin
 
 
-class ImageDataset:
-    """
-    A Dataset class for loading images from a folder.
-    Mirrors BaseDataset.__getitem__ logic without inheriting from it.
-    """
+class ImageDataset(YOLOPostprocessMixin):
+    """Dataset for loading pre-processed 3-channel images from a folder."""
 
     def __init__(self, config: ImageDatasetConfig, **kwargs):
         self.image_folder = config.image_folder
-        self.do_bg_subtract = config.do_bg_subtract
-        self.num_frames_bg_subtract = config.num_frames_bg_subtract
-        self.return_echogram_with_bg_subtracted = (
-            config.return_echogram_with_bg_subtracted
-        )
         self.return_original_image = config.return_original_image
         self.use_multithreading = config.use_multithreading
         self.max_workers = config.max_workers
+
         self.image_paths = sorted(
             [
                 os.path.join(self.image_folder, filename)
@@ -46,6 +36,7 @@ class ImageDataset:
         self.pad = getattr(config, "pad", 0.5)
         self.img_size = getattr(config, "img_size", 896)
         self.stride = getattr(config, "stride", 64)
+        self.batch_size = config.batch_size
 
         self.metadata = self._extract_metadata(config)
         self.original_shape = (
@@ -54,14 +45,12 @@ class ImageDataset:
             else self._get_shape_from_first_image()
         )
         self.shape = self._compute_resized_shape()
-        self.batch_size = config.batch_size
 
     def _get_shape_from_first_image(self):
-        """Get the shape of the first image in the dataset if metadata JSON does not exist."""
+        """Read shape from the first image when no metadata JSON is available."""
         if not self.image_paths:
             return (0, 0)
         img = cv2.cvtColor(cv2.imread(self.image_paths[0]), cv2.COLOR_BGR2RGB)
-
         return img.shape[:2]
 
     def _extract_metadata(self, config) -> ARISMetadata:
@@ -101,31 +90,17 @@ class ImageDataset:
         )
 
     def __len__(self):
-        """Length of the dataset."""
         return self.end_frame - self.start_frame
 
     def __getitem__(self, idx: int):
-        """Retrieve a batch of frames and labels."""
         final_idx = min(idx + self.batch_size, len(self))
-
         frames, unwarped_frames = self.load_frames(
             self.start_frame + idx,
             self.start_frame + final_idx,
         )
-
-        # Images are already 3-channel — no extra frame or expand_dims needed.
-        frame_images = frames
-        frame_labels = None
-        echogram = None
-
-        postprocessed = self._postprocess(
-            frame_images,
-            frame_labels,
-            unwarped_frames,
-            echogram,
-            self.return_original_image,
+        return self._postprocess(
+            frames, None, unwarped_frames, None, self.return_original_image
         )
-        return postprocessed
 
     def _load_single_image(self, path: str) -> np.ndarray:
         img = cv2.imread(path)
@@ -145,102 +120,4 @@ class ImageDataset:
             frames = [self._load_single_image(p) for p in paths]
 
         frames = np.stack(frames)
-
         return frames, frames  # mimic ARIS structure
-
-    @classmethod
-    def load_image(cls, img, img_size=896, return_original_image=False):
-        """Loads and resizes an image for YOLOv5 inference."""
-        img_original = img.copy() if return_original_image else None
-
-        h0, w0 = img.shape[:2]  # original height and width
-        r = img_size / max(h0, w0)  # resize ratio
-        interp = cv2.INTER_AREA if r < 1 else cv2.INTER_LINEAR
-        resized_img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
-
-        # returns resized_img, original hw, resized hw, original img
-        return resized_img, (h0, w0), resized_img.shape[:2], img_original
-
-    def _compute_resized_shape(self):
-        """Computes the shape for resizing images based on aspect ratio."""
-        aspect_ratio = self.original_shape[0] / self.original_shape[1]
-        shape = [1, 1 / aspect_ratio] if aspect_ratio > 1 else [aspect_ratio, 1]
-        return (
-            np.ceil(np.array(shape) * self.img_size / self.stride + self.pad).astype(
-                int
-            )
-            * self.stride
-        )
-
-    def _postprocess(
-        self,
-        frame_images,
-        frame_labels,
-        unwarped_frames,
-        echogram,
-        return_original_image,
-    ):
-        """
-        Return a batch of data in the format used by ScaledYOLOv4.
-        That is, a list of tuples, one tuple per image in the batch:
-            [
-                (resized_img_for_yolo ->torch.Tensor,
-                labels ->torch.Tensor,
-                shapes ->tuple describing image original dimensions and scaled/padded dimensions
-                original_img_tensor ->torch.Tensor (optional)
-                ),
-                ...
-            ]
-        """
-        outputs = []
-        frame_labels = frame_labels or [None for _ in frame_images]
-        for image, labels in zip(frame_images, frame_labels):
-            resized_img, (h0, w0), (h, w), img_original = self.load_image(
-                image, return_original_image=return_original_image
-            )
-            resized_img, ratio, pad = letterbox(
-                resized_img, self.shape, auto=False, scaleup=False, stride=self.stride
-            )
-            shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
-
-            resized_img_tensor = to_chw_tensor(resized_img)
-            original_img_tensor = (
-                to_chw_tensor(img_original).float()
-                if img_original is not None
-                else None
-            )
-
-            labels_out = self._process_labels(
-                labels, ratio, pad, resized_img_tensor.shape
-            )
-            outputs.append(
-                (resized_img_tensor, labels_out, shapes, original_img_tensor)
-            )
-        return outputs
-
-    def _process_labels(self, labels, ratio, pad, img_shape):
-        """Processes and converts labels from normalized xywh to pixel xyxy format, applies padding from letterbox."""
-        if labels is not None and labels.size > 0:
-            labels = labels.copy()
-            labels[:, 1] = (
-                ratio[0] * img_shape[1] * (labels[:, 1] - labels[:, 3] / 2) + pad[0]
-            )
-            labels[:, 2] = (
-                ratio[1] * img_shape[0] * (labels[:, 2] - labels[:, 4] / 2) + pad[1]
-            )
-            labels[:, 3] = (
-                ratio[0] * img_shape[1] * (labels[:, 1] + labels[:, 3] / 2) + pad[0]
-            )
-            labels[:, 4] = (
-                ratio[1] * img_shape[0] * (labels[:, 2] + labels[:, 4] / 2) + pad[1]
-            )
-
-            labels[:, 1:5] = xyxy2xywh(labels[:, 1:5])
-            labels[:, [2, 4]] /= img_shape[1]
-            labels[:, [1, 3]] /= img_shape[2]
-
-            labels_out = torch.zeros((len(labels), 6))
-            labels_out[:, 1:] = torch.from_numpy(labels)
-            return labels_out
-
-        return torch.zeros((0, 6))
