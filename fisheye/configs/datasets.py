@@ -51,6 +51,7 @@ class ARISMetadata:
     sampleperiod: float
     soundspeed: float
     windowstart: float
+    windowlength: float
     samplesperbeam: float
     BeamCount: int
     thesystemtype: int
