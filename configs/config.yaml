@@ -1,13 +1,12 @@
 defaults:
-  - platform: cuda # Update with different YAML if you have another platform or different optimized configs
+  - platform: cou # Update with different YAML if you have another platform or different optimized configs
   - override hydra/hydra_logging: none
   - override hydra/job_logging: none
 
 # Add CLI-overridable arguments here, no need to add paths within quotes
-input_path: /home/mahobley/Code/fisheye_dev/in_the_wild_results/2025-9-23_2024-10-09_klamath_model_csvs_and_fces/aris/ARIS_2025-09-29_112000.aris
-output_dir: /home/mahobley/Code/fisheye_dev/in_the_wild_results/length_test/model_outputs
-# export_options: ["summary_csv", "detailed_csv"]
-export_options: ["summary_csv", "detailed_csv"]
+input_path:
+output_dir:
+export_options: ["summary_csv", "detailed_csv", "fc", "xml"]
 upstream_direction: left
 distance_offset: 0  # Distance offset in meters
 target_size:

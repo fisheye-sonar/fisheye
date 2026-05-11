@@ -15,8 +15,6 @@ from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
 from fisheye.enums import LengthEstimatorType
 from fisheye.lengths.factory import create_length_estimator
-import cv2
-import numpy as np
 
 logger = structlog.get_logger()
 

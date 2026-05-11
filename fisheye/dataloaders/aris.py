@@ -3,7 +3,7 @@ import structlog
 from fisheye.configs import BaseDatasetConfig
 from fisheye.configs.datasets import ARISMetadata, BEAM_WIDTH_DIR
 from fisheye.dataloaders.base import BaseDataset
-from fisheye.dataloaders.didson.pyDIDSON import DIDSON, compute_resized_shape
+from fisheye.dataloaders.didson.pyDIDSON import DIDSON
 
 logger = structlog.get_logger()
 

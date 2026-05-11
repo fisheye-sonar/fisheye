@@ -48,7 +48,7 @@ class DetectTrackCountPipeline:
         self.length_cfg = LengthEstimationConfig()
         self.target_size = target_size or TargetSizeConfig()
 
-    @safe_execution(default_return=[], max_retries=1, delay=2)
+    @safe_execution(default_return=[], max_retries=3, delay=2)
     def _run(
         self,
         file: Union[Path, List[Path]],

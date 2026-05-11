@@ -22,10 +22,6 @@ import pandas as pd
 from . import pyARIS
 from .pyDIDSON_format import *
 
-# from fisheye.dataloaders import YOLOARISBatchedDataset
-
-
-# /home/mahobley/Code/fisheye/fisheye/dataloaders/yolo.py
 BASE = Path(__file__).parent.parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
