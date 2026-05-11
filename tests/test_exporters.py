@@ -40,6 +40,7 @@ def sample_data():
                     sampleperiod=20,
                     soundspeed=1470.71240234375,
                     windowstart=0.7890372276306152,
+                    windowlength=10,
                     samplesperbeam=1565,
                     BeamCount=48,
                     thesystemtype=2,
@@ -77,6 +78,7 @@ def sample_data():
                     sampleperiod=20,
                     soundspeed=1470.71240234375,
                     windowstart=0.7890372276306152,
+                    windowlength=10,
                     samplesperbeam=1565,
                     BeamCount=48,
                     thesystemtype=2,
@@ -100,7 +102,7 @@ def test_detailed_csv_creates_file_and_content(tmp_path):
     assert len(out_files) == 1
 
     df = pd.read_csv(out_files[0])
-    assert len(df.columns) == 30
+    assert len(df.columns) == 31
     assert len(df) == 2
 
 
