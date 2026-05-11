@@ -1,5 +1,5 @@
 defaults:
-  - platform: cou # Update with different YAML if you have another platform or different optimized configs
+  - platform: cpu # Update with different YAML if you have another platform or different optimized configs
   - override hydra/hydra_logging: none
   - override hydra/job_logging: none
 
@@ -8,8 +8,7 @@ input_path:
 output_dir:
 export_options: ["summary_csv", "detailed_csv", "fc", "xml"]
 upstream_direction: left
-distance_offset: 0  # Distance offset in meters
+distance_offset: 0 # Distance offset in meters
 target_size:
-  min_length: 0.3  # Minimum target length (meters) used to filter detections based on bounding box size
-
+  min_length: 0.3 # Minimum target length (meters) used to filter detections based on bounding box size
 
