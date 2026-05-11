@@ -1,6 +1,7 @@
 dataset:
   batch_size: 16
   workers: 0  # For dataloader
+  use_blur: true
   use_multithreading: true
   max_workers: 2  # For multithreading
 

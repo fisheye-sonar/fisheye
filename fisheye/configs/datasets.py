@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 BEAM_WIDTH_DIR = BASE_DIR / "beam_widths"
 
@@ -67,5 +66,7 @@ class YOLODatasetConfig(BaseDatasetConfig):
 
     stride: int = 64
     pad: float = 0.5
-    img_load_size: int = 2689
+    img_load_size: int = (
+        2688  # 3 * 896 loads in at this size and resizes down by a third
+    )
     img_size: int = 896

@@ -29,7 +29,7 @@ class ARISBatchedDataset(BaseDataset):
             self.didson = DIDSON(
                 config.filepath,
                 beam_width_dir=BEAM_WIDTH_DIR,
-                img_load_size=config.img_load_size,
+                img_load_size=config.img_load_size,  # loads bigger than the final image size and then 'downsamples' to it
                 img_size=img_size,
                 stride=stride,
                 return_original_image=config.return_original_image,

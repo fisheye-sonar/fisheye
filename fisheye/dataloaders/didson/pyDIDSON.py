@@ -27,40 +27,63 @@ BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
 
 
 def compute_resized_shape(original_shape, img_size, stride, pad=0):
-    """Computes the shape for resizing images based on aspect ratio."""
+    """Return a stride-aligned resized shape that preserves aspect ratio.
+
+    Parameters
+    ----------
+    original_shape : tuple[int, int]
+        Source image shape as ``(height, width)``.
+    img_size : int
+        Target size for the longest dimension before stride alignment.
+    stride : int
+        Output dimensions are rounded up to a multiple of this stride.
+    pad : int, optional
+        Extra stride units to add after scaling.
+
+    Returns
+    -------
+    np.ndarray
+        Resized ``(height, width)`` as integer multiples of ``stride``.
+    """
     aspect_ratio = original_shape[0] / original_shape[1]
     shape = [1, 1 / aspect_ratio] if aspect_ratio > 1 else [aspect_ratio, 1]
     return np.ceil(np.array(shape) * img_size / stride + pad).astype(int) * stride
 
 
 class DIDSON:
+
     def __init__(
         self,
         file,
         beam_width_dir=BEAM_WIDTH_DIR,
         ixsize=-1,
-        img_load_size=None,
+        img_load_size=None,  # loads bigger than the final image size and then 'downsamples' to it
         img_size=None,
         stride=64,
         return_original_image=False,
     ):
-        """Load header info from DIDSON file and precompute some warps.
+        """Initialize a reader and precompute the warp used for frame loading.
 
         Parameters
         ----------
         file : file-like object, string, or pathlib.Path
-            The DIDSON or ARIS file to read.
+            DIDSON or ARIS file to inspect.
         beam_width_dir : string or pathlib.Path, optional
-            Location of ARIS beam width CSV files. Only used for ARIS files.
+            Directory containing ARIS beam-width calibration CSV files.
         ixsize : int, optional
-            x-dimension width of output warped images to produce. Width is approximate for ARIS files and definite for
-            DIDSON. If not specified, the default for ARIS is determined by pyARIS and the default for DIDSON is 300.
-
-        Returns
-        -------
-        info : dict
-            Dictionary of extracted headers and computed sonar values.
-
+            Desired warped image width. For DIDSON this is exact; for ARIS it is
+            approximate because the final bounds are recomputed from metric pixel size.
+        img_load_size : int, optional
+            Desired intermediate warped height used when precomputing the mapping.
+            Larger values preserve more detail before any later downsampling.
+        img_size : int, optional
+            Final model-facing height. When provided, an area-based remapping is
+            precomputed from the larger warp grid to this output size.
+        stride : int, optional
+            Model stride used when reporting the derived output size.
+        return_original_image : bool, optional
+            If ``True``, also keep the full-resolution warp mapping so callers can
+            reconstruct the original warped image alongside resized outputs.
         """
         self.return_original_image = return_original_image
         info = self.read_header(file)
@@ -108,7 +131,7 @@ class DIDSON:
             self.out_xdim = self.info["xdim"]
 
     def read_header(self, file: Union[str, Path]):
-        """Reads the header from a DIDSON or ARIS file.
+        """Parse file-level and frame-level headers from a DIDSON or ARIS file.
 
         Parameters
         ----------
@@ -201,30 +224,31 @@ class DIDSON:
         info: dict,
         beam_width_dir: Path = BEAM_WIDTH_DIR,
         ixsize: int = -1,
-        img_load_size: int = 2688,
+        img_load_size: int = 2688,  # our default image size is 896, this is 3x that for a less noisey final image
     ):
-        """Computes derived sonar parameters, and precomputes pixel mapping for warping sonar data into to-scale images.
+        """Derive warp metadata and sample-to-image mappings from parsed headers.
 
         Parameters
         ----------
         info : dict
             Parsed header information.
         beam_width_dir : Path
-            Path to beam width CSV files (for ARIS).
+            Directory containing beam-width CSV files used by ARIS processing.
         ixsize : int
-            Target x-dimension (overrides default if provided).
-        img_load_size: int
-            Target y-dimension (overrides default if provided).
+            Requested warped image width. ``-1`` keeps the default for the file type.
+        img_load_size : int
+            Requested warped image height for ARIS remapping. Ignored for DIDSON.
+
         Returns
         -------
         info : dict
-            Updated info with computed image metadata.
+            Header dictionary augmented with derived geometry and pixel-size metadata.
         write_rows : np.ndarray
-            Row indices for writing warped images.
+            Output row indices for the warp destination.
         write_cols : np.ndarray
-            Column indices for writing warped images.
+            Output column indices for the warp destination.
         read_i : np.ndarray
-            Indices into unwarped image array.
+            Flattened indices into the raw sample grid for each warped pixel.
         """
         version_id = info.get("version_id")
 
@@ -484,7 +508,7 @@ class DIDSON:
 
     @staticmethod
     def lens_distortion(nbeams: int, theta: np.ndarray):
-        """Removes Lens distortion determined by empirical work at the barge.
+        """Map beam angles to beam indices using the empirical lens model.
 
         Parameters
         ----------
@@ -496,7 +520,7 @@ class DIDSON:
         Returns
         -------
         beamnum : (A,) ndarray
-            Distortion-adjusted beam number for each theta.
+            Distortion-adjusted beam index for each input angle.
 
         """
 
@@ -520,7 +544,13 @@ class DIDSON:
 
     @staticmethod
     def mapscan(info: dict):
-        """Calculate warp mapping from raw to scale images.
+        """Build the DIDSON sample-to-image warp lookup for one frame geometry.
+
+        Parameters
+        ----------
+        info : dict
+            Parsed and derived DIDSON metadata containing range, beam, and output
+            geometry fields.
 
         Returns
         -------
@@ -615,14 +645,12 @@ class DIDSON:
         )
 
     def __FasterDIDSONRead(self, file, start_frame, end_frame):
-        """Load raw frames from DIDSON.
+        """Read a contiguous block of raw sonar frames without applying the warp.
 
         Parameters
         ----------
         file : file-like object, string, or pathlib.Path
-            The DIDSON or ARIS file to read.
-        info : dict
-            Dictionary of extracted headers and computed sonar values.
+            DIDSON or ARIS file to read.
         start_frame : int
             Zero-indexed start of frame range (inclusive).
         end_frame : int
@@ -702,6 +730,23 @@ class DIDSON:
     def precompute_area_like_pix_and_count(
         self, big_write_rows, big_write_cols, big_ydim, big_xdim, out_ydim, out_xdim
     ):
+        """Precompute resized-pixel assignments for area-style RMS downsampling.
+
+        Parameters
+        ----------
+        big_write_rows, big_write_cols : np.ndarray
+            Pixel coordinates in the larger warped image.
+        big_ydim, big_xdim : int
+            Height and width of the larger warped image.
+        out_ydim, out_xdim : int
+            Height and width of the final output image.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray]
+            Flat output-pixel indices for each source sample and per-pixel sample
+            counts with a minimum value of ``1`` for safe division.
+        """
         # Project big pixel centers into small grid coordinates
         y_f = (big_write_rows.astype(np.float32) + 0.5) * (out_ydim / big_ydim) - 0.5
         x_f = (big_write_cols.astype(np.float32) + 0.5) * (out_xdim / big_xdim) - 0.5
@@ -725,9 +770,24 @@ class DIDSON:
         return pix, count_safe
 
     def sanitize_mapping(self, read_i, pix, Nraw, extra_arrays=()):
-        """
-        Filters mapping entries where read_i is out of bounds.
-        Returns filtered read_i, pix, and any extra arrays filtered in the same way.
+        """Drop mapping entries that point outside the raw flattened frame buffer.
+
+        Parameters
+        ----------
+        read_i : np.ndarray
+            Flattened raw-sample indices referenced by the warp mapping.
+        pix : np.ndarray
+            Flattened output-pixel indices paired with ``read_i``.
+        Nraw : int
+            Number of raw samples available per frame.
+        extra_arrays : tuple, optional
+            Additional arrays aligned with ``read_i`` that should be filtered using
+            the same validity mask.
+
+        Returns
+        -------
+        tuple[np.ndarray, np.ndarray, list[np.ndarray]]
+            Filtered ``read_i``, filtered ``pix``, and any filtered companion arrays.
         """
         read_i = np.asarray(read_i)
         pix = np.asarray(pix)
@@ -750,12 +810,54 @@ class DIDSON:
 
         return read_i_f, pix_f, filtered_extras
 
-    def warp_area_rms(self, data, read_i, pix, count_safe, out_ydim, out_xdim):
+    def warp_samples_to_rms_image(
+        self, data, read_i, pix, count_safe, out_ydim, out_xdim
+    ):
         """
-        data: (T, Nraw)
-        read_i: (A,) indices into Nraw
-        pix: (A,) flat output pixel indices into out_ydim*out_xdim
+        Map raw sample values into an output image grid using RMS aggregation.
+
+        For each frame in `data`, this function gathers raw sample values using
+        `read_i` and assigns each gathered value to an output pixel specified by
+        `pix`. When multiple raw samples map to the same output pixel, the pixel
+        value is computed as the root mean square (RMS) of those samples:
+
+            output_pixel = sqrt(mean(sample_values ** 2))
+
+        This is useful when the output image should represent signal magnitude or
+        energy rather than a signed average. Positive and negative values therefore
+        contribute equally and do not cancel each other out.
+
+        Invalid mapping entries are removed by `sanitize_mapping` before the warp is
+        computed. Pixel counts are recomputed after filtering so that the RMS
+        normalization reflects only valid mappings.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            Array of shape (T, Nraw), where T is the number of frames or time steps
+            and Nraw is the number of raw samples per frame.
+        read_i : np.ndarray
+            Integer array of shape (A,) containing indices into the raw sample axis
+            of `data`.
+        pix : np.ndarray
+            Integer array of shape (A,) containing flattened output pixel indices
+            in the range [0, out_ydim * out_xdim).
+        count_safe : np.ndarray
+            Unused. Counts are recomputed internally after invalid mappings are
+            removed. This argument is retained only for API compatibility.
+        out_ydim : int
+            Height of the output image.
+        out_xdim : int
+            Width of the output image.
+
+        Returns
+        -------
+        np.ndarray
+            Array of shape (T, out_ydim, out_xdim) with dtype uint8. Each output
+            pixel contains the clipped RMS value of all mapped raw samples for that
+            frame. Pixels with no mapped samples are set to 0.
         """
+
         Nraw = data.shape[1]
         n_pix = out_ydim * out_xdim
 
@@ -778,8 +880,22 @@ class DIDSON:
         return out
 
     def load_raw_data(self, file=None, start_frame=-1, end_frame=-1):
-        """
-        Public interface to self.__FasterDIDSONRead
+        """Load raw flattened frame data using the file's default frame bounds.
+
+        Parameters
+        ----------
+        file : file-like object, str, or pathlib.Path, optional
+            File to read. Defaults to the file recorded in ``self.info``.
+        start_frame : int, optional
+            Inclusive start frame. ``-1`` uses the file header's start frame.
+        end_frame : int, optional
+            Exclusive end frame. ``-1`` uses the header end frame or total frame
+            count when the header does not provide one.
+
+        Returns
+        -------
+        np.ndarray
+            Raw frame matrix with shape ``(num_frames, framesize)``.
         """
         if file is None:
             file = self.info["filename"]
@@ -804,7 +920,7 @@ class DIDSON:
     def load_frames(
         self, file=None, start_frame=0, end_frame=-1, return_unwarped=False
     ):
-        """Load and warp DIDSON frames into images.
+        """Load raw frames, optionally expose the unwarped view, and return warped images.
 
         Parameters
         ----------
@@ -814,11 +930,15 @@ class DIDSON:
             Zero-indexed start of frame range (inclusive). Defaults to the first available.
         end_frame : int, optional
             End of frame range (exclusive). Defaults to the last available frame.
+        return_unwarped : bool, optional
+            If ``True``, also return the raw frame data reshaped into
+            ``(samplesperchannel, numbeams)`` order.
 
         Returns
         -------
-        frames : (end_frame - start_frame, ydim, xdim) ndarray, np.uint8
-            Warped-to-scale sonar image tensor.
+        tuple[np.ndarray, np.ndarray | None, np.ndarray | None]
+            Warped frames, optional unwarped frames, and optional full-resolution
+            warped frames when ``return_original_image`` was enabled at init time.
 
         """
         data = self.load_raw_data(file, start_frame, end_frame)
@@ -839,7 +959,7 @@ class DIDSON:
         else:
             unwarped_frames = None
 
-        frames = self.warp_area_rms(
+        frames = self.warp_samples_to_rms_image(
             data=data,
             read_i=self.read_i,
             pix=self._pix_area,
