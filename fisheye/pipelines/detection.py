@@ -66,9 +66,11 @@ class ObjectDetectionPipeline:
 
     def preprocess(self, image):
         image = image.to(self.device, non_blocking=True)
-        image = (
-            image.half() if self.device != "cpu" else image.float()
-        )  # uint8 to fp16/32
+        if self.device == "cpu":
+            image = image.float()
+        else:
+            model_dtype = next(self.model.model.parameters()).dtype
+            image = image.to(model_dtype)
         image /= 255.0  # 0 - 255 to 0.0 - 1.0
 
         return image

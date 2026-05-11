@@ -1,6 +1,11 @@
 from typing import Union, Type, Dict
 
-from fisheye.configs import BaseModelConfig, YOLOv11ModelConfig, YOLOv5ModelConfig
+from fisheye.configs import (
+    BaseModelConfig,
+    YOLOv5ModelConfig,
+    YOLOv11ModelConfig,
+    YOLOv26ModelConfig,
+)
 from fisheye.configs.models import (
     BaseLengthModelConfig,
     UNetLengthModelConfig,
@@ -12,6 +17,7 @@ from fisheye.enums import DetectorType, LengthEstimatorType
 DETECTOR_MODEL_CONFIG_REGISTRY: Dict[DetectorType, Type[BaseModelConfig]] = {
     DetectorType.YOLOv5: YOLOv5ModelConfig,
     DetectorType.YOLOv11: YOLOv11ModelConfig,
+    DetectorType.YOLOv26: YOLOv26ModelConfig,
 }
 
 LENGTH_MODEL_CONFIG_REGISTRY: Dict[LengthEstimatorType, Type[BaseLengthModelConfig]] = {

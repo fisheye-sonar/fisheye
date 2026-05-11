@@ -48,6 +48,13 @@ class YOLOv11ModelConfig(BaseModelConfig):
 
 
 @dataclass
+class YOLOv26ModelConfig(BaseModelConfig):
+    """YOLOv26 model config."""
+
+    type: str = DetectorType.YOLOv26.value
+
+
+@dataclass
 class UNetLengthModelConfig(BaseLengthModelConfig):
     """UNet-specific length model configuration."""
 

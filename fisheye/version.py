@@ -1,5 +1,6 @@
 import warnings
 from pathlib import Path
+from typing import Optional
 
 import tomli
 from torch.serialization import SourceChangeWarning
@@ -8,6 +9,8 @@ from yolov5.models.experimental import attempt_load
 
 # Globally suppress SourceChangeWarning to avoid warnings when loading Torch models saved with a different NumPy version
 warnings.filterwarnings("ignore", category=SourceChangeWarning)
+
+ULTRALYTICS_DETECTOR_TYPES = {"yolov11", "yolov26"}
 
 
 def get_app_version_from_pyproject():
@@ -22,12 +25,18 @@ def get_app_version_from_pyproject():
     return None
 
 
-def get_version_from_detector(path: str):
+def get_version_from_detector(path: str, detector_type: Optional[str] = None):
     """Get version of object detector."""
     try:
         project_root = Path(__file__).resolve().parents[1]
         model_path = str((project_root / path).resolve())
-        model = attempt_load(model_path, inplace=True)
+
+        if detector_type in ULTRALYTICS_DETECTOR_TYPES:
+            from ultralytics import YOLO
+
+            model = YOLO(model_path).model
+        else:
+            model = attempt_load(model_path, inplace=True)
 
     except FileNotFoundError as e:
         raise FileNotFoundError(f"Could not find {path}: {e}")
