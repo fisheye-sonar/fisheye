@@ -107,7 +107,9 @@ def run_job(cfg: DictConfig):
         platform_cfg, project_root
     )
 
-    detector_version = get_version_from_detector(resolved_weights_path)
+    detector_version = get_version_from_detector(
+        resolved_weights_path, detector_cfg.type
+    )
     # Log job details once at the beginning
     start_time = time.time()
     logger.info(

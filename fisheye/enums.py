@@ -81,6 +81,7 @@ class DetectorType(Enum):
 
     YOLOv5 = "yolov5"
     YOLOv11 = "yolov11"
+    YOLOv26 = "yolov26"
 
 
 class LengthEstimatorType(Enum):

@@ -5,6 +5,7 @@ from .models import (
     BaseModelConfig,
     YOLOv5ModelConfig,
     YOLOv11ModelConfig,
+    YOLOv26ModelConfig,
 )
 
 from .factory import get_detector_config, get_length_model_config
@@ -15,6 +16,7 @@ __all__ = [
     "YOLODatasetConfig",
     "YOLOv5ModelConfig",
     "YOLOv11ModelConfig",
+    "YOLOv26ModelConfig",
     "get_detector_config",
     "get_length_model_config",
     "ObjectDetectionConfig",
