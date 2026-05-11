@@ -4,7 +4,6 @@ from torch.utils.data import Dataset
 
 from fisheye.common.generic import run_with_threads
 from fisheye.configs import BaseDatasetConfig
-from concurrent.futures import ThreadPoolExecutor
 
 
 class BaseDataset(Dataset):
@@ -216,8 +215,7 @@ class BaseDataset(Dataset):
                     # input is float32, output is float32
                     blurred_frames[i] = cv2.GaussianBlur(frames_f32[i], (5, 5), 0)
 
-                with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
-                    list(ex.map(worker, range(T)))
+                run_with_threads(worker, list(range(T)), max_workers=self.max_workers)
             else:
                 for i in range(T):
                     blurred_frames[i] = cv2.GaussianBlur(frames_f32[i], (5, 5), 0)
