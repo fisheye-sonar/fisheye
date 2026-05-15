@@ -25,7 +25,9 @@ class BaseDatasetConfig:
     num_frames_bg_subtract: int = 1000
     return_unwarped: bool = False
     return_echogram: bool = False
+    only_echogram: bool = False
     return_echogram_with_bg_subtracted: bool = True
+    return_raw_echogram_as_third_channel: bool = False
     use_multithreading: bool = True  # For dataloader threading
     max_workers: int = 2
     use_blur: bool = True  # For background subtraction blurring

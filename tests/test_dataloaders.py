@@ -47,6 +47,18 @@ class TestARISDataloader:
         _, _, _, batch_echogram, _ = next(iter(dataloader))
         assert batch_echogram.shape == torch.Size([3, 2684, 2])
 
+    def test_only_echogram(self):
+        """Test only returning the echogram."""
+        config = BaseDatasetConfig(
+            filepath=ARIS_FILE, return_echogram=True, only_echogram=True
+        )
+        dataset = ARISBatchedDataset(config)
+        frame_images, _, unwarped_frames, echogram, return_original_image = dataset[0]
+        assert frame_images is None
+        assert unwarped_frames is None
+        assert return_original_image is False
+        assert echogram.shape == (3, 2684, 2)
+
     def test_loading_frames(self):
         """Test loading all frames directly from DIDSON class."""
         didson = DIDSON(ARIS_FILE)
@@ -64,6 +76,35 @@ class TestARISDataloader:
         assert unwarped_frames.shape == (4, 2684, 48)  # Num of frames, ydim, xdim
         assert unwarped_frames.dtype == np.uint8
         assert np.any(frames != 0)
+
+    def test_loading_unwarped_frames_skip_warped(self):
+        """Test skip_warped avoids building warped images."""
+        didson = DIDSON(ARIS_FILE)
+        frames, unwarped_frames = didson.load_frames(
+            return_unwarped=True, skip_warped=True
+        )
+        assert frames is None
+        assert unwarped_frames.shape == (4, 2684, 48)
+
+    def test_load_echogram(self):
+        didson = DIDSON(ARIS_FILE)
+        echogram = didson.load_echogram(end_frame=4)
+        assert echogram.shape == (3, 2684, 2)
+        assert echogram.dtype == np.float32
+
+    def test_load_echogram_matches_dataset(self):
+        config = BaseDatasetConfig(
+            filepath=ARIS_FILE,
+            return_echogram=True,
+            only_echogram=True,
+            use_blur=True,
+        )
+        dataset = ARISBatchedDataset(config)
+        _, _, _, dataset_echogram, _ = dataset[0]
+        didson = DIDSON(ARIS_FILE)
+        didson_echogram = didson.load_echogram(end_frame=4)
+        np.testing.assert_allclose(dataset_echogram, didson_echogram, rtol=1e-5)
+
 
     @pytest.mark.parametrize(
         "start_frame, end_frame, expected_length",
