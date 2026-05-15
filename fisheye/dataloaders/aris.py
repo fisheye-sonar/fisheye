@@ -64,12 +64,17 @@ class ARISBatchedDataset(BaseDataset):
             beam_width_data=info.get("beam_width_data", None),
         )
 
-    def load_frames(self, start_frame, end_frame, return_unwarped=False):
+    def load_frames(
+        self, start_frame, end_frame, return_unwarped=False, skip_warped=None
+    ):
         """Load ARIS frames."""
+        if skip_warped is None:
+            skip_warped = self.only_echogram
         return self.didson.load_frames(
             start_frame=start_frame,
             end_frame=end_frame,
             return_unwarped=return_unwarped,
+            skip_warped=skip_warped,
         )
 
     def _validate_frame_range(self, config):

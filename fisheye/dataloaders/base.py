@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 
 from fisheye.common.generic import run_with_threads
 from fisheye.configs import BaseDatasetConfig
+from fisheye.dataloaders.echogram import compute_bg_subtraction, compute_echogram
 
 
 class BaseDataset(Dataset):
@@ -51,6 +52,9 @@ class BaseDataset(Dataset):
         self.extracted_echograms = []
         self.return_unwarped = config.return_unwarped
         self.return_echogram = config.return_echogram
+        self.only_echogram = config.only_echogram
+        if self.only_echogram and not self.return_echogram:
+            raise ValueError("only_echogram requires return_echogram=True")
         self.max_workers = config.max_workers
         self.use_multithreading = config.use_multithreading
         self.use_blur = config.use_blur
@@ -60,6 +64,9 @@ class BaseDataset(Dataset):
 
     def _init_bg_frame(self):
         """Initialize background frame for subtraction."""
+        need_unwarped = (
+            self.return_unwarped or self.return_echogram or self.only_echogram
+        )
         if self.do_bg_subtract or self.return_echogram:
             num_frames_bg = min(
                 self.end_frame - self.start_frame,
@@ -68,59 +75,29 @@ class BaseDataset(Dataset):
             frames_for_bg_subtract, unwarped_frames_for_bg_subtract = self.load_frames(
                 self.start_frame,
                 self.start_frame + num_frames_bg,
-                return_unwarped=self.return_unwarped or self.return_echogram,
+                return_unwarped=need_unwarped,
+                skip_warped=self.only_echogram or not self.do_bg_subtract,
             )
 
-            if self.return_unwarped or self.return_echogram:
+            if need_unwarped:
                 (
                     self.unwarped_mean_blurred_frame,
                     self.unwarped_mean_normalization_value,
                 ) = self._compute_bg_subtraction(unwarped_frames_for_bg_subtract)
 
-        if self.do_bg_subtract:
-
+        if self.do_bg_subtract and not self.only_echogram:
             self.mean_blurred_frame, self.mean_normalization_value = (
                 self._compute_bg_subtraction(frames_for_bg_subtract)
             )
 
     def _compute_bg_subtraction(self, frames_for_bg_subtract):
         """Calculate the mean blurred frame and normalization value."""
-        if not self.use_blur:
-            mean_blurred_frame = np.mean(frames_for_bg_subtract, axis=0)
-            max_blurred_frame = np.max(np.abs(frames_for_bg_subtract), axis=0).astype(
-                np.float64
-            )
-
-        else:
-            mean_blurred_frame = np.zeros(
-                [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
-                dtype=np.float32,
-            )
-            max_blurred_frame = np.zeros(
-                [frames_for_bg_subtract.shape[1], frames_for_bg_subtract.shape[2]],
-                dtype=np.float32,
-            )
-            if self.use_multithreading:
-                blurred_frames = run_with_threads(
-                    lambda i: cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0),
-                    list(range(frames_for_bg_subtract.shape[0])),
-                    max_workers=self.max_workers,
-                )
-                # Aggregate results
-                for blurred in blurred_frames:
-                    mean_blurred_frame += blurred
-                    max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
-            else:
-                for i in range(frames_for_bg_subtract.shape[0]):
-                    blurred = cv2.GaussianBlur(frames_for_bg_subtract[i], (5, 5), 0)
-                    mean_blurred_frame += blurred
-                    max_blurred_frame = np.maximum(max_blurred_frame, np.abs(blurred))
-
-            mean_blurred_frame /= frames_for_bg_subtract.shape[0]
-        max_blurred_frame -= mean_blurred_frame
-        mean_normalization_value = np.max(max_blurred_frame)
-
-        return mean_blurred_frame, mean_normalization_value
+        return compute_bg_subtraction(
+            frames_for_bg_subtract,
+            use_blur=self.use_blur,
+            use_multithreading=self.use_multithreading,
+            max_workers=self.max_workers,
+        )
 
     def __len__(self):
         """Length of the dataset excluding the last frame."""
@@ -141,46 +118,56 @@ class BaseDataset(Dataset):
             )
 
         else:
-
+            need_unwarped = (
+                self.return_unwarped or self.return_echogram or self.only_echogram
+            )
             frames, unwarped_frames = self.load_frames(
                 self.start_frame + idx,
                 self.start_frame + final_idx + 1,
-                return_unwarped=self.return_unwarped or self.return_echogram,
+                return_unwarped=need_unwarped,
+                skip_warped=self.only_echogram,
             )
 
-            if self.return_unwarped:
-                frame_images = unwarped_frames
-            else:
-                frame_images = frames
-
-            # MAH 2025-02-07 17:13:36 Question, why are we removing the last frame? whether or not we are doing
-            # background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w,
-            # 3] not was [t,h,w])
-            frame_images = (
-                self._stack_preprocessed_channels(frame_images)
-                if self.do_bg_subtract
-                else np.expand_dims(frame_images[:-1], -1)
-            )
-            if self.return_unwarped or self.return_echogram:
+            if self.only_echogram:
+                frame_images = None
                 unwarped_frames = unwarped_frames[:-1]
-
-            if self.return_echogram:
                 echogram = self._get_echogram(unwarped_frames)
             else:
-                echogram = None
+                if self.return_unwarped:
+                    frame_images = unwarped_frames
+                else:
+                    frame_images = frames
+
+                # MAH 2025-02-07 17:13:36 Question, why are we removing the last frame? whether or not we are doing
+                # background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w,
+                # 3] not was [t,h,w])
+                frame_images = (
+                    self._stack_preprocessed_channels(frame_images)
+                    if self.do_bg_subtract
+                    else np.expand_dims(frame_images[:-1], -1)
+                )
+                if need_unwarped:
+                    unwarped_frames = unwarped_frames[:-1]
+
+                if self.return_echogram:
+                    echogram = self._get_echogram(unwarped_frames)
+                else:
+                    echogram = None
 
             if self.cache_bg_frames:
-                self.extracted_frames.extend(frame_images)
+                if frame_images is not None:
+                    self.extracted_frames.extend(frame_images)
                 self.frame_labels = None
-                self.extracted_unwarped_frames.extend(unwarped_frames)
+                if not self.only_echogram:
+                    self.extracted_unwarped_frames.extend(unwarped_frames)
                 self.extracted_echograms.extend(echogram)
 
         return self._postprocess(
             frame_images,
             frame_labels,
-            unwarped_frames,
+            None if self.only_echogram else unwarped_frames,
             echogram,
-            self.return_original_image,
+            False if self.only_echogram else self.return_original_image,
         )
 
     def _stack_preprocessed_channels(self, frames: np.ndarray):
@@ -254,108 +241,18 @@ class BaseDataset(Dataset):
         )
 
     def _get_echogram(self, unwarped_frames):
-        """
-        Generate Echogram from the frames.
-
-        Output channels:
-        0: magnitude (max over bins)
-        1: normalized argmax bin index in [-0.5, 0.5)
-        2: (optional) magnitude without bg subtraction (computed from raw frames)
-        2: (optional) peak width at 90% of peak (in bins, float32)
-        2: (optional) distances (bin index -> distance mapping, example implementation)
-        """
-        # assert cant have more than 3 channels
-        assert (
-            self.return_echogram_with_how_wide_the_peak_as_third_channel
-            + self.return_echogram_with_no_bgs_as_third_channel
-            + self.return_echogram_with_distances_as_third_channel
-            <= 1
-        ), "Cannot have more than 3 channels"
-
-        if (
-            self.return_echogram_with_distances_as_third_channel
-            or self.return_echogram_with_no_bgs_as_third_channel
-            or self.return_echogram_with_how_wide_the_peak_as_third_channel
-        ):
-            output = np.zeros(
-                (unwarped_frames.shape[0], unwarped_frames.shape[1], 3),
-                dtype=np.float32,
-            )
-        else:
-            output = np.zeros(
-                (unwarped_frames.shape[0], unwarped_frames.shape[1], 2),
-                dtype=np.float32,
-            )
-
-        # Work in float32 once
-        frames_f32 = unwarped_frames.astype(np.float32)
-
-        # Optional: raw echogram before any bg subtraction/normalization
-        no_bgs_echogram = None
-        if self.return_echogram_with_no_bgs_as_third_channel:
-            no_bgs_echogram = np.max(frames_f32, axis=2) / 255.0
-
-        # Apply bg subtraction / normalization if requested
-        proc = frames_f32
-
-        if self.return_echogram_with_bg_subtracted:
-            proc = proc - self.unwarped_mean_blurred_frame
-            proc = proc / self.unwarped_mean_normalization_value
-
-        # Magnitude echogram
-        output[:, :, 0] = np.max(proc, axis=2)
-        # Angle echogram
-        angle_echogram = np.argmax(proc, axis=2)  # shape (H, W)
-        depth = unwarped_frames.shape[2]
-        col = angle_echogram.astype(np.float32) / float(depth)  # [0, 1)
-        col -= 0.5  # [-0.5, 0.5)
-        output[:, :, 1] = col.astype(np.float32)
-
-        # Peak width echogram
-        if self.return_echogram_with_how_wide_the_peak_as_third_channel:
-            peak_vals = output[:, :, 0].astype(np.float32)  # (H, W)
-            peak_idx = angle_echogram  # (H, W)
-            thr = 0.25 * peak_vals  # (H, W)
-
-            above = proc >= thr[..., None]  # (H, W, D)
-
-            H, W, D = proc.shape
-            width = np.zeros((H, W), dtype=np.float32)
-
-            for r in range(H):
-                above_r = above[r]  # (W, D)
-                peak_r = peak_idx[r]  # (W,)
-                peakv_r = peak_vals[r]  # (W,)
-
-                for c in range(W):
-                    pv = float(peakv_r[c])
-                    if not np.isfinite(pv) or pv <= 0.0:
-                        width[r, c] = 0.0
-                        continue
-
-                    p = int(peak_r[c])
-
-                    # Walk left while staying above threshold
-                    l = p
-                    while l > 0 and above_r[c, l - 1]:
-                        l -= 1
-
-                    # Walk right while staying above threshold
-                    rr = p
-                    while rr < D - 1 and above_r[c, rr + 1]:
-                        rr += 1
-
-                    width[r, c] = float(rr - l + 1)
-
-            output[:, :, 2] = width
-
-        # No-bgs echogram channel
-        if self.return_echogram_with_no_bgs_as_third_channel:
-            output[:, :, 2] = no_bgs_echogram.astype(np.float32)
-
-        if self.return_echogram_with_distances_as_third_channel:
-            pass  # TODO: add distances echogram
-        return output
+        """Generate echogram from unwarped frames (delegates to shared compute_echogram)."""
+        return compute_echogram(
+            unwarped_frames,
+            mean_blurred_frame=getattr(self, "unwarped_mean_blurred_frame", None),
+            mean_normalization_value=getattr(
+                self, "unwarped_mean_normalization_value", None
+            ),
+            return_echogram_with_bg_subtracted=self.return_echogram_with_bg_subtracted,
+            return_echogram_with_how_wide_the_peak_as_third_channel=self.return_echogram_with_how_wide_the_peak_as_third_channel,
+            return_echogram_with_no_bgs_as_third_channel=self.return_echogram_with_no_bgs_as_third_channel,
+            return_echogram_with_distances_as_third_channel=self.return_echogram_with_distances_as_third_channel,
+        )
 
     def load_frames(self, idx, final_idx, return_unwarped):
         raise NotImplementedError("Subclasses should implement this method.")

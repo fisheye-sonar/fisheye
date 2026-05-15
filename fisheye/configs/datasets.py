@@ -25,6 +25,7 @@ class BaseDatasetConfig:
     num_frames_bg_subtract: int = 1000
     return_unwarped: bool = False
     return_echogram: bool = False
+    only_echogram: bool = False
     return_echogram_with_bg_subtracted: bool = True
     return_echogram_with_how_wide_the_peak_as_third_channel: bool = False
     return_echogram_with_no_bgs_as_third_channel: bool = False
