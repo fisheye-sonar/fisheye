@@ -736,11 +736,14 @@ class DIDSON:
             Echogram for the requested frame range. The last loaded frame is dropped to
             match :class:`BaseDataset` behaviour.
         """
+        print(f"Loading echogram from {file} from frame {start_frame} to {end_frame}")
         if start_frame == -1:
             start_frame = self.info.get("startframe", 0)
         if end_frame == -1:
-            end_frame = self.info["endframe"] or self.info["numframes"]
-        end_frame = min(end_frame, self.info["numframes"])
+            end_frame = max(
+                x for x in (self.info.get("endframe"), self.info.get("numframes")) if x
+            )
+        print(f"updated start and end frame to {start_frame} and {end_frame}")
 
         mean_blurred_frame = None
         mean_normalization_value = None
