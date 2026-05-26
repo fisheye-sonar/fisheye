@@ -640,9 +640,9 @@ class DIDSON:
             fid.seek(0)  # Reset pointer to start
             svector = None
             if start_frame == -1:
-                start_frame = self.info["startframe"]
+                start_frame = self.info.get("startframe")
             if end_frame == -1:
-                end_frame = self.info["endframe"] or self.info["numframes"]
+                end_frame = max(self.info.get("endframe"), self.info.get("numframes"))
 
             data = self.__FasterDIDSONRead(fid, start_frame, end_frame)
             return data
