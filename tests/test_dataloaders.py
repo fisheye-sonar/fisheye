@@ -239,3 +239,25 @@ def test_reset_start_end_frames_when_exceeding_total_frames():
 
     # originally 10 frames in file, but subtract 1 for optical flow
     assert len(dataset) == 9
+
+
+class TestLoadRawDataDefaults:
+    """Tests for load_raw_data default frame selection when called with sentinel -1 values."""
+
+    def test_invalid_endframe_falls_back_to_numframes(self):
+        """endframe=0 (corruption reset) should fall back to numframes."""
+        didson = DIDSON(ARIS_FILE)
+        num_frames = didson.info["numframes"]
+        didson.info["endframe"] = 0
+
+        data = didson.load_raw_data(start_frame=0)
+        assert data.shape[0] == num_frames
+
+    def test_endframe_less_than_numframes_uses_numframes(self):
+        """max(endframe, numframes) should load all frames even when endframe exists and is a smaller value."""
+        didson = DIDSON(ARIS_FILE)
+        num_frames = didson.info["numframes"]
+        didson.info["endframe"] = 2
+
+        data = didson.load_raw_data(start_frame=0)
+        assert data.shape[0] == num_frames
