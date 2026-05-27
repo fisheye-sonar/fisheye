@@ -44,4 +44,10 @@ class YOLOv5ObjectDetectionModel(BaseModel):
         model.max_det = self.config.max_det
         model.amp = self.config.amp
 
+        # YOLOv5's amp flag only enables torch.cuda.amp.autocast, which is CUDA-specific.
+        # For other accelerators (e.g. MPS), call model.half() directly so weights and
+        # inputs (via AutoShape's type_as(p)) run in FP16.
+        if self.config.amp and device not in ("cpu", "cuda"):
+            model.half()
+
         return model
