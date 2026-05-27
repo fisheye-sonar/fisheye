@@ -194,8 +194,8 @@ def get_unwarped_distance_and_theta(row: pd.Series):
     bbox_xywh = np.array(row["bbox"]) * np.array(
         [metadata.xdim, metadata.ydim, metadata.xdim, metadata.ydim]
     )
-    x_px = bbox_xywh[0] + bbox_xywh[2] / 2
-    y_px = bbox_xywh[1] + bbox_xywh[3] / 2
+    x_px = bbox_xywh[0]
+    y_px = bbox_xywh[1]
 
     points_xy_unwarped = calculate_unwarped_points(
         [x_px, y_px], metadata, metadata.xdim, metadata.ydim
