@@ -172,7 +172,7 @@ def calculate_warped_points(points, info, xdim, ydim):
 
 
 def get_unwarped_distance_and_theta(row: pd.Series):
-    """Get the slant range and beam angle to a detection.
+    """Get the distance (range) and beam angle to a detection.
 
     Args:
         row (pd.Series): A DataFrame row with keys:
@@ -181,7 +181,7 @@ def get_unwarped_distance_and_theta(row: pd.Series):
 
     Returns:
         tuple: (distance: float, theta: float)
-            - distance: Slant range to the detection in meters
+            - distance: Distance (range) to the unwarped point in meters
             - theta: Beam center angle in degrees
     """
     metadata = row["metadata"]
@@ -194,11 +194,11 @@ def get_unwarped_distance_and_theta(row: pd.Series):
     bbox_xywh = np.array(row["bbox"]) * np.array(
         [metadata.xdim, metadata.ydim, metadata.xdim, metadata.ydim]
     )
-    x_px = bbox_xywh[0]
-    y_px = bbox_xywh[1]
+    x_center_px = bbox_xywh[0]
+    y_center_px = bbox_xywh[1]
 
     points_xy_unwarped = calculate_unwarped_points(
-        [x_px, y_px], metadata, metadata.xdim, metadata.ydim
+        [x_center_px, y_center_px], metadata, metadata.xdim, metadata.ydim
     )
     beam_num = min(points_xy_unwarped[0], metadata.BeamCount - 1)
     bin_num = points_xy_unwarped[1]
