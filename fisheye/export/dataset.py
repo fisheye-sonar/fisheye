@@ -62,8 +62,13 @@ class COCOExporter(BaseDatasetExporter):
         raise NotImplementedError("COCO export not yet implemented")
 
 
-class SingleFishFrameInstanceExporter(BaseDatasetExporter):
-    """Multi dataset exporter."""
+class FrameFishInstanceAnnotationExporter(BaseDatasetExporter):
+    """Export one JSON annotation for a single fish instance in a frame.
+
+    The output preserves the source fish geometry, includes relevant metadata
+    from the ARIS file, and adds derived fields used by downstream tasks such
+    as bounding-box and length training.
+    """
 
     def __init__(self, annotations_dir: Path):
         self.annotations_dir = annotations_dir
@@ -112,5 +117,5 @@ class SingleFishFrameInstanceExporter(BaseDatasetExporter):
 DATASET_EXPORTER_REGISTRY: Dict[DatasetFormat, Type[BaseDatasetExporter]] = {
     DatasetFormat.YOLO: YOLOExporter,
     DatasetFormat.COCO: COCOExporter,
-    DatasetFormat.SFFI: SingleFishFrameInstanceExporter,
+    DatasetFormat.SFFI: FrameFishInstanceAnnotationExporter,
 }
