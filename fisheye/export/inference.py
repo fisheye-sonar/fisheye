@@ -2,6 +2,7 @@ import os
 import re
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Union, List, Optional
@@ -19,6 +20,22 @@ from fisheye.utils import (
 from fisheye.version import __app_version__
 
 logger = structlog.get_logger()
+
+ECHOTASTIC_COLUMNS = [
+    "Sample",
+    "Ping",
+    "Time",
+    "Range",
+    "Amplitude",
+    "XAngle",
+    "YAngle",
+    "Direction",
+    "Length",
+    "Area",
+    "Operator",
+]
+ECHOTASTIC_VERSION = "2.0"
+ECHOTASTIC_OPERATOR = "AUT"
 
 
 class BaseInferenceExporter(ABC):
@@ -228,6 +245,178 @@ class SummaryCSVExporter(BaseInferenceExporter):
         logger.info("exported_summary_csv", output_dir=out_file)
 
 
+def _metadata_value(metadata, key, default=None):
+    """Read a metadata value from a dict or dataclass-like object."""
+    if metadata is None:
+        return default
+
+    if isinstance(metadata, dict):
+        return metadata.get(key, default)
+
+    return getattr(metadata, key, default)
+
+
+def _safe_float(value, default=0.0) -> float:
+    """Convert value to float, returning the default on invalid inputs."""
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return default
+
+    if np.isnan(value):
+        return default
+
+    return value
+
+
+def _echotastic_direction(dir_value: Optional[str]) -> Optional[int]:
+    """Map pipeline Up/Down directions to Echotastic direction values."""
+    if dir_value == "Up":
+        return 1
+    if dir_value == "Down":
+        return -1
+    return None
+
+
+def _echotastic_sample_from_bbox(bbox, metadata) -> int:
+    """Derive the Echotastic sample index from the tracked bbox center."""
+    if bbox is None or metadata is None:
+        return 0
+
+    xdim = _metadata_value(metadata, "xdim", 0)
+    ydim = _metadata_value(metadata, "ydim", 0)
+    pixel_meter_size = _safe_float(_metadata_value(metadata, "pixel_meter_size"), 0.0)
+    y_meter_start = _safe_float(_metadata_value(metadata, "y_meter_start"), 0.0)
+    x_meter_start = _safe_float(_metadata_value(metadata, "x_meter_start"), 0.0)
+    windowstart = _safe_float(_metadata_value(metadata, "windowstart"), 0.0)
+    sampleperiod = _safe_float(_metadata_value(metadata, "sampleperiod"), 0.0)
+    soundspeed = _safe_float(_metadata_value(metadata, "soundspeed"), 0.0)
+
+    if (
+        not xdim
+        or not ydim
+        or pixel_meter_size <= 0
+        or sampleperiod <= 0
+        or soundspeed <= 0
+    ):
+        return 0
+
+    bbox_xywh = np.array(bbox) * np.array([xdim, ydim, xdim, ydim])
+    center_x_px = int(bbox_xywh[0])
+    center_y_px = int(bbox_xywh[1])
+
+    x_m = x_meter_start + center_x_px * pixel_meter_size
+    y_m = y_meter_start - center_y_px * pixel_meter_size
+    range_m = float(np.hypot(x_m, y_m))
+
+    bin_length = sampleperiod * 0.000001 * soundspeed / 2.0
+    if bin_length <= 0:
+        return 0
+
+    return max(0, int(round((range_m - windowstart) / bin_length)))
+
+
+def _echotastic_record_time(frame_num: int, metadata) -> float:
+    """Convert a frame number to Echotastic time units using recorded frame rate."""
+    framerate = _safe_float(
+        _metadata_value(
+            metadata,
+            "framerate",
+            _metadata_value(metadata, "FrameRate", 15.0),
+        ),
+        default=15.0,
+    )
+    if framerate <= 0:
+        framerate = 15.0
+
+    return frame_num / framerate / 60.0
+
+
+def _aris_duration_minutes(metadata) -> Optional[float]:
+    """Calculate ARIS duration in minutes from hardware timing."""
+    numframes = _metadata_value(metadata, "numframes")
+    cycleperiod = _metadata_value(metadata, "cycleperiod")
+    sampleperiod = _metadata_value(metadata, "sampleperiod")
+
+    try:
+        numframes = int(numframes)
+        cycleperiod = float(cycleperiod)
+        sampleperiod = float(sampleperiod)
+    except (TypeError, ValueError):
+        return None
+
+    if numframes < 1 or cycleperiod <= 0 or sampleperiod <= 0:
+        return None
+
+    duration_seconds = (numframes - 1) * cycleperiod * sampleperiod / 1_000_000
+    return duration_seconds / 60.0
+
+
+def _echotastic_total_time_header(metadata) -> str:
+    """Render the Echotastic total-time header string."""
+    duration_minutes = _aris_duration_minutes(metadata)
+    if duration_minutes is None:
+        return ""
+
+    return f"{duration_minutes:.3f} minutes"
+
+
+_ARIS_FILENAME_DATETIME_RE = re.compile(r"_(\d{4})-(\d{2})-(\d{2})_(\d{6})$")
+
+
+def _echotastic_header_datetime(stem: str) -> tuple[str, str]:
+    """Parse a trailing ARIS timestamp for Echotastic Date and Start Time headers."""
+    match = _ARIS_FILENAME_DATETIME_RE.search(stem)
+    if not match:
+        return "", ""
+
+    year, month, day, hhmmss = match.groups()
+    date_str = f"{int(month):02d}/{int(day):02d}/{year}"
+    start_str = f"{hhmmss[0:2]}:{hhmmss[2:4]}:{hhmmss[4:6]}"
+
+    return date_str, start_str
+
+
+def _format_echotastic_file(
+    *, source_path: str, aris_stem: str, metadata, data_rows: List[Dict]
+) -> str:
+    """Build the full tab-delimited Echotastic file content."""
+    date_str, start_str = _echotastic_header_datetime(aris_stem)
+    total_time_str = _echotastic_total_time_header(metadata)
+    header_lines = [
+        f"Version = {ECHOTASTIC_VERSION}",
+        f"File Name = {source_path}",
+        f"Total Number Of Marks = {len(data_rows)}",
+        f"Total Time = {total_time_str}",
+        f"Date = {date_str}",
+        f"Start Time = {start_str}",
+        "",
+        "\t".join(ECHOTASTIC_COLUMNS),
+    ]
+
+    body_lines = []
+    for row in data_rows:
+        body_lines.append(
+            "\t".join(
+                [
+                    str(row["Sample"]),
+                    str(row["Ping"]),
+                    f'{row["Time"]:.2f}',
+                    f'{row["Range"]:.2f}',
+                    f'{row["Amplitude"]:.2f}',
+                    f'{row["XAngle"]:.2f}',
+                    f'{row["YAngle"]:.2f}',
+                    str(row["Direction"]),
+                    f'{row["Length"]:.2f}',
+                    f'{row["Area"]:.2f}',
+                    str(row["Operator"]),
+                ]
+            )
+        )
+
+    return "\n".join(header_lines + body_lines) + "\n"
+
+
 class FCExporter(BaseInferenceExporter):
     """Export counts to FC format."""
 
@@ -295,6 +484,88 @@ class FCExporter(BaseInferenceExporter):
                 os.fsync(f.fileno())
 
             logger.info("exported_fc_txt", output_dir=out_file)
+
+
+class EchotasticExporter(BaseInferenceExporter):
+    """Export counts to Echotastic tab-delimited text format."""
+
+    def export(self, data: List[List[Dict]]) -> None:
+        flattened_data = self._flatten_list(data)
+        if not self._has_data_to_export(flattened_data):
+            return
+
+        grouped_rows = defaultdict(list)
+        file_context = {}
+
+        for row in flattened_data:
+            source_name = row.get("Source.Name")
+            if not source_name:
+                continue
+
+            grouped_rows[source_name].append(row)
+            file_context.setdefault(source_name, row)
+
+        for source_name, rows in grouped_rows.items():
+            context_row = file_context[source_name]
+            metadata = context_row.get("metadata")
+            source_path = context_row.get("Source.Path") or str(
+                Path(source_name).resolve()
+            )
+            echotastic_rows = []
+
+            for row in rows:
+                direction = _echotastic_direction(row.get("Dir"))
+                frame_num = row.get("Frame#")
+                bbox = row.get("bbox")
+                row_metadata = row.get("metadata", metadata)
+
+                if direction is None or frame_num is None or bbox is None:
+                    continue
+
+                try:
+                    frame_num = int(frame_num)
+                except (TypeError, ValueError):
+                    continue
+
+                range_m = row.get("R (m)")
+                if range_m is None:
+                    range_m, _ = get_unwarped_distance_and_theta(
+                        pd.Series({"bbox": bbox, "metadata": row_metadata})
+                    )
+
+                echotastic_rows.append(
+                    {
+                        "Sample": _echotastic_sample_from_bbox(bbox, row_metadata),
+                        "Ping": frame_num,
+                        "Time": _echotastic_record_time(frame_num, row_metadata),
+                        "Range": _safe_float(range_m, 0.0),
+                        "Amplitude": 0.0,
+                        "XAngle": 0.0,
+                        "YAngle": 0.0,
+                        "Direction": direction,
+                        "Length": _safe_float(row.get("L(cm)"), 0.0),
+                        "Area": 0.0,
+                        "Operator": ECHOTASTIC_OPERATOR,
+                    }
+                )
+
+            echotastic_rows.sort(key=lambda record: (record["Ping"], record["Sample"]))
+
+            file_stem = Path(str(source_name)).stem
+            out_file = os.path.join(self.output_dir, f"{file_stem}.aris.txt")
+            content = _format_echotastic_file(
+                source_path=source_path,
+                aris_stem=file_stem,
+                metadata=metadata,
+                data_rows=echotastic_rows,
+            )
+
+            with open(out_file, "w") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+
+            logger.info("exported_echotastic_txt", output_dir=out_file)
 
 
 class MOTExporter(BaseInferenceExporter):
@@ -447,6 +718,9 @@ def get_exporter(
 
     elif export_type == ExportType.FC:
         return FCExporter(output_dir, job_id, distance_offset)
+
+    elif export_type == ExportType.ECHOTASTIC:
+        return EchotasticExporter(output_dir, job_id, distance_offset)
 
     elif export_type == ExportType.MOT:
         return MOTExporter(

@@ -121,6 +121,7 @@ def dict_rows_to_mot_format(rows: List[Dict], img_width, img_height) -> List[Dic
 def format_single_crossing(
     filename: str,
     metadata: ARISMetadata,
+    source_path: str = None,
     track_id: int = None,
     frame: int = None,
     bbox: list = None,
@@ -149,6 +150,7 @@ def format_single_crossing(
     if track_id is None:
         return {
             "Source.Name": filename,
+            "Source.Path": source_path,
             "Frame#": None,
             "Dir": None,
             "ID": None,
@@ -162,6 +164,7 @@ def format_single_crossing(
 
     return {
         "Source.Name": filename,
+        "Source.Path": source_path,
         "Frame#": len_outputs.get(track_id, {}).get("frame_id_closest_to_mean")
         or frame,
         "Dir": "Up" if upstream_direction == crossing_direction else "Down",
