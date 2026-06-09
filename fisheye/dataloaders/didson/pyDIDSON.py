@@ -21,7 +21,10 @@ import pandas as pd
 
 from . import pyARIS
 from .pyDIDSON_format import *
-from fisheye.dataloaders.echogram import compute_echogram
+from fisheye.dataloaders.echogram import (
+    compute_echogram,
+    echogram_uses_bg_subtraction,
+)
 from fisheye.dataloaders.compute_bg_subtraction import compute_bg_subtraction
 
 BASE = Path(__file__).parent.parent.parent
@@ -655,7 +658,7 @@ class DIDSON:
         start_frame=0,
         end_frame=-1,
         return_unwarped=False,
-        skip_warped=False,
+        return_warped=True,
     ):
         """Load and warp DIDSON frames into images.
 
@@ -669,12 +672,12 @@ class DIDSON:
             End of frame range (exclusive). Defaults to the last available frame.
         return_unwarped : bool, optional
             Whether to return the unwarped frames.
-        skip_warped : bool, optional
-            Whether to skip the warped frames.
+        return_warped : bool, optional
+            Whether to return the warped frames.
         Returns
         -------
         frames : (end_frame - start_frame, ydim, xdim) ndarray, np.uint8 or None
-            Warped-to-scale sonar image tensor, or None when ``skip_warped`` is True.
+            Warped-to-scale sonar image tensor, or None when ``return_warped`` is False.
 
         """
         data = self.load_raw_data(file, start_frame, end_frame)
@@ -694,7 +697,7 @@ class DIDSON:
             # indexing error without it
         else:
             unwarped_frames = None
-        if skip_warped:
+        if not return_warped:
             frames = None
         else:
             frames = np.zeros(
@@ -710,11 +713,10 @@ class DIDSON:
         start_frame=0,
         end_frame=-1,
         num_frames_bg_subtract=1000,
-        use_blur=False,
+        use_blur=True,
         use_multithreading=True,
         max_workers=2,
-        return_echogram_with_bg_subtracted=True,
-        return_raw_echogram_as_third_channel=False,
+        echogram_channels=None,
     ):
         """Load unwarped beam data and return an echogram without building warped frames.
         Parameters
@@ -728,8 +730,9 @@ class DIDSON:
             Maximum number of leading frames used to estimate background statistics.
         use_blur, use_multithreading, max_workers : optional
             Background estimation options (same as :class:`BaseDataset`).
-        return_echogram_with_* : bool, optional
-            Channel options (same as :class:`BaseDataset`).
+        echogram_channels : list, optional
+            Ordered channel selection, using entries from
+            ``{"bgs", "bgs_angle", "angle", "raw", "center_line", "0", None}``.
         Returns
         -------
         echogram : ndarray, shape (num_frames, height, num_channels), float32
@@ -745,16 +748,17 @@ class DIDSON:
             )
         print(f"updated start and end frame to {start_frame} and {end_frame}")
 
+        do_bg_subtract_echogram = echogram_uses_bg_subtraction(echogram_channels)
         mean_blurred_frame = None
         mean_normalization_value = None
-        if return_echogram_with_bg_subtracted:
+        if do_bg_subtract_echogram:
             num_frames_bg = min(end_frame - start_frame, num_frames_bg_subtract)
             _, unwarped_bg = self.load_frames(
                 file,
                 start_frame,
                 start_frame + num_frames_bg,
                 return_unwarped=True,
-                skip_warped=True,
+                return_warped=False,
             )
             mean_blurred_frame, mean_normalization_value = compute_bg_subtraction(
                 unwarped_bg,
@@ -768,7 +772,7 @@ class DIDSON:
             start_frame,
             end_frame,
             return_unwarped=True,
-            skip_warped=True,
+            return_warped=False,
         )
         unwarped_frames = unwarped_frames[:-1]
 
@@ -776,6 +780,5 @@ class DIDSON:
             unwarped_frames,
             mean_blurred_frame=mean_blurred_frame,
             mean_normalization_value=mean_normalization_value,
-            return_echogram_with_bg_subtracted=return_echogram_with_bg_subtracted,
-            return_raw_echogram_as_third_channel=return_raw_echogram_as_third_channel,
+            echogram_channels=echogram_channels,
         )

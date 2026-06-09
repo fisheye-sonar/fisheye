@@ -1,6 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 BEAM_WIDTH_DIR = BASE_DIR / "beam_widths"
@@ -23,11 +22,12 @@ class BaseDatasetConfig:
     start_frame: int = 0  # Default to first frame (zero-indexed)
     end_frame: int = 0
     num_frames_bg_subtract: int = 1000
+    return_frames: bool = True
     return_unwarped: bool = False
     return_echogram: bool = False
-    only_echogram: bool = False
-    return_echogram_with_bg_subtracted: bool = True
-    return_raw_echogram_as_third_channel: bool = False
+    echogram_channels: list[str | None] = field(
+        default_factory=lambda: ["bgs", "bgs_angle", "raw"]
+    )
     use_multithreading: bool = True  # For dataloader threading
     max_workers: int = 2
     use_blur: bool = True  # For background subtraction blurring

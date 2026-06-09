@@ -1,52 +1,121 @@
 import numpy as np
 
+VALID_ECHOGRAM_CHANNELS = {
+    "bgs",
+    "bgs_angle",
+    "angle",
+    "raw",
+    "center_line",
+    "0",
+}
+BGS_ECHOGRAM_CHANNELS = {"bgs", "bgs_angle"}
+
+
+def _normalize_echogram_channels(echogram_channels):
+    """Validate channel selection and trim an optional trailing None."""
+    if echogram_channels is None:
+        return ["bgs", "bgs_angle", "raw"]
+
+    normalized_channels = []
+    for index, channel in enumerate(echogram_channels):
+        if channel is None:
+            if index != len(echogram_channels) - 1:
+                raise ValueError(
+                    "None is only supported as the last echogram channel entry"
+                )
+            break
+        if channel not in VALID_ECHOGRAM_CHANNELS:
+            raise ValueError(
+                f"Unsupported echogram channel {channel!r}. "
+                f"Expected one of {sorted(VALID_ECHOGRAM_CHANNELS)} or None."
+            )
+        normalized_channels.append(channel)
+
+    if not normalized_channels:
+        raise ValueError("echogram_channels must include at least one active channel")
+
+    return normalized_channels
+
+
+def echogram_uses_bg_subtraction(echogram_channels):
+    """Return True when any selected channel requires background subtraction."""
+    normalized_channels = _normalize_echogram_channels(echogram_channels)
+    return any(channel in BGS_ECHOGRAM_CHANNELS for channel in normalized_channels)
+
+
+def _normalize_center_line(center_line_echogram):
+    """Clamp the center-line channel into a stable [0, 1] range."""
+    center_line_echogram = np.clip(center_line_echogram, 0, 1)
+    max_value = np.max(center_line_echogram)
+    if max_value > 0:
+        center_line_echogram = center_line_echogram / max_value
+    return center_line_echogram.astype(np.float32, copy=False)
+
+
 def compute_echogram(
     unwarped_frames,
     mean_blurred_frame=None,
     mean_normalization_value=None,
-    return_echogram_with_bg_subtracted=True,
-    return_raw_echogram_as_third_channel=False,
+    echogram_channels=None,
 ):
     """
     Generate an echogram from unwarped beam frames.
-    Output channels:
-    0: magnitude (max over bins)
-    1: normalized argmax bin index in [-0.5, 0.5)
-    2: (optional) magnitude without bg subtraction
+
+    ``echogram_channels`` is ordered and may contain ``"bgs"``,
+    ``"bgs_angle"``, ``"angle"``, ``"raw"``, ``"center_line"``, ``"0"``,
+    and an optional trailing ``None``.
     """
 
-    num_channels = 3 if return_raw_echogram_as_third_channel else 2
+    echogram_channels = _normalize_echogram_channels(echogram_channels)
+    do_bg_subtract_echogram = echogram_uses_bg_subtraction(echogram_channels)
 
     output = np.zeros(
-        (*unwarped_frames.shape[:2], num_channels),
+        (*unwarped_frames.shape[:2], len(echogram_channels)),
         dtype=np.float32,
     )
+    depth = unwarped_frames.shape[2]
 
     frames_f32 = unwarped_frames.astype(np.float32)
 
-    raw_echogram = None
-    if return_raw_echogram_as_third_channel:
-        raw_echogram = np.max(frames_f32, axis=2) / 255.0
+    raw_echogram = np.max(frames_f32, axis=2) / 255.0
 
-    proc = frames_f32
-    if return_echogram_with_bg_subtracted:
+    bgs_angle_echogram = None
+    if do_bg_subtract_echogram:
+        bgs_frames = frames_f32
         if mean_blurred_frame is None or mean_normalization_value is None:
             raise ValueError(
                 "mean_blurred_frame and mean_normalization_value are required when "
-                "return_echogram_with_bg_subtracted=True"
+                "do_bg_subtract_echogram=True"
             )
-        proc = proc - mean_blurred_frame
-        proc = proc / mean_normalization_value
+        bgs_frames = bgs_frames - mean_blurred_frame
+        bgs_frames = bgs_frames / mean_normalization_value
+        bgs_echogram = np.max(bgs_frames, axis=2).astype(np.float32, copy=False)
+        if "bgs_angle" in echogram_channels:
+            bgs_angle_echogram = np.argmax(bgs_frames, axis=2).astype(
+                np.float32
+            ) / float(depth)
+            bgs_angle_echogram -= 0.5
+        del bgs_frames
+    else:
+        bgs_echogram = None
 
-    output[:, :, 0] = np.max(proc, axis=2)
-    angle_echogram = np.argmax(proc, axis=2)
-    depth = unwarped_frames.shape[2]
-    col = angle_echogram.astype(np.float32) / float(depth)
-    col -= 0.5
-    output[:, :, 1] = col.astype(np.float32)
-
-    if return_raw_echogram_as_third_channel:
-        output[:, :, 2] = raw_echogram.astype(np.float32)
-
+    for channel_index, channel_name in enumerate(echogram_channels):
+        if channel_name == "0":
+            continue
+        elif channel_name == "raw":
+            output[:, :, channel_index] = raw_echogram
+        elif channel_name == "bgs":
+            output[:, :, channel_index] = bgs_echogram
+        elif channel_name == "bgs_angle":
+            output[:, :, channel_index] = bgs_angle_echogram
+        elif channel_name == "angle":
+            output[:, :, channel_index] = np.argmax(frames_f32, axis=2).astype(np.float32) / float(
+                depth
+            ) -0.5
+        elif channel_name == "center_line":
+            center_line_echgram = frames_f32[:, :, frames_f32.shape[2] // 2]
+            output[:, :, channel_index] = _normalize_center_line(center_line_echgram)
+        else:
+            raise ValueError(f"Unsupported echogram channel {channel_name!r}")
 
     return output

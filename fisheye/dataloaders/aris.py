@@ -65,24 +65,24 @@ class ARISBatchedDataset(BaseDataset):
         )
 
     def load_frames(
-        self, start_frame, end_frame, return_unwarped=False, skip_warped=None
-    ):        
+        self, start_frame, end_frame, return_unwarped=False, return_warped=None
+    ):
         """Load ARIS frames.
 
         Args:
             start_frame (int): The start frame index.
             end_frame (int): The end frame index.
             return_unwarped (bool): Whether to return the unwarped frames.
-            skip_warped (bool): Whether to skip the warped frames.
+            return_warped (bool): Whether to return the warped frames.
         """
-        if skip_warped is None:
-            skip_warped = self.only_echogram
+        if return_warped is None:
+            return_warped = self.return_frames
 
         return self.didson.load_frames(
             start_frame=start_frame,
             end_frame=end_frame,
             return_unwarped=return_unwarped,
-            skip_warped=skip_warped,
+            return_warped=return_warped,
         )
 
     def _validate_frame_range(self, config):

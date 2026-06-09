@@ -59,7 +59,7 @@ class TestARISDataloader:
             else (config.batch_size)
         )
         _, _, _, batch_echogram, _ = next(iter(dataloader))
-        assert batch_echogram.shape == torch.Size([batch_size, 512, 2])
+        assert batch_echogram.shape == torch.Size([batch_size, 512, 3])
 
     def test_loading_frames(self):
         """Test loading frames directly from DIDSON class."""

@@ -45,19 +45,31 @@ class TestARISDataloader:
         config = BaseDatasetConfig(filepath=ARIS_FILE, return_echogram=True)
         dataloader, _ = create_dataloader(config)
         _, _, _, batch_echogram, _ = next(iter(dataloader))
-        assert batch_echogram.shape == torch.Size([3, 2684, 2])
+        assert batch_echogram.shape == torch.Size([3, 2684, 3])
 
-    def test_only_echogram(self):
-        """Test only returning the echogram."""
+    def test_echogram_without_frames(self):
+        """Test returning only the echogram via return_frames=False."""
         config = BaseDatasetConfig(
-            filepath=ARIS_FILE, return_echogram=True, only_echogram=True
+            filepath=ARIS_FILE, return_echogram=True, return_frames=False
         )
         dataset = ARISBatchedDataset(config)
         frame_images, _, unwarped_frames, echogram, return_original_image = dataset[0]
         assert frame_images is None
         assert unwarped_frames is None
         assert return_original_image is False
+        assert echogram.shape == (3, 2684, 3)
+
+    def test_custom_echogram_channels(self):
+        config = BaseDatasetConfig(
+            filepath=ARIS_FILE,
+            return_echogram=True,
+            return_frames=False,
+            echogram_channels=["bgs", "0", None],
+        )
+        dataset = ARISBatchedDataset(config)
+        _, _, _, echogram, _ = dataset[0]
         assert echogram.shape == (3, 2684, 2)
+        assert np.all(echogram[:, :, 1] == 0)
 
     def test_loading_frames(self):
         """Test loading all frames directly from DIDSON class."""
@@ -77,11 +89,11 @@ class TestARISDataloader:
         assert unwarped_frames.dtype == np.uint8
         assert np.any(frames != 0)
 
-    def test_loading_unwarped_frames_skip_warped(self):
-        """Test skip_warped avoids building warped images."""
+    def test_loading_unwarped_frames_without_warped(self):
+        """Test return_warped=False avoids building warped images."""
         didson = DIDSON(ARIS_FILE)
         frames, unwarped_frames = didson.load_frames(
-            return_unwarped=True, skip_warped=True
+            return_unwarped=True, return_warped=False
         )
         assert frames is None
         assert unwarped_frames.shape == (4, 2684, 48)
@@ -89,14 +101,14 @@ class TestARISDataloader:
     def test_load_echogram(self):
         didson = DIDSON(ARIS_FILE)
         echogram = didson.load_echogram(end_frame=4)
-        assert echogram.shape == (3, 2684, 2)
+        assert echogram.shape == (3, 2684, 3)
         assert echogram.dtype == np.float32
 
     def test_load_echogram_matches_dataset(self):
         config = BaseDatasetConfig(
             filepath=ARIS_FILE,
             return_echogram=True,
-            only_echogram=True,
+            return_frames=False,
             use_blur=True,
         )
         dataset = ARISBatchedDataset(config)
@@ -104,7 +116,6 @@ class TestARISDataloader:
         didson = DIDSON(ARIS_FILE)
         didson_echogram = didson.load_echogram(end_frame=4)
         np.testing.assert_allclose(dataset_echogram, didson_echogram, rtol=1e-5)
-
 
     @pytest.mark.parametrize(
         "start_frame, end_frame, expected_length",
