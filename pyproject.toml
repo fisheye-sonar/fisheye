@@ -4,10 +4,17 @@ version = "v1.0.0-beta.5"
 description = "Performing inference on sonar data."
 authors = ["Madison Van Horn"]
 readme = "README.md"
-packages = [{include = "fisheye"}]
+packages = [
+    {include = "fisheye"},
+    {include = "fisheye_app"},
+    {include = "fisheye_gui_pipeline"},
+]
+
+[tool.poetry.scripts]
+fisheye-gui = "fisheye_app.main:main"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.15"
 pandas = "^2.2.3"
 pillow = "^11.1.0"
 matplotlib = "^3.10.0"
@@ -33,6 +40,10 @@ wandb = "^0.19.5"
 pre-commit = "^4.1.0"
 black = "^25.1.0"
 memory-profiler = "^0.61.0"
+
+[tool.poetry.group.gui.dependencies]
+PySide6 = "^6.8.2"
+pyinstaller = "^6.13.0"
 
 [build-system]
 requires = ["poetry-core"]

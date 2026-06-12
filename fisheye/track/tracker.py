@@ -204,6 +204,7 @@ def run_tracker(
     image_meter_height,
     tracking_config,
     min_length=TargetSizeConfig.min_length,
+    frame_offset=0,
     gp=None,
     verbose=False,
 ):
@@ -221,8 +222,8 @@ def run_tracker(
         gp(0, f"Tracking using {tracking_config}...")
 
     clip_info = {
-        "start_frame": 0,
-        "end_frame": len(low_preds),
+        "start_frame": frame_offset,
+        "end_frame": frame_offset + len(low_preds),
         "image_meter_width": image_meter_width,
         "image_meter_height": image_meter_height,
     }

@@ -29,10 +29,12 @@ class BaseInferenceExporter(ABC):
         output_dir: str,
         job_id: Optional[str] = None,
         distance_offset: float = 0.0,
+        filename_suffix: str = "",
     ):
         self.output_dir = output_dir
         self.job_id = job_id
         self.distance_offset = distance_offset
+        self.filename_suffix = filename_suffix
         self.timestamp = datetime.now().strftime("%Y-%m-%d")
         self.job_suffix = f"_{job_id}" if job_id else ""
 
@@ -125,7 +127,8 @@ class DetailedCSVExporter(BaseInferenceExporter):
 
         stem = Path(str(df.iloc[0]["Source.Name"])).stem
         out_file = os.path.join(
-            self.output_dir, f"{self.timestamp}{self.job_suffix}_{stem}.csv"
+            self.output_dir,
+            f"{self.timestamp}{self.job_suffix}_{stem}{self.filename_suffix}.csv",
         )
 
         source_name = str(df.iloc[0]["Source.Name"])
@@ -172,7 +175,8 @@ class SummaryCSVExporter(BaseInferenceExporter):
             return
 
         out_file = os.path.join(
-            self.output_dir, f"{self.timestamp}{self.job_suffix}_summary.csv"
+            self.output_dir,
+            f"{self.timestamp}{self.job_suffix}_summary{self.filename_suffix}.csv",
         )
 
         df = pd.DataFrame(flattened_data)
@@ -287,7 +291,9 @@ class FCExporter(BaseInferenceExporter):
                     )
 
             file_stem = Path(str(file_name)).stem
-            out_file = os.path.join(self.output_dir, f"FCe_{file_stem}_ID_.txt")
+            out_file = os.path.join(
+                self.output_dir, f"FCe_{file_stem}{self.filename_suffix}_ID_.txt"
+            )
 
             with open(out_file, "w") as f:
                 f.writelines(lines)
@@ -306,8 +312,9 @@ class MOTExporter(BaseInferenceExporter):
         job_id: Optional[str] = None,
         distance_offset: float = 0.0,
         filename: Optional[str] = None,
+        filename_suffix: str = "",
     ):
-        super().__init__(output_dir, job_id, distance_offset)
+        super().__init__(output_dir, job_id, distance_offset, filename_suffix)
         self.filename = filename
 
     def export(self, data: List[Dict]) -> None:
@@ -315,7 +322,9 @@ class MOTExporter(BaseInferenceExporter):
         fname = (
             self.filename if self.filename else f"{self.timestamp}{self.job_suffix}_mot"
         )
-        out_path = os.path.join(self.output_dir, fname + ".txt")
+        out_path = os.path.join(
+            self.output_dir, f"{fname}{self.filename_suffix}.txt"
+        )
 
         mot_lines = []
         for row in data:
@@ -354,8 +363,9 @@ class XMLExporter(BaseInferenceExporter):
         job_id: Optional[str] = None,
         distance_offset: float = 0.0,
         upstream_direction: Optional[str] = None,
+        filename_suffix: str = "",
     ):
-        super().__init__(output_dir, job_id, distance_offset)
+        super().__init__(output_dir, job_id, distance_offset, filename_suffix)
         self.upstream_direction = upstream_direction
 
     def export(self, data: List[List[Dict]]) -> None:
@@ -366,7 +376,9 @@ class XMLExporter(BaseInferenceExporter):
 
         for d in flattened_data:
             source_name = Path(d.get("Source.Name")).stem
-            output_path = os.path.join(self.output_dir, f"FCe_{source_name}_ID_.xml")
+            output_path = os.path.join(
+                self.output_dir, f"FCe_{source_name}{self.filename_suffix}_ID_.xml"
+            )
 
             marked = ET.SubElement(
                 root,
@@ -440,21 +452,46 @@ def get_exporter(
             export_type = ExportType[export_type.upper()]
 
     if export_type == ExportType.DETAILED_CSV:
-        return DetailedCSVExporter(output_dir, job_id, distance_offset)
+        return DetailedCSVExporter(
+            output_dir,
+            job_id,
+            distance_offset,
+            kwargs.get("filename_suffix", ""),
+        )
 
     elif export_type == ExportType.SUMMARY_CSV:
-        return SummaryCSVExporter(output_dir, job_id, distance_offset)
+        return SummaryCSVExporter(
+            output_dir,
+            job_id,
+            distance_offset,
+            kwargs.get("filename_suffix", ""),
+        )
 
     elif export_type == ExportType.FC:
-        return FCExporter(output_dir, job_id, distance_offset)
+        return FCExporter(
+            output_dir,
+            job_id,
+            distance_offset,
+            kwargs.get("filename_suffix", ""),
+        )
 
     elif export_type == ExportType.MOT:
         return MOTExporter(
-            output_dir, job_id, distance_offset, filename=kwargs.get("filename")
+            output_dir,
+            job_id,
+            distance_offset,
+            filename=kwargs.get("filename"),
+            filename_suffix=kwargs.get("filename_suffix", ""),
         )
 
     elif export_type == ExportType.XML:
-        return XMLExporter(output_dir, job_id, distance_offset, upstream_direction)
+        return XMLExporter(
+            output_dir,
+            job_id,
+            distance_offset,
+            upstream_direction,
+            kwargs.get("filename_suffix", ""),
+        )
 
     else:
         raise ValueError(f"Unsupported export type: {export_type}")
@@ -467,6 +504,7 @@ def save_to_disk(
     job_id: str,
     distance_offset: Union[int, float],
     upstream_direction: str,
+    filename_suffix: str = "",
 ) -> None:
     """Save results to disk using configured exporters."""
     if not results or all(len(sublist) == 0 for sublist in results):
@@ -484,6 +522,7 @@ def save_to_disk(
                 job_id,
                 float(distance_offset),
                 upstream_direction,
+                filename_suffix=filename_suffix,
             )
             exporter.export(results)
         except Exception as e:

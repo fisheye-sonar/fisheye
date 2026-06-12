@@ -205,6 +205,120 @@ cd ~/home/fisheye/code/fisheye/
 
 ---
 
+## Desktop App
+
+**Fisheye - Aris salmon detection** is a PySide6 desktop app for running the ARIS salmon detection workflow without editing YAML files by hand. It uses the same underlying FishEye pipeline as the command-line workflow, but exposes the key options in a batch-friendly GUI.
+
+![Fisheye - Aris salmon detection GUI](fisheye-gui.png)
+
+### What the GUI does
+
+* Add one or more `.aris` / `.ddf` files, or point at a directory.
+* Choose an output directory and export formats.
+* Select a bundled checkpoint from `weights/*.pt` or browse to another `.pt` file.
+* Optionally limit the run to a frame range with `start frame` and `end frame`.
+* Adjust advanced detector and tracker settings such as confidence, IoU, batch size, min hits, and max age.
+* Run single files or batches and monitor per-run totals for upstream and downstream fish.
+
+### Option 1: Use the GUI without building
+
+This is the simplest option if the person using it is comfortable running from source.
+
+1. Install Python `3.10.14`.
+2. Install Poetry: <https://python-poetry.org/docs/>
+3. Clone this repository.
+4. From the repository root, install dependencies including the GUI extras:
+
+   ```bash
+   poetry install --with gui
+   ```
+
+5. Make sure the model weights you want to use are present in `weights/`.
+
+   Pretrained weights are available from the GitHub releases page:
+   <https://github.com/fisheye-sonar/fisheye/releases>
+
+6. Launch the GUI:
+
+   ```bash
+   poetry run fisheye-gui
+   ```
+
+   Alternative:
+
+   ```bash
+   poetry run python -m fisheye_app
+   ```
+
+In this mode, logs are written under `logs/` in the repository.
+
+### Option 2: Build a distributable desktop bundle
+
+Use this if you want to hand someone a standalone app folder instead of the full source tree.
+
+Important build assumptions:
+
+* Build on the same operating system you plan to distribute for.
+* The provided scripts create a **CPU bundle**. They intentionally fail if the environment still has a CUDA-enabled PyTorch build installed.
+* The build output is a folder, not a single installer.
+
+#### Linux build
+
+From the repository root:
+
+```bash
+chmod +x scripts/build_cpu_dist.sh
+./scripts/build_cpu_dist.sh
+```
+
+#### Windows build
+
+From PowerShell at the repository root:
+
+```powershell
+.\scripts\build_cpu_dist.ps1
+```
+
+#### What the build scripts do
+
+They:
+
+1. Install dependencies with `poetry install --with gui`
+2. Check that `torch.cuda.is_available()` is `False`
+3. Run PyInstaller with `fisheye_app.spec`
+4. Create the distributable folder at `dist/FisheyeArisSalmonDetection/`
+
+You can also run the PyInstaller step manually if needed:
+
+```bash
+poetry run pyinstaller --noconfirm --clean fisheye_app.spec
+```
+
+#### Before handing the build to someone else
+
+Copy the required model weights into:
+
+```text
+dist/FisheyeArisSalmonDetection/weights/
+```
+
+At minimum, the distributed folder should contain:
+
+* the built executable files created by PyInstaller
+* a `weights/` directory containing the `.pt` checkpoint files you want available in the GUI
+
+#### Running the built app
+
+The recipient does not need Poetry or the full source repository. They can run the executable from inside:
+
+```text
+dist/FisheyeArisSalmonDetection/
+```
+
+Logs from the built app are written to the per-user application data location rather than the repo `logs/` directory.
+
+---
+
 ## Building Training Datasets (Beta)
 
 ⚠️ This feature is under active development.

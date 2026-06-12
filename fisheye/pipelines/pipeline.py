@@ -57,15 +57,14 @@ class DetectTrackCountPipeline:
         job_id: Optional[str] = None,
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
         distance_offset: Union[int, float] = 0.0,
+        filename_suffix: str = "",
     ) -> List:
 
         if not output_dir:
             output_dir = file.parent
 
         # Shallow copy of YOLODatasetConfig with updated fields
-        self.dataset_cfg = replace(
-            self.dataset_cfg, filepath=file, start_frame=0, end_frame=0
-        )
+        self.dataset_cfg = replace(self.dataset_cfg, filepath=file)
 
         self.detect_pipe.load_dataset(self.dataset_cfg)
         low_preds, high_preds, low_length_estimates, high_length_estimates = (
@@ -80,6 +79,7 @@ class DetectTrackCountPipeline:
             metadata.image_meter_height,
             self.tracker_cfg,
             min_length=self.target_size.min_length,
+            frame_offset=self.dataset_cfg.start_frame,
         )
 
         len_outputs = self._estimate_lengths(
@@ -113,7 +113,11 @@ class DetectTrackCountPipeline:
             mot_tracks = dict_rows_to_mot_format(
                 formatted_yolo_tracks, metadata.xdim, metadata.ydim
             )
-            MOTExporter(output_dir=output_dir, filename=file.stem).export(mot_tracks)
+            MOTExporter(
+                output_dir=output_dir,
+                filename=file.stem,
+                filename_suffix=filename_suffix,
+            ).export(mot_tracks)
 
         (left_count, right_count), crossing_frames = Count().count(
             formatted_yolo_tracks
@@ -195,6 +199,7 @@ class DetectTrackCountPipeline:
             job_id=job_id,
             distance_offset=distance_offset,
             upstream_direction=upstream_direction,
+            filename_suffix=filename_suffix,
         )
 
         return formatted_crossings

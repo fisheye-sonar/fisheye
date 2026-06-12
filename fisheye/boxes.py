@@ -415,8 +415,13 @@ class NMSProcessor:
         self.batch_size = batch_size
 
     def run(self, batch_pred: torch.Tensor, batch_shapes) -> Tuple[Dict, Dict]:
-        """Apply NMS at low (0.1) and high (0.3) confidence thresholds."""
-        low_conf, high_conf = 0.1, 0.3
+        """Apply NMS at low/high confidence thresholds for tracking.
+
+        The configured NMS confidence becomes the low threshold. The high threshold
+        stays stricter by default so ByteTrack-style tracking still has two passes.
+        """
+        low_conf = float(self.nms_config.conf)
+        high_conf = min(1.0, low_conf + 0.2)
 
         batch_pred = batch_pred.cpu()
         (img_height, img_width) = batch_shapes[0][0]

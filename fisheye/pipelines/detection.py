@@ -48,7 +48,8 @@ class ObjectDetectionPipeline:
 
         self.use_multithreading = config.use_multithreading
         self.max_workers = config.max_workers
-        self.nms_config = NMSConfig()
+        self.nms_config = config.nms_config or NMSConfig()
+        self.nms_config.target_size = config.target_size
         self.apply_nms_batchwise = config.apply_nms_batchwise
         self.apply_length_estimates_batchwise = config.apply_length_estimates_batchwise
         self.length_config = config.length_config
