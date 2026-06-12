@@ -9,6 +9,7 @@ from fisheye.common.generic import safe_execution
 from fisheye.configs import ObjectDetectionConfig, YOLOv5ModelConfig, YOLODatasetConfig
 from fisheye.configs.inference import NMSConfig
 from fisheye.configs.inference import TrackerOutput
+from fisheye.boxes import NMSProcessor
 from fisheye.detect.yolov5 import YOLOv5ObjectDetectionModel
 from fisheye.pipelines import ObjectDetectionPipeline
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
@@ -100,6 +101,27 @@ def test_object_detection_pipeline_no_postprocessing(use_multithreading):
         # Length estimates should be empty dicts when disabled
         assert isinstance(low_length_estimates, dict)
         assert isinstance(high_length_estimates, dict)
+
+
+def test_nms_processor_uses_stable_thresholds_across_batches():
+    """Low/high NMS thresholds should not drift upward between batches."""
+
+    metadata = MagicMock()
+    metadata.image_meter_width = 1.0
+    processor = NMSProcessor(NMSConfig(conf=0.1, iou=0.25), metadata, batch_size=1)
+
+    batch_pred = torch.zeros((1, 1, 6))
+    batch_shapes = [(torch.Size([960, 512]), ((960, 512), (960, 512)))]
+
+    with patch("fisheye.boxes.run_nms", return_value=[[]]) as mock_run_nms, patch(
+        "fisheye.boxes.normalize_boxes_for_tracking",
+        return_value=({(0, 0): None}, 512, 960),
+    ):
+        processor.run(batch_pred, batch_shapes)
+        processor.run(batch_pred, batch_shapes)
+
+    used_thresholds = [call.args[4].conf for call in mock_run_nms.call_args_list]
+    assert used_thresholds == pytest.approx([0.1, 0.3, 0.1, 0.3])
 
 
 @pytest.mark.skip(

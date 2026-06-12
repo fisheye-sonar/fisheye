@@ -1,3 +1,4 @@
+from dataclasses import replace
 from functools import partial
 from typing import Union, List, Tuple, Dict
 
@@ -413,6 +414,8 @@ class NMSProcessor:
         self.nms_config = nms_config or NMSConfig()
         self.metadata = metadata
         self.batch_size = batch_size
+        self.low_conf = float(self.nms_config.conf)
+        self.high_conf = min(1.0, self.low_conf + 0.2)
 
     def run(self, batch_pred: torch.Tensor, batch_shapes) -> Tuple[Dict, Dict]:
         """Apply NMS at low/high confidence thresholds for tracking.
@@ -420,20 +423,17 @@ class NMSProcessor:
         The configured NMS confidence becomes the low threshold. The high threshold
         stays stricter by default so ByteTrack-style tracking still has two passes.
         """
-        low_conf = float(self.nms_config.conf)
-        high_conf = min(1.0, low_conf + 0.2)
-
         batch_pred = batch_pred.cpu()
         (img_height, img_width) = batch_shapes[0][0]
 
         # Low confidence NMS
-        self.nms_config.conf = low_conf
+        low_nms_config = replace(self.nms_config, conf=self.low_conf)
         low_output = run_nms(
             [batch_pred],
             self.metadata.image_meter_width,
             img_width,
             self.batch_size,
-            self.nms_config,
+            low_nms_config,
         )
         low_preds, *_ = normalize_boxes_for_tracking(
             [batch_shapes],
@@ -444,13 +444,13 @@ class NMSProcessor:
         )
 
         # High confidence NMS
-        self.nms_config.conf = high_conf
+        high_nms_config = replace(self.nms_config, conf=self.high_conf)
         high_output = run_nms(
             [batch_pred],
             self.metadata.image_meter_width,
             img_width,
             self.batch_size,
-            self.nms_config,
+            high_nms_config,
         )
         high_preds, *_ = normalize_boxes_for_tracking(
             [batch_shapes],
