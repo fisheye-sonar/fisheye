@@ -61,9 +61,8 @@ class BaseDataset(Dataset):
     def _init_bg_frame(self):
         """Initialize background frame for subtraction."""
         need_unwarped_bg_subtract = (
-            (self.return_frames and self.return_unwarped and self.do_bg_subtract)
-            or (self.return_echogram and self.do_bg_subtract_echogram)
-        )
+            self.return_frames and self.return_unwarped and self.do_bg_subtract
+        ) or (self.return_echogram and self.do_bg_subtract_echogram)
 
         if self.do_bg_subtract or need_unwarped_bg_subtract:
             num_frames_bg = min(
@@ -111,9 +110,13 @@ class BaseDataset(Dataset):
             return self._postprocess(
                 self._stack_cached(self.extracted_frames, idx, final_idx),
                 frame_labels,
-                None
-                if self.only_echogram
-                else self._stack_cached(self.extracted_unwarped_frames, idx, final_idx),
+                (
+                    None
+                    if self.only_echogram
+                    else self._stack_cached(
+                        self.extracted_unwarped_frames, idx, final_idx
+                    )
+                ),
                 self._stack_cached(self.extracted_echograms, idx, final_idx),
                 False if self.only_echogram else self.return_original_image,
             )
@@ -269,5 +272,5 @@ class BaseDataset(Dataset):
             return None
         return np.stack(cache[idx:final_idx])
 
-    def load_frames(self, idx, final_idx, return_unwarped):
+    def load_frames(self, idx, final_idx, return_unwarped=False, return_warped=True):
         raise NotImplementedError("Subclasses should implement this method.")
