@@ -6,6 +6,6 @@ xml_dir:
 out_dir:
 
 # Dataset export options
-dataset_format: yolo  # See other options in DATASET_EXPORTER_REGISTRY
+dataset_format: yolo # See other options in DATASET_EXPORTER_REGISTRY
 padding: 0.1
 min_padding_px: 30
