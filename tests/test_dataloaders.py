@@ -9,6 +9,7 @@ from fisheye.dataloaders import (
 )
 from fisheye.dataloaders.data_module import ARISDataModule
 from fisheye.dataloaders.didson.pyDIDSON import DIDSON
+from fisheye.enums import EchogramChannel
 from conftest import ARIS_FILE, CORRUPTED_FILE, INVALID_FRAME_INDICES
 
 from fisheye.configs import BaseDatasetConfig, YOLODatasetConfig
@@ -64,12 +65,19 @@ class TestARISDataloader:
             filepath=ARIS_FILE,
             return_echogram=True,
             return_frames=False,
-            echogram_channels=["bgs", "0", None],
+            echogram_channels=[EchogramChannel.BGS, EchogramChannel.ZERO, None],
         )
         dataset = ARISBatchedDataset(config)
         _, _, _, echogram, _ = dataset[0]
         assert echogram.shape == (3, 2684, 2)
         assert np.all(echogram[:, :, 1] == 0)
+
+    def test_string_echogram_channels_are_coerced_to_enum(self):
+        config = BaseDatasetConfig(filepath=ARIS_FILE, echogram_channels=["raw", "0"])
+        assert config.echogram_channels == [
+            EchogramChannel.RAW,
+            EchogramChannel.ZERO,
+        ]
 
     def test_loading_frames(self):
         """Test loading all frames directly from DIDSON class."""

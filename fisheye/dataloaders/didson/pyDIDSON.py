@@ -734,7 +734,8 @@ class DIDSON:
             Background estimation options (same as :class:`BaseDataset`).
         echogram_channels : list, optional
             Ordered channel selection, using entries from
-            ``{"bgs", "bgs_angle", "angle", "raw", "center_line", "0", None}``.
+            ``{EchogramChannel.BGS, EchogramChannel.BGS_ANGLE, EchogramChannel.ANGLE,``
+            ``EchogramChannel.RAW, EchogramChannel.CENTER_LINE, EchogramChannel.ZERO, None}``.
         Returns
         -------
         echogram : ndarray, shape (num_frames, height, num_channels), float32

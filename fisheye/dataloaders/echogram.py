@@ -1,20 +1,22 @@
 import numpy as np
 
-VALID_ECHOGRAM_CHANNELS = {
-    "bgs",
-    "bgs_angle",
-    "angle",
-    "raw",
-    "center_line",
-    "0",
+from fisheye.enums import EchogramChannel
+
+DEFAULT_ECHOGRAM_CHANNELS = [
+    EchogramChannel.BGS,
+    EchogramChannel.BGS_ANGLE,
+    EchogramChannel.RAW,
+]
+BGS_ECHOGRAM_CHANNELS = {
+    EchogramChannel.BGS,
+    EchogramChannel.BGS_ANGLE,
 }
-BGS_ECHOGRAM_CHANNELS = {"bgs", "bgs_angle"}
 
 
 def _normalize_echogram_channels(echogram_channels):
     """Validate channel selection and trim an optional trailing None."""
     if echogram_channels is None:
-        return ["bgs", "bgs_angle", "raw"]
+        return DEFAULT_ECHOGRAM_CHANNELS.copy()
 
     normalized_channels = []
     for index, channel in enumerate(echogram_channels):
@@ -24,11 +26,14 @@ def _normalize_echogram_channels(echogram_channels):
                     "None is only supported as the last echogram channel entry"
                 )
             break
-        if channel not in VALID_ECHOGRAM_CHANNELS:
+        try:
+            channel = EchogramChannel(channel)
+        except ValueError as exc:
+            valid_channels = [member.value for member in EchogramChannel]
             raise ValueError(
                 f"Unsupported echogram channel {channel!r}. "
-                f"Expected one of {sorted(VALID_ECHOGRAM_CHANNELS)} or None."
-            )
+                f"Expected one of {valid_channels} or None."
+            ) from exc
         normalized_channels.append(channel)
 
     if not normalized_channels:
@@ -90,7 +95,7 @@ def compute_echogram(
         bgs_frames = bgs_frames - mean_blurred_frame
         bgs_frames = bgs_frames / mean_normalization_value
         bgs_echogram = np.max(bgs_frames, axis=2).astype(np.float32, copy=False)
-        if "bgs_angle" in echogram_channels:
+        if EchogramChannel.BGS_ANGLE in echogram_channels:
             bgs_angle_echogram = np.argmax(bgs_frames, axis=2).astype(
                 np.float32
             ) / float(depth)
@@ -100,19 +105,19 @@ def compute_echogram(
         bgs_echogram = None
 
     for channel_index, channel_name in enumerate(echogram_channels):
-        if channel_name == "0":
+        if channel_name == EchogramChannel.ZERO:
             continue
-        elif channel_name == "raw":
+        elif channel_name == EchogramChannel.RAW:
             output[:, :, channel_index] = raw_echogram
-        elif channel_name == "bgs":
+        elif channel_name == EchogramChannel.BGS:
             output[:, :, channel_index] = bgs_echogram
-        elif channel_name == "bgs_angle":
+        elif channel_name == EchogramChannel.BGS_ANGLE:
             output[:, :, channel_index] = bgs_angle_echogram
-        elif channel_name == "angle":
-            output[:, :, channel_index] = np.argmax(frames_f32, axis=2).astype(np.float32) / float(
-                depth
-            ) -0.5
-        elif channel_name == "center_line":
+        elif channel_name == EchogramChannel.ANGLE:
+            output[:, :, channel_index] = (
+                np.argmax(frames_f32, axis=2).astype(np.float32) / float(depth)
+            ) - 0.5
+        elif channel_name == EchogramChannel.CENTER_LINE:
             center_line_echgram = frames_f32[:, :, frames_f32.shape[2] // 2]
             output[:, :, channel_index] = _normalize_center_line(center_line_echgram)
         else:

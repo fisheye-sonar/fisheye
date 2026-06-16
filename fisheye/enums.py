@@ -91,5 +91,16 @@ class LengthEstimatorType(Enum):
     HEATMAP_CNN = "heatmap_cnn"
 
 
+class EchogramChannel(str, Enum):
+    """Supported echogram channel types."""
+
+    BGS = "bgs"
+    BGS_ANGLE = "bgs_angle"
+    ANGLE = "angle"
+    RAW = "raw"
+    CENTER_LINE = "center_line"
+    ZERO = "0"
+
+
 IGNORED_DIR_NAMES = {e.value for e in IgnoredSystemDirs}
 IGNORED_FILE_PREFIXES = {e.value for e in IgnoredFilePrefixes}
