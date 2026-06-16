@@ -41,6 +41,19 @@ class TestARISDataloader:
         assert batch_data.shape == torch.Size([3, 2684, 48, 3])
         assert batch_unwarped.shape == torch.Size([3, 2684, 48])
 
+    def test_return_unwarped_images_without_bg_subtraction(self):
+        config = BaseDatasetConfig(
+            filepath=ARIS_FILE,
+            return_unwarped=True,
+            do_bg_subtract=False,
+        )
+        dataloader, _ = create_dataloader(config)
+
+        batch = next(iter(dataloader))
+        batch_data, batch_unwarped = batch[0], batch[2]
+        assert batch_data.shape == torch.Size([3, 2684, 48, 1])
+        assert torch.equal(batch_data[..., 0], batch_unwarped)
+
     def test_return_echogram(self):
         config = BaseDatasetConfig(filepath=ARIS_FILE, return_echogram=True)
         dataloader, _ = create_dataloader(config)
