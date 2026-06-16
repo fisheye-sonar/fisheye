@@ -64,12 +64,22 @@ class ARISBatchedDataset(BaseDataset):
             beam_width_data=info.get("beam_width_data", None),
         )
 
-    def load_frames(self, start_frame, end_frame, return_unwarped=False):
-        """Load ARIS frames."""
+    def load_frames(
+        self, start_frame, end_frame, return_unwarped=False, return_warped=True
+    ):
+        """Load ARIS frames.
+
+        Args:
+            start_frame (int): The start frame index.
+            end_frame (int): The end frame index.
+            return_unwarped (bool): Whether to return the unwarped frames.
+            return_warped (bool): Whether to return the warped frames.
+        """
         return self.didson.load_frames(
             start_frame=start_frame,
             end_frame=end_frame,
             return_unwarped=return_unwarped,
+            return_warped=return_warped,
         )
 
     def _validate_frame_range(self, config):

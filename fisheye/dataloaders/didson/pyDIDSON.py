@@ -18,12 +18,19 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
+import structlog
 
 from . import pyARIS
 from .pyDIDSON_format import *
+from fisheye.dataloaders.echogram import (
+    compute_echogram,
+    echogram_uses_bg_subtraction,
+)
+from fisheye.dataloaders.compute_bg_subtraction import compute_bg_subtraction
 
 BASE = Path(__file__).parent.parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
+logger = structlog.get_logger(__name__)
 
 
 class DIDSON:
@@ -648,7 +655,12 @@ class DIDSON:
             return data
 
     def load_frames(
-        self, file=None, start_frame=0, end_frame=-1, return_unwarped=False
+        self,
+        file=None,
+        start_frame=0,
+        end_frame=-1,
+        return_unwarped=False,
+        return_warped=True,
     ):
         """Load and warp DIDSON frames into images.
 
@@ -660,11 +672,14 @@ class DIDSON:
             Zero-indexed start of frame range (inclusive). Defaults to the first available.
         end_frame : int, optional
             End of frame range (exclusive). Defaults to the last available frame.
-
+        return_unwarped : bool, optional
+            Whether to return the unwarped frames.
+        return_warped : bool, optional
+            Whether to return the warped frames.
         Returns
         -------
-        frames : (end_frame - start_frame, ydim, xdim) ndarray, np.uint8
-            Warped-to-scale sonar image tensor.
+        frames : (end_frame - start_frame, ydim, xdim) ndarray, np.uint8 or None
+            Warped-to-scale sonar image tensor, or None when ``return_warped`` is False.
 
         """
         data = self.load_raw_data(file, start_frame, end_frame)
@@ -684,9 +699,98 @@ class DIDSON:
             # indexing error without it
         else:
             unwarped_frames = None
-        frames = np.zeros(
-            (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
-        )
-        frames[:, self.write_rows, self.write_cols] = data[:, self.read_i]
+        if not return_warped:
+            frames = None
+        else:
+            frames = np.zeros(
+                (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
+            )
+            frames[:, self.write_rows, self.write_cols] = data[:, self.read_i]
 
         return frames, unwarped_frames
+
+    def load_echogram(
+        self,
+        file=None,
+        start_frame=0,
+        end_frame=-1,
+        num_frames_bg_subtract=1000,
+        use_blur=True,
+        use_multithreading=True,
+        max_workers=2,
+        echogram_channels=None,
+    ):
+        """Load unwarped beam data and return an echogram without building warped frames.
+        Parameters
+        ----------
+        file : file-like object, string, or pathlib.Path, optional
+            The DIDSON or ARIS file to read. Defaults to ``filename`` in ``info``.
+        start_frame, end_frame : int, optional
+            Zero-indexed frame range ``[start_frame, end_frame)``. ``end_frame=-1`` uses
+            the last frame in the file.
+        num_frames_bg_subtract : int, optional
+            Maximum number of leading frames used to estimate background statistics.
+        use_blur, use_multithreading, max_workers : optional
+            Background estimation options (same as :class:`BaseDataset`).
+        echogram_channels : list, optional
+            Ordered channel selection, using entries from
+            ``{EchogramChannel.BGS, EchogramChannel.BGS_ANGLE, EchogramChannel.ANGLE,``
+            ``EchogramChannel.RAW, EchogramChannel.CENTER_LINE, EchogramChannel.ZERO, None}``.
+        Returns
+        -------
+        echogram : ndarray, shape (num_frames, height, num_channels), float32
+            Echogram for the requested frame range. The last loaded frame is dropped to
+            match :class:`BaseDataset` behaviour.
+        """
+        logger.info(
+            "loading_echogram",
+            file=str(file) if file is not None else self.info.get("filename"),
+            start_frame=start_frame,
+            end_frame=end_frame,
+        )
+        if start_frame == -1:
+            start_frame = self.info.get("startframe", 0)
+        if end_frame == -1:
+            end_frame = max(
+                x for x in (self.info.get("endframe"), self.info.get("numframes")) if x
+            )
+        logger.info(
+            "updated_echogram_frame_range",
+            start_frame=start_frame,
+            end_frame=end_frame,
+        )
+
+        do_bg_subtract_echogram = echogram_uses_bg_subtraction(echogram_channels)
+        mean_blurred_frame = None
+        mean_normalization_value = None
+        if do_bg_subtract_echogram:
+            num_frames_bg = min(end_frame - start_frame, num_frames_bg_subtract)
+            _, unwarped_bg = self.load_frames(
+                file,
+                start_frame,
+                start_frame + num_frames_bg,
+                return_unwarped=True,
+                return_warped=False,
+            )
+            mean_blurred_frame, mean_normalization_value = compute_bg_subtraction(
+                unwarped_bg,
+                use_blur=use_blur,
+                use_multithreading=use_multithreading,
+                max_workers=max_workers,
+            )
+
+        _, unwarped_frames = self.load_frames(
+            file,
+            start_frame,
+            end_frame,
+            return_unwarped=True,
+            return_warped=False,
+        )
+        unwarped_frames = unwarped_frames[:-1]
+
+        return compute_echogram(
+            unwarped_frames,
+            mean_blurred_frame=mean_blurred_frame,
+            mean_normalization_value=mean_normalization_value,
+            echogram_channels=echogram_channels,
+        )
