@@ -65,7 +65,7 @@ class ARISBatchedDataset(BaseDataset):
         )
 
     def load_frames(
-        self, start_frame, end_frame, return_unwarped=False, return_warped=None
+        self, start_frame, end_frame, return_unwarped=False, return_warped=True
     ):
         """Load ARIS frames.
 
@@ -75,9 +75,6 @@ class ARISBatchedDataset(BaseDataset):
             return_unwarped (bool): Whether to return the unwarped frames.
             return_warped (bool): Whether to return the warped frames.
         """
-        if return_warped is None:
-            return_warped = self.return_frames
-
         return self.didson.load_frames(
             start_frame=start_frame,
             end_frame=end_frame,

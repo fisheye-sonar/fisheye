@@ -18,6 +18,7 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
+import structlog
 
 from . import pyARIS
 from .pyDIDSON_format import *
@@ -29,6 +30,7 @@ from fisheye.dataloaders.compute_bg_subtraction import compute_bg_subtraction
 
 BASE = Path(__file__).parent.parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
+logger = structlog.get_logger(__name__)
 
 
 class DIDSON:
@@ -739,14 +741,23 @@ class DIDSON:
             Echogram for the requested frame range. The last loaded frame is dropped to
             match :class:`BaseDataset` behaviour.
         """
-        print(f"Loading echogram from {file} from frame {start_frame} to {end_frame}")
+        logger.info(
+            "loading_echogram",
+            file=str(file) if file is not None else self.info.get("filename"),
+            start_frame=start_frame,
+            end_frame=end_frame,
+        )
         if start_frame == -1:
             start_frame = self.info.get("startframe", 0)
         if end_frame == -1:
             end_frame = max(
                 x for x in (self.info.get("endframe"), self.info.get("numframes")) if x
             )
-        print(f"updated start and end frame to {start_frame} and {end_frame}")
+        logger.info(
+            "updated_echogram_frame_range",
+            start_frame=start_frame,
+            end_frame=end_frame,
+        )
 
         do_bg_subtract_echogram = echogram_uses_bg_subtraction(echogram_channels)
         mean_blurred_frame = None
