@@ -3,6 +3,7 @@ import numpy as np
 
 from fisheye.common.generic import run_with_threads
 
+
 def compute_bg_subtraction(
     frames_for_bg_subtract,
     use_blur=True,
