@@ -139,7 +139,7 @@ class BaseDataset(Dataset):
                         self.unwarped_mean_normalization_value,
                     )
                     if self.do_bg_subtract
-                    else np.expand_dims(frames[:-1], -1)
+                    else np.expand_dims(unwarped_frames[:-1], -1)
                 )
             else:
                 frame_images = (
