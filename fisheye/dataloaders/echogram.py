@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import numpy as np
 
 from fisheye.enums import EchogramChannel
@@ -13,7 +15,9 @@ BGS_ECHOGRAM_CHANNELS = {
 }
 
 
-def _normalize_echogram_channels(echogram_channels):
+def _normalize_echogram_channels(
+    echogram_channels: Sequence[EchogramChannel | str | None] | None,
+) -> list[EchogramChannel]:
     """Validate channel selection and trim an optional trailing None."""
     if echogram_channels is None:
         return DEFAULT_ECHOGRAM_CHANNELS.copy()
@@ -42,13 +46,15 @@ def _normalize_echogram_channels(echogram_channels):
     return normalized_channels
 
 
-def echogram_uses_bg_subtraction(echogram_channels):
+def echogram_uses_bg_subtraction(
+    echogram_channels: Sequence[EchogramChannel | str | None] | None,
+) -> bool:
     """Return True when any selected channel requires background subtraction."""
     normalized_channels = _normalize_echogram_channels(echogram_channels)
     return any(channel in BGS_ECHOGRAM_CHANNELS for channel in normalized_channels)
 
 
-def _normalize_center_line(center_line_echogram):
+def _normalize_center_line(center_line_echogram: np.ndarray) -> np.ndarray:
     """Clamp the center-line channel into a stable [0, 1] range."""
     center_line_echogram = np.clip(center_line_echogram, 0, 1)
     max_value = np.max(center_line_echogram)
@@ -58,11 +64,11 @@ def _normalize_center_line(center_line_echogram):
 
 
 def compute_echogram(
-    unwarped_frames,
-    mean_blurred_frame=None,
-    mean_normalization_value=None,
-    echogram_channels=None,
-):
+    unwarped_frames: np.ndarray,
+    mean_blurred_frame: np.ndarray | None = None,
+    mean_normalization_value: float | np.ndarray | None = None,
+    echogram_channels: Sequence[EchogramChannel | str | None] | None = None,
+) -> np.ndarray:
     """
     Generate an echogram from unwarped beam frames.
 
