@@ -134,33 +134,36 @@ class BaseDataset(Dataset):
                 unwarped_frames = unwarped_frames[:-1]
                 echogram = self._get_echogram(unwarped_frames)
             else:
-                echogram = None
-                if self.return_unwarped:
-                    frame_images = unwarped_frames
-                else:
-                    frame_images = frames
-
-                # MAH 2025-02-07 17:13:36 Question, why are we removing the last frame? whether or not we are doing
-                # background subtraction the image is 4D (previous behaviour was 4D for background subtracted was [t,h,w,
-                # 3] not was [t,h,w])
+                frame_source = unwarped_frames if self.return_unwarped else frames
                 frame_images = (
-                    self._stack_preprocessed_channels(frame_images)
+                    self._stack_preprocessed_channels(
+                        frame_source,
+                        mean_blurred_frame=(
+                            getattr(self, "unwarped_mean_blurred_frame", None)
+                            if self.return_unwarped
+                            else getattr(self, "mean_blurred_frame", None)
+                        ),
+                        mean_normalization_value=(
+                            getattr(self, "unwarped_mean_normalization_value", None)
+                            if self.return_unwarped
+                            else getattr(self, "mean_normalization_value", None)
+                        ),
+                    )
                     if self.do_bg_subtract
-                    else np.expand_dims(frame_images[:-1], -1)
+                    else np.expand_dims(frame_source[:-1], -1)
                 )
                 if self.need_unwarped:
                     unwarped_frames = unwarped_frames[:-1]
 
-                if self.return_echogram:
-                    echogram = self._get_echogram(unwarped_frames)
-                else:
-                    echogram = None
+                echogram = (
+                    self._get_echogram(unwarped_frames) if self.return_echogram else None
+                )
 
             if self.cache_bg_frames:
                 if frame_images is not None:
                     self.extracted_frames.extend(frame_images)
                 self.frame_labels = None
-                if unwarped_frames is not None:
+                if not self.only_echogram and unwarped_frames is not None:
                     self.extracted_unwarped_frames.extend(unwarped_frames)
                 if echogram is not None:
                     self.extracted_echograms.extend(echogram)
@@ -173,7 +176,12 @@ class BaseDataset(Dataset):
             False if self.only_echogram else self.return_original_image,
         )
 
-    def _stack_preprocessed_channels(self, frames: np.ndarray):
+    def _stack_preprocessed_channels(
+        self,
+        frames: np.ndarray,
+        mean_blurred_frame: np.ndarray | None = None,
+        mean_normalization_value: float | np.ndarray | None = None,
+    ):
         """Generate a 3-channel representation of the frames.
 
         This method:
@@ -204,12 +212,25 @@ class BaseDataset(Dataset):
                 for i in range(frames.shape[0]):
                     blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
 
-        if self.return_unwarped:
-            blurred_frames -= self.unwarped_mean_blurred_frame
-            blurred_frames /= self.unwarped_mean_normalization_value
-        else:
-            blurred_frames -= self.mean_blurred_frame
-            blurred_frames /= self.mean_normalization_value
+        if mean_blurred_frame is None or mean_normalization_value is None:
+            if self.return_unwarped:
+                mean_blurred_frame = getattr(self, "unwarped_mean_blurred_frame", None)
+                mean_normalization_value = getattr(
+                    self, "unwarped_mean_normalization_value", None
+                )
+            else:
+                mean_blurred_frame = getattr(self, "mean_blurred_frame", None)
+                mean_normalization_value = getattr(
+                    self, "mean_normalization_value", None
+                )
+
+        if mean_blurred_frame is None or mean_normalization_value is None:
+            raise ValueError(
+                "Background subtraction statistics are required to preprocess frames."
+            )
+
+        blurred_frames -= mean_blurred_frame
+        blurred_frames /= mean_normalization_value
 
         # MAH 2025-11-24 17:09:09 I think we should not do this here and instead we should only take the positive values of the bgs
         blurred_frames += 1
