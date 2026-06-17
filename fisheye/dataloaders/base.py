@@ -33,6 +33,7 @@ class BaseDataset(Dataset):
         self.cache_bg_frames = config.cache_bg_frames
         self.num_frames_bg_subtract = config.num_frames_bg_subtract
         self.do_bg_subtract = config.do_bg_subtract
+        self.only_pos_bgs = config.only_pos_bgs
         self.extracted_frames = []
         self.frame_labels = []
         self.extracted_unwarped_frames = []
@@ -204,7 +205,7 @@ class BaseDataset(Dataset):
         This method:
             • Applies Gaussian blurring to each frame (optionally with multithreading)
             • Normalizes blurred frames using either warped or unwarped mean statistics
-            • Scales normalized values into the [0, 255] range
+            • Converts normalized values into the BGS display range
             • Constructs a 3-channel image stack consisting of:
                 - Channel 0: original frames (excluding the last)
                 - Channel 1: blurred + normalized frames
@@ -249,15 +250,17 @@ class BaseDataset(Dataset):
         blurred_frames -= mean_blurred_frame
         blurred_frames /= mean_normalization_value
 
-        # MAH 2025-11-24 17:09:09 I think we should not do this here and instead we should only take the positive values of the bgs
-        blurred_frames += 1
-        blurred_frames /= 2
+        if self.only_pos_bgs:
+            blurred_frames = np.clip(blurred_frames, 0, None)
+        else:
+            blurred_frames += 1
+            blurred_frames /= 2
 
         frame_image = np.stack(
             [
                 frames[:-1],
-                blurred_frames[:-1] * 255,
-                np.abs(blurred_frames[1:] - blurred_frames[:-1]) * 255,
+                np.clip(blurred_frames[:-1] * 255, 0, 255),
+                np.clip(np.abs(blurred_frames[1:] - blurred_frames[:-1]) * 255, 0, 255),
             ],
             axis=-1,
         ).astype(np.uint8, copy=False)

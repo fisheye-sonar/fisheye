@@ -3,6 +3,7 @@ import pytest
 import torch
 
 from fisheye.dataloaders import (
+    BaseDataset,
     create_dataloader,
     ARISBatchedDataset,
     YOLOARISBatchedDataset,
@@ -13,6 +14,14 @@ from fisheye.enums import EchogramChannel
 from conftest import ARIS_FILE, CORRUPTED_FILE, INVALID_FRAME_INDICES
 
 from fisheye.configs import BaseDatasetConfig, YOLODatasetConfig
+
+
+class DummyBaseDataset(BaseDataset):
+    def _init_bg_frame(self):
+        """Skip background precomputation for direct preprocessing tests."""
+
+    def load_frames(self, idx, final_idx, return_unwarped=False, return_warped=True):
+        raise NotImplementedError
 
 
 class TestARISDataloader:
@@ -104,6 +113,39 @@ class TestARISDataloader:
             EchogramChannel.RAW,
             EchogramChannel.ZERO,
         ]
+
+    def test_only_pos_bgs_clips_negative_values(self):
+        frames = np.array(
+            [
+                [[0, 10]],
+                [[10, 20]],
+                [[20, 30]],
+            ],
+            dtype=np.uint8,
+        )
+        mean_blurred_frame = np.array([[10, 10]], dtype=np.float32)
+        mean_normalization_value = 10.0
+
+        default_dataset = DummyBaseDataset(
+            BaseDatasetConfig(use_blur=False, only_pos_bgs=False)
+        )
+        only_pos_dataset = DummyBaseDataset(
+            BaseDatasetConfig(use_blur=False, only_pos_bgs=True)
+        )
+
+        default_output = default_dataset._stack_preprocessed_channels(
+            frames,
+            mean_blurred_frame=mean_blurred_frame,
+            mean_normalization_value=mean_normalization_value,
+        )
+        only_pos_output = only_pos_dataset._stack_preprocessed_channels(
+            frames,
+            mean_blurred_frame=mean_blurred_frame,
+            mean_normalization_value=mean_normalization_value,
+        )
+
+        np.testing.assert_array_equal(default_output[:, 0, :, 1], [[0, 127], [127, 255]])
+        np.testing.assert_array_equal(only_pos_output[:, 0, :, 1], [[0, 0], [0, 255]])
 
     def test_loading_frames(self):
         """Test loading all frames directly from DIDSON class."""

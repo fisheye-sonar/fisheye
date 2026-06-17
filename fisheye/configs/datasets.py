@@ -21,6 +21,7 @@ class BaseDatasetConfig:
     workers: int = 0  # for multiprocessing in dataloader
     cache_bg_frames: bool = False
     do_bg_subtract: bool = True
+    only_pos_bgs: bool = False
     start_frame: int = 0  # Default to first frame (zero-indexed)
     end_frame: int = 0
     num_frames_bg_subtract: int = 1000
