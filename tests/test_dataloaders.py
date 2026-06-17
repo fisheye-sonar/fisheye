@@ -39,16 +39,17 @@ class TestARISDataloader:
 
         batch = next(iter(dataloader))
         batch_data, batch_unwarped = batch[0], batch[2]
-        assert batch_data.shape == torch.Size([3, 2684, 48, 3])
-        assert batch_unwarped.shape == torch.Size([3, 2684, 48])
+        assert batch_data.shape == torch.Size([3, 2686, 1307, 3])
+        assert batch_unwarped.shape == torch.Size([3, 2684, 48, 3])
 
     def test_return_echogram(self):
         config = BaseDatasetConfig(filepath=ARIS_FILE, return_echogram=True)
         dataloader, _ = create_dataloader(config)
-        _, _, _, batch_echogram, _ = next(iter(dataloader))
+        _, _, batch_unwarped, batch_echogram, _ = next(iter(dataloader))
+        assert batch_unwarped is None
         assert batch_echogram.shape == torch.Size([3, 2684, 3])
 
-    def test_echogram_without_frames(self):
+    def test_echogram_without_warped_frames(self):
         """Test returning only the echogram via return_frames=False."""
         config = BaseDatasetConfig(
             filepath=ARIS_FILE, return_echogram=True, return_frames=False
@@ -59,6 +60,31 @@ class TestARISDataloader:
         assert unwarped_frames is None
         assert return_original_image is False
         assert echogram.shape == (3, 2684, 3)
+
+    def test_return_unwarped_without_warped_frames(self):
+        config = BaseDatasetConfig(
+            filepath=ARIS_FILE, return_frames=False, return_unwarped=True
+        )
+        dataset = ARISBatchedDataset(config)
+        frame_images, _, unwarped_frames, echogram, return_original_image = dataset[0]
+        assert frame_images is None
+        assert unwarped_frames.shape == (3, 2684, 48, 3)
+        assert echogram is None
+        assert return_original_image is False
+
+    def test_return_unwarped_without_bg_subtract_stays_single_channel(self):
+        config = BaseDatasetConfig(
+            filepath=ARIS_FILE,
+            return_frames=False,
+            return_unwarped=True,
+            do_bg_subtract=False,
+        )
+        dataset = ARISBatchedDataset(config)
+        frame_images, _, unwarped_frames, echogram, return_original_image = dataset[0]
+        assert frame_images is None
+        assert unwarped_frames.shape == (3, 2684, 48)
+        assert echogram is None
+        assert return_original_image is False
 
     def test_custom_echogram_channels(self):
         config = BaseDatasetConfig(
@@ -144,6 +170,17 @@ class TestARISDataloader:
         )
         dataloader, dataset = create_dataloader(config)
         assert len(dataset) == expected_length
+
+    def test_requires_at_least_one_output(self):
+        with pytest.raises(ValueError, match="At least one of return_frames"):
+            ARISBatchedDataset(
+                BaseDatasetConfig(
+                    filepath=ARIS_FILE,
+                    return_frames=False,
+                    return_unwarped=False,
+                    return_echogram=False,
+                )
+            )
 
 
 class TestYOLODataloader:

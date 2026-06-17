@@ -40,7 +40,6 @@ class BaseDataset(Dataset):
         self.return_frames = config.return_frames
         self.return_unwarped = config.return_unwarped
         self.return_echogram = config.return_echogram
-        self.only_echogram = self.return_echogram and not self.return_frames
         self.need_unwarped = self.return_unwarped or self.return_echogram
         self.echogram_channels = config.echogram_channels
         self.do_bg_subtract_echogram = echogram_uses_bg_subtraction(
@@ -51,20 +50,24 @@ class BaseDataset(Dataset):
         self.use_blur = config.use_blur
         self.return_original_image = config.return_original_image
 
-        if self.only_echogram and self.return_unwarped:
-            raise ValueError("return_unwarped requires return_frames=True")
-        if not self.return_frames and not self.return_echogram:
-            raise ValueError("return_frames=False requires return_echogram=True")
+        if not self.return_frames and not self.return_unwarped and not self.return_echogram:
+            raise ValueError(
+                "At least one of return_frames, return_unwarped, or return_echogram "
+                "must be True"
+            )
 
         self._init_bg_frame()
 
     def _init_bg_frame(self):
         """Initialize background frame for subtraction."""
+        need_warped_bg_subtract = self.return_frames and self.do_bg_subtract
         need_unwarped_bg_subtract = (
-            self.return_frames and self.return_unwarped and self.do_bg_subtract
-        ) or (self.return_echogram and self.do_bg_subtract_echogram)
+            self.return_unwarped and self.do_bg_subtract
+        ) or (
+            self.return_echogram and self.do_bg_subtract_echogram
+        )
 
-        if self.do_bg_subtract or need_unwarped_bg_subtract:
+        if need_warped_bg_subtract or need_unwarped_bg_subtract:
             num_frames_bg = min(
                 self.end_frame - self.start_frame,
                 self.num_frames_bg_subtract // self.batch_size * self.batch_size + 1,
@@ -73,7 +76,7 @@ class BaseDataset(Dataset):
                 self.start_frame,
                 self.start_frame + num_frames_bg,
                 return_unwarped=self.need_unwarped,
-                return_warped=self.return_frames and self.do_bg_subtract,
+                return_warped=need_warped_bg_subtract,
             )
 
             if need_unwarped_bg_subtract:
@@ -82,10 +85,10 @@ class BaseDataset(Dataset):
                     self.unwarped_mean_normalization_value,
                 ) = self._compute_bg_subtraction(unwarped_frames_for_bg_subtract)
 
-        if self.do_bg_subtract and self.return_frames:
-            self.mean_blurred_frame, self.mean_normalization_value = (
-                self._compute_bg_subtraction(frames_for_bg_subtract)
-            )
+            if need_warped_bg_subtract:
+                self.mean_blurred_frame, self.mean_normalization_value = (
+                    self._compute_bg_subtraction(frames_for_bg_subtract)
+                )
 
     def _compute_bg_subtraction(self, frames_for_bg_subtract):
         """Calculate the mean blurred frame and normalization value."""
@@ -108,17 +111,23 @@ class BaseDataset(Dataset):
 
         if self._is_cached(final_idx):
             return self._postprocess(
-                self._stack_cached(self.extracted_frames, idx, final_idx),
+                (
+                    self._stack_cached(self.extracted_frames, idx, final_idx)
+                    if self.return_frames
+                    else None
+                ),
                 frame_labels,
                 (
-                    None
-                    if self.only_echogram
-                    else self._stack_cached(
-                        self.extracted_unwarped_frames, idx, final_idx
-                    )
+                    self._stack_cached(self.extracted_unwarped_frames, idx, final_idx)
+                    if self.return_unwarped
+                    else None
                 ),
-                self._stack_cached(self.extracted_echograms, idx, final_idx),
-                False if self.only_echogram else self.return_original_image,
+                (
+                    self._stack_cached(self.extracted_echograms, idx, final_idx)
+                    if self.return_echogram
+                    else None
+                ),
+                self.return_original_image if self.return_frames else False,
             )
 
         else:
@@ -129,51 +138,59 @@ class BaseDataset(Dataset):
                 return_warped=self.return_frames,
             )
 
-            if self.only_echogram:
-                frame_images = None
-                unwarped_frames = unwarped_frames[:-1]
-                echogram = self._get_echogram(unwarped_frames)
-            else:
-                frame_source = unwarped_frames if self.return_unwarped else frames
+            frame_images = None
+            if self.return_frames:
                 frame_images = (
                     self._stack_preprocessed_channels(
-                        frame_source,
-                        mean_blurred_frame=(
-                            getattr(self, "unwarped_mean_blurred_frame", None)
-                            if self.return_unwarped
-                            else getattr(self, "mean_blurred_frame", None)
-                        ),
-                        mean_normalization_value=(
-                            getattr(self, "unwarped_mean_normalization_value", None)
-                            if self.return_unwarped
-                            else getattr(self, "mean_normalization_value", None)
+                        frames,
+                        mean_blurred_frame=getattr(self, "mean_blurred_frame", None),
+                        mean_normalization_value=getattr(
+                            self, "mean_normalization_value", None
                         ),
                     )
                     if self.do_bg_subtract
-                    else np.expand_dims(frame_source[:-1], -1)
+                    else np.expand_dims(frames[:-1], -1)
                 )
-                if self.need_unwarped:
-                    unwarped_frames = unwarped_frames[:-1]
 
-                echogram = (
-                    self._get_echogram(unwarped_frames) if self.return_echogram else None
+            raw_unwarped_frames = (
+                unwarped_frames[:-1] if self.need_unwarped else None
+            )
+
+            returned_unwarped_frames = None
+            if self.return_unwarped:
+                returned_unwarped_frames = (
+                    self._stack_preprocessed_channels(
+                        unwarped_frames,
+                        mean_blurred_frame=getattr(
+                            self, "unwarped_mean_blurred_frame", None
+                        ),
+                        mean_normalization_value=getattr(
+                            self, "unwarped_mean_normalization_value", None
+                        ),
+                    )
+                    if self.do_bg_subtract
+                    else raw_unwarped_frames
                 )
+
+            echogram = (
+                self._get_echogram(raw_unwarped_frames) if self.return_echogram else None
+            )
 
             if self.cache_bg_frames:
                 if frame_images is not None:
                     self.extracted_frames.extend(frame_images)
                 self.frame_labels = None
-                if not self.only_echogram and unwarped_frames is not None:
-                    self.extracted_unwarped_frames.extend(unwarped_frames)
+                if returned_unwarped_frames is not None:
+                    self.extracted_unwarped_frames.extend(returned_unwarped_frames)
                 if echogram is not None:
                     self.extracted_echograms.extend(echogram)
 
         return self._postprocess(
             frame_images,
             frame_labels,
-            None if self.only_echogram else unwarped_frames,
+            returned_unwarped_frames,
             echogram,
-            False if self.only_echogram else self.return_original_image,
+            self.return_original_image if self.return_frames else False,
         )
 
     def _stack_preprocessed_channels(
@@ -280,7 +297,7 @@ class BaseDataset(Dataset):
         cached_lengths = []
         if self.return_frames:
             cached_lengths.append(len(self.extracted_frames))
-        if not self.only_echogram and (self.return_unwarped or self.return_echogram):
+        if self.return_unwarped:
             cached_lengths.append(len(self.extracted_unwarped_frames))
         if self.return_echogram:
             cached_lengths.append(len(self.extracted_echograms))

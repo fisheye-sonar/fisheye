@@ -47,8 +47,8 @@ class TestARISDataloader:
 
         batch = next(iter(dataloader))
         batch_data, batch_unwarped = batch[0], batch[2]
-        assert batch_data.shape == torch.Size([batch_size, 512, 96, 3])
-        assert batch_unwarped.shape == torch.Size([batch_size, 512, 96])
+        assert batch_data.shape == torch.Size([batch_size, 486, 300, 3])
+        assert batch_unwarped.shape == torch.Size([batch_size, 512, 96, 3])
 
     def test_return_echogram(self):
         config = BaseDatasetConfig(filepath=DDF_FILE, return_echogram=True)
@@ -58,7 +58,8 @@ class TestARISDataloader:
             if dataset.metadata.numframes < config.batch_size
             else (config.batch_size)
         )
-        _, _, _, batch_echogram, _ = next(iter(dataloader))
+        _, _, batch_unwarped, batch_echogram, _ = next(iter(dataloader))
+        assert batch_unwarped is None
         assert batch_echogram.shape == torch.Size([batch_size, 512, 3])
 
     def test_loading_frames(self):

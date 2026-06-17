@@ -24,7 +24,7 @@ class BaseDatasetConfig:
     start_frame: int = 0  # Default to first frame (zero-indexed)
     end_frame: int = 0
     num_frames_bg_subtract: int = 1000
-    return_frames: bool = True
+    return_frames: bool = True  # Return warped frames
     return_unwarped: bool = False
     return_echogram: bool = False
     echogram_channels: list[EchogramChannel] = field(
