@@ -12,7 +12,7 @@ from fisheye.enums import ExportType
 from fisheye.export import parse_export_options, save_to_disk
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 from fisheye.version import __app_version__, get_version_from_detector
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 logger = structlog.get_logger()
 
@@ -82,8 +82,10 @@ class PipelineRunner:
         )
 
 
-def run_job(cfg: DictConfig):
+def run_job(cfg: Union[DictConfig, dict]):
     """Run the job defined by the configuration."""
+    if isinstance(cfg, dict):
+        cfg = OmegaConf.create(cfg)
     job_id = generate_job_id()
     setup_logging(file_logging=True, job_id=job_id)
 
