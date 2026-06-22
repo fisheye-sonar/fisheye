@@ -82,14 +82,19 @@ class PipelineRunner:
         )
 
 
-def run_job(cfg: Union[DictConfig, dict], job_id: Optional[str] = None):
+def run_job(
+    cfg: Union[DictConfig, dict],
+    job_id: Optional[str] = None,
+    configure_logging: bool = True,
+):
     """Run the job defined by the configuration."""
     if isinstance(cfg, dict):
         cfg = OmegaConf.create(cfg)
 
     if not job_id:
         job_id = generate_job_id()
-    setup_logging(file_logging=True, job_id=job_id)
+    if configure_logging:
+        setup_logging(file_logging=True, job_id=job_id)
 
     input_path = cfg.input_path
     output_dir = cfg.output_dir

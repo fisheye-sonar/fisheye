@@ -1,10 +1,28 @@
 import logging
 import os
+import queue
+from contextvars import ContextVar
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Optional
 
 import structlog
+
+progress_queue: ContextVar[Optional[queue.Queue]] = ContextVar(
+    "progress_queue", default=None
+)
+
+
+def _route_to_progress_queue(logger, method, event_dict):
+    """Fires on every structlog call, routes to progress queue if available."""
+    q = progress_queue.get()
+    if q is not None:
+        try:
+            q.put_nowait(event_dict.copy())
+        except queue.Full:
+            pass
+    return event_dict
 
 
 def log_progress(logger, current: int, total: int, prefix: str = "", every: int = 10):
@@ -43,6 +61,7 @@ def setup_logging(
         structlog.processors.CallsiteParameterAdder(
             [structlog.processors.CallsiteParameter.FILENAME]
         ),
+        _route_to_progress_queue,
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
     ]
