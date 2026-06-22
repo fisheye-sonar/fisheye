@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional
 
 import structlog
 from fisheye.builder import PipelineFactory
@@ -12,7 +12,7 @@ from fisheye.enums import ExportType
 from fisheye.export import parse_export_options, save_to_disk
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 from fisheye.version import __app_version__, get_version_from_detector
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 logger = structlog.get_logger()
 
@@ -82,9 +82,13 @@ class PipelineRunner:
         )
 
 
-def run_job(cfg: DictConfig):
+def run_job(cfg: Union[DictConfig, dict], job_id: Optional[str] = None):
     """Run the job defined by the configuration."""
-    job_id = generate_job_id()
+    if isinstance(cfg, dict):
+        cfg = OmegaConf.create(cfg)
+
+    if not job_id:
+        job_id = generate_job_id()
     setup_logging(file_logging=True, job_id=job_id)
 
     input_path = cfg.input_path
