@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional
 
 import structlog
 from fisheye.builder import PipelineFactory
@@ -82,11 +82,13 @@ class PipelineRunner:
         )
 
 
-def run_job(cfg: Union[DictConfig, dict]):
+def run_job(cfg: Union[DictConfig, dict], job_id: Optional[str] = None):
     """Run the job defined by the configuration."""
     if isinstance(cfg, dict):
         cfg = OmegaConf.create(cfg)
-    job_id = generate_job_id()
+
+    if not job_id:
+        job_id = generate_job_id()
     setup_logging(file_logging=True, job_id=job_id)
 
     input_path = cfg.input_path
