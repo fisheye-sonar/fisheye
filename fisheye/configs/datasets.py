@@ -59,6 +59,8 @@ class ARISMetadata:
     largelens: int
     unwarped_shape: tuple
     beam_width_data: dict
+    cycleperiod: float = 0.0
+    framerate: float = 0.0
 
 
 @dataclass

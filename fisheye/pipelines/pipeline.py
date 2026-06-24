@@ -122,26 +122,28 @@ class DetectTrackCountPipeline:
         if crossing_frames and (left_count or right_count):
             formatted_crossings = [
                 format_single_crossing(
-                    Path(file).name,
-                    metadata,
-                    track_id,
-                    frame,
-                    bbox,
-                    upstream_direction,
-                    "left",
-                    len_outputs,
+                    filename=Path(file).name,
+                    metadata=metadata,
+                    source_path=str(Path(file).resolve()),
+                    track_id=track_id,
+                    frame=frame,
+                    bbox=bbox,
+                    upstream_direction=upstream_direction,
+                    crossing_direction="left",
+                    len_outputs=len_outputs,
                 )
                 for track_id, frame, bbox in crossing_frames["left"]
             ] + [
                 format_single_crossing(
-                    Path(file).name,
-                    metadata,
-                    track_id,
-                    frame,
-                    bbox,
-                    upstream_direction,
-                    "right",
-                    len_outputs,
+                    filename=Path(file).name,
+                    metadata=metadata,
+                    source_path=str(Path(file).resolve()),
+                    track_id=track_id,
+                    frame=frame,
+                    bbox=bbox,
+                    upstream_direction=upstream_direction,
+                    crossing_direction="right",
+                    len_outputs=len_outputs,
                 )
                 for track_id, frame, bbox in crossing_frames["right"]
             ]
@@ -179,7 +181,13 @@ class DetectTrackCountPipeline:
                 pass
 
         else:
-            formatted_crossings = [format_single_crossing(Path(file).name, metadata)]
+            formatted_crossings = [
+                format_single_crossing(
+                    filename=Path(file).name,
+                    metadata=metadata,
+                    source_path=str(Path(file).resolve()),
+                )
+            ]
 
             logger.warning("no_counts", file_path=str(file))
 

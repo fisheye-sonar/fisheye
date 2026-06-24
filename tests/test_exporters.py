@@ -3,7 +3,12 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 
 from fisheye.configs.datasets import ARISMetadata
-from fisheye.export import DetailedCSVExporter, SummaryCSVExporter, FCExporter
+from fisheye.export import (
+    DetailedCSVExporter,
+    SummaryCSVExporter,
+    FCExporter,
+    EchotasticExporter,
+)
 from fisheye.export.inference import XMLExporter
 from fisheye.utils import convert_pixels_to_coords_meters
 
@@ -14,6 +19,7 @@ def sample_data():
         [
             {
                 "Source.Name": "2025-06-13_000000.aris",
+                "Source.Path": "/tmp/2025-06-13_000000.aris",
                 "Frame#": 1,
                 "ID": 1,
                 "Dir": "Up",
@@ -48,10 +54,13 @@ def sample_data():
                     largelens=0,
                     unwarped_shape=(0, 0),
                     beam_width_data=None,
+                    cycleperiod=3000,
+                    framerate=12.5,
                 ),
             },
             {
                 "Source.Name": "2025-06-13_000000.aris",
+                "Source.Path": "/tmp/2025-06-13_000000.aris",
                 "Frame#": 2,
                 "ID": 2,
                 "Dir": "Down",
@@ -86,6 +95,8 @@ def sample_data():
                     largelens=0,
                     unwarped_shape=(0, 0),
                     beam_width_data=None,
+                    cycleperiod=3000,
+                    framerate=12.5,
                 ),
             },
         ]
@@ -102,7 +113,10 @@ def test_detailed_csv_creates_file_and_content(tmp_path):
     assert len(out_files) == 1
 
     df = pd.read_csv(out_files[0])
-    assert len(df.columns) == 31
+    assert len(df.columns) == 34
+    assert "Source.Path" in df.columns
+    assert "cycleperiod" in df.columns
+    assert "framerate" in df.columns
     assert len(df) == 2
 
 
@@ -169,6 +183,33 @@ def test_txt_empty_data(tmp_path):
 
     out_files = list(tmp_path.glob("FCe_*.txt"))
     assert len(out_files) == 0
+
+
+def test_echotastic_creates_file_and_content(tmp_path):
+    """Test creating Echotastic export per ARIS file."""
+    data = sample_data()
+    exporter = EchotasticExporter(output_dir=str(tmp_path), job_id="testjob")
+    exporter.export(data)
+
+    out_files = list(tmp_path.glob("*.aris.txt"))
+    assert len(out_files) == 1
+
+    lines = out_files[0].read_text().splitlines()
+    assert lines[0] == "Version = 2.0"
+    assert lines[1] == "File Name = /tmp/2025-06-13_000000.aris"
+    assert lines[2] == "Total Number Of Marks = 2"
+    assert lines[3] == "Total Time = 0.499 minutes"
+    assert lines[7].startswith("Sample\tPing\tTime\tRange")
+
+    first_row = lines[8].split("\t")
+    second_row = lines[9].split("\t")
+
+    assert first_row[1] == "1"
+    assert first_row[7] == "1"
+    assert first_row[8] == "60.00"
+    assert second_row[1] == "2"
+    assert second_row[7] == "-1"
+    assert second_row[8] == "80.00"
 
 
 def test_xml_empty_data(tmp_path):
