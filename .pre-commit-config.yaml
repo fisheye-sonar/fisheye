@@ -14,7 +14,6 @@ repos:
         entry: poetry run python scripts/check_version_sync.py
         language: system
         pass_filenames: false
-        files: ^(fisheye/version\.py|pyproject\.toml)$
 
       - id: pytest
         name: Run Pytest
