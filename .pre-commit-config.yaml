@@ -9,6 +9,12 @@ repos:
 
   - repo: local
     hooks:
+      - id: check-version-sync
+        name: Check _APP_VERSION matches pyproject.toml
+        entry: poetry run python scripts/check_version_sync.py
+        language: system
+        pass_filenames: false
+
       - id: pytest
         name: Run Pytest
         entry: pytest

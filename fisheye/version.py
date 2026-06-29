@@ -13,6 +13,9 @@ warnings.filterwarnings("ignore", category=SourceChangeWarning)
 ULTRALYTICS_DETECTOR_TYPES = {"yolov11", "yolov26"}
 
 
+_APP_VERSION = "1.0.0-beta.5"
+
+
 def get_app_version_from_pyproject():
     """Get version from pyproject.toml."""
     pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
@@ -20,9 +23,29 @@ def get_app_version_from_pyproject():
         with open(pyproject_path, "rb") as f:
             pyproject = tomli.load(f)
 
-        return pyproject["tool"]["poetry"].get("version")
+        v = pyproject["tool"]["poetry"].get("version", "")
+        return v.lstrip("v") or None
 
     return None
+
+
+def _get_app_version() -> Optional[str]:
+    # Check installed package metadata
+    try:
+        from importlib.metadata import PackageNotFoundError
+        from importlib.metadata import version as pkg_version
+
+        return pkg_version("fisheye")
+
+    except Exception:
+        pass
+
+    # Running from source (local dev and/or editable install without metadata)
+    v = get_app_version_from_pyproject()
+    if v:
+        return v
+
+    return _APP_VERSION
 
 
 def get_version_from_detector(path: str, detector_type: Optional[str] = None):
@@ -48,4 +71,4 @@ def get_version_from_detector(path: str, detector_type: Optional[str] = None):
     )
 
 
-__app_version__ = get_app_version_from_pyproject()
+__app_version__ = _get_app_version()
