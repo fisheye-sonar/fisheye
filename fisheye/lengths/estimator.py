@@ -1,7 +1,6 @@
 from math import floor, ceil
 
 import torch
-from matplotlib import pyplot as plt
 
 from fisheye.configs.models import BaseLengthModelConfig, UNetLengthModelConfig
 from fisheye.lengths.base import BaseLengthEstimator
@@ -67,6 +66,8 @@ class UNetLengthEstimator(BaseLengthEstimator):
         )[0]
 
         if self.plot_pred_kpts:
+            from matplotlib import pyplot as plt
+
             fig, ax = plt.subplots(1, 3)
             ax[0].imshow(pred_cropped[0, 0].cpu().numpy())
             ax[1].imshow(pred_cropped[0, 1].cpu().numpy())
