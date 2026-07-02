@@ -287,6 +287,8 @@ class DetectTrackCountPipeline:
             )
             return []
 
+        logger.info("files_discovered", num_files=len(valid_files))
+
         results = [
             self._run(
                 f, output_dir, export_types, job_id, upstream_direction, distance_offset
