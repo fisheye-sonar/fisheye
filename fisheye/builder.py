@@ -6,6 +6,7 @@ from fisheye.configs import (
     get_detector_config,
     get_length_model_config,
 )
+from fisheye.common.weights import ensure_weights
 from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
 from fisheye.enums import DetectorType, LengthEstimatorType
 from fisheye.pipelines import ObjectDetectionPipeline
@@ -25,6 +26,8 @@ class PipelineFactory:
         model_config = platform_cfg.model
         weights = model_config.weights
         resolved_weights_path = str((project_root / weights).resolve())
+
+        ensure_weights(resolved_weights_path)
 
         detector_type = DetectorType(model_config.type)
         detector_cfg = get_detector_config(detector_type, **model_config)
