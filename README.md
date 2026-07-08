@@ -116,7 +116,8 @@ model:
 ```
 
 * Model weight paths are relative to the project root.
-* Pretrained weights are available as **GitHub release assets**:
+* Pretrained weights are **downloaded automatically on first run** from GitHub releases. An internet connection is required the first time; subsequent runs use the cached file.
+* If automatic download fails, weights can be placed manually at the configured path. Release assets are available at:
   [https://github.com/fisheye-sonar/fisheye/releases](https://github.com/fisheye-sonar/fisheye/releases)
 
 ---
