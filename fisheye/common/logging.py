@@ -1,6 +1,7 @@
 import logging
 import os
 import queue
+import time
 from contextvars import ContextVar
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
@@ -25,26 +26,26 @@ def _route_to_progress_queue(logger, method, event_dict):
     return event_dict
 
 
-def log_progress(logger, current: int, total: int, prefix: str = "", every: int = 10):
-    """
-    Logs percentage progress using a given logger.
+class ProgressTracker:
+    """Logs progress at most once per min_interval seconds, always at 100%.
 
-    Args:
-        logger: The logger instance.
-        current: Current index in iteration (0-based).
-        total: Total number of items.
-        prefix: Optional prefix message.
-        every: Log only every N percent to reduce noise (default is 5%).
+    Instantiate once per pipeline stage; each instance holds its own timer so
+    concurrent jobs never suppress each other's updates.
     """
-    if total == 0:
-        return  # Avoid division by zero
 
-    percent_complete = ((current + 1) / total) * 100
-    # Only log at specified interval or at 100%
-    if percent_complete % every < 100 / total or percent_complete == 100:
-        logger.debug(
-            f"{prefix}Progress: {percent_complete:.1f}% ({current + 1}/{total})"
-        )
+    def __init__(self, min_interval: float = 5.0):
+        self._min_interval = min_interval
+        self._last_log: float = 0.0
+
+    def log(self, logger, current: int, total: int, prefix: str = "") -> None:
+        if total == 0:
+            return
+        now = time.monotonic()
+        is_done = current + 1 >= total
+        if (now - self._last_log) >= self._min_interval or is_done:
+            self._last_log = now
+            pct = (current + 1) / total * 100
+            logger.debug(f"{prefix}Progress: {pct:.1f}% ({current + 1}/{total})")
 
 
 def setup_logging(
