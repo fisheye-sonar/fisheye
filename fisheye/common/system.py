@@ -9,7 +9,7 @@ from fisheye.common.exceptions import LowDiskSpaceError
 def detect_platform() -> str:
     """Return the recommended platform name for the current hardware.
 
-    Returns one of: 'cuda', 'mps', 'cpu' — matching the platform config filenames.
+    Returns one of: 'cuda', 'mps', 'cpu'.
     """
     try:
         import torch
