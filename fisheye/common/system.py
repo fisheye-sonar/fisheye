@@ -6,6 +6,24 @@ from typing import Union
 from fisheye.common.exceptions import LowDiskSpaceError
 
 
+def detect_platform() -> str:
+    """Return the recommended platform name for the current hardware.
+
+    Returns one of: 'cuda', 'mps', 'cpu'.
+    """
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return "cuda"
+        if torch.backends.mps.is_available():
+            return "mps"
+    except ImportError:
+        pass
+
+    return "cpu"
+
+
 def check_disk_space(path: Union[str, Path] = "/", threshold: float = 10.0) -> None:
     """
     Checks if the available disk space is below the threshold. Don't want to run inference and then find out you
