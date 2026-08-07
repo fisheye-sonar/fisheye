@@ -7,7 +7,7 @@ import tomli
 ULTRALYTICS_DETECTOR_TYPES = {"yolov11", "yolov26"}
 
 
-_APP_VERSION = "1.0.0-beta.5"
+_APP_VERSION = "1.0.0-beta.6"
 
 
 def get_app_version_from_pyproject():
