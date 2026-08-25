@@ -1,15 +1,15 @@
-# FishEye
+FishEye
 
 FishEye is a software tool developed at the California Institute of Technology
 to assist ecologists, fisheries scientists, and other users with sonar-based
 salmon counting and related ecological analysis.
 
-## Funding
+Funding
 
 FishEye was developed at the California Institute of Technology with support
 from the Resnick Sustainability Institute.
 
-## Attribution and Citation
+Attribution and Citation
 
 If you use FishEye in academic, scientific, conservation, management, or other
 published work, we request that you cite or acknowledge the FishEye project
@@ -18,14 +18,14 @@ and its contributors.
 Citation details are provided in the repository's `CITATION.cff` file and/or
 README.
 
-## Non-Endorsement
+Non-Endorsement
 
 Neither the name of the California Institute of Technology (Caltech), the
 Resnick Sustainability Institute, nor the names of the contributors to this
 software may be used to endorse or promote products derived from this software
 without specific prior written permission.
 
-## Responsible Use / Human-in-the-Loop Notice
+Responsible Use / Human-in-the-Loop Notice
 
 FishEye is intended as a human-in-the-loop research and decision-support tool.
 Outputs from FishEye should be reviewed by qualified users and should not be
