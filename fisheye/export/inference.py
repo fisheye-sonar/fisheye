@@ -150,6 +150,7 @@ class DetailedCSVExporter(BaseInferenceExporter):
         # Column ordering
         base_cols = [
             "Source.Name",
+            "file_index",
             "Frame#",
             "Dir",
             "R (m)",
@@ -232,6 +233,7 @@ class SummaryCSVExporter(BaseInferenceExporter):
         )
         final_result["app_version"] = __app_version__ or "unknown"
         final_result["file_index"] = final_result["Source.Name"].map(file_index_by_name)
+        final_result.insert(1, "file_index", final_result.pop("file_index"))
 
         with open(out_file, "w") as f:
             final_result.to_csv(out_file, index=False)

@@ -19,6 +19,7 @@ def sample_data():
         [
             {
                 "Source.Name": "2025-06-13_000000.aris",
+                "file_index": 0,
                 "Source.Path": "/tmp/2025-06-13_000000.aris",
                 "Frame#": 1,
                 "ID": 1,
@@ -60,6 +61,7 @@ def sample_data():
             },
             {
                 "Source.Name": "2025-06-13_000000.aris",
+                "file_index": 0,
                 "Source.Path": "/tmp/2025-06-13_000000.aris",
                 "Frame#": 2,
                 "ID": 2,
@@ -113,7 +115,7 @@ def test_detailed_csv_creates_file_and_content(tmp_path):
     assert len(out_files) == 1
 
     df = pd.read_csv(out_files[0])
-    assert len(df.columns) == 34
+    assert len(df.columns) == 35
     assert "Source.Path" in df.columns
     assert "cycleperiod" in df.columns
     assert "framerate" in df.columns
