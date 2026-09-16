@@ -19,6 +19,7 @@ def sample_data():
         [
             {
                 "Source.Name": "2025-06-13_000000.aris",
+                "file_index": 0,
                 "Source.Path": "/tmp/2025-06-13_000000.aris",
                 "Frame#": 1,
                 "ID": 1,
@@ -60,6 +61,7 @@ def sample_data():
             },
             {
                 "Source.Name": "2025-06-13_000000.aris",
+                "file_index": 0,
                 "Source.Path": "/tmp/2025-06-13_000000.aris",
                 "Frame#": 2,
                 "ID": 2,
@@ -113,11 +115,14 @@ def test_detailed_csv_creates_file_and_content(tmp_path):
     assert len(out_files) == 1
 
     df = pd.read_csv(out_files[0])
-    assert len(df.columns) == 34
+    assert len(df.columns) == 35
     assert "Source.Path" in df.columns
     assert "cycleperiod" in df.columns
     assert "framerate" in df.columns
     assert len(df) == 2
+
+    assert list(df.columns[:2]) == ["Source.Name", "file_index"]
+    assert df["file_index"].tolist() == [0, 0]
 
 
 def test_detailed_csv_empty_data(tmp_path):
@@ -146,6 +151,32 @@ def test_summary_csv_creates_file_and_content(tmp_path):
 
     # Left vs right cancel → 0
     assert df["net_count"].iloc[0] == 0
+
+    assert list(df.columns[:2]) == ["Source.Name", "file_index"]
+    assert df["file_index"].iloc[0] == 0
+
+
+def test_summary_csv_maps_file_index_per_file(tmp_path):
+    """Each file's crossings must roll up under that file's own file_index,
+    not whichever file happened to be deduplicated first."""
+    data = sample_data()
+    other_file_rows = [dict(row) for row in data[0]]
+    for row in other_file_rows:
+        row["Source.Name"] = "2025-06-14_000000.aris"
+        row["Source.Path"] = "/tmp/2025-06-14_000000.aris"
+        row["file_index"] = 1
+
+    data = [data[0], other_file_rows]
+
+    exporter = SummaryCSVExporter(output_dir=str(tmp_path), job_id="testjob")
+    exporter.export(data)
+
+    out_files = list(tmp_path.glob("*_summary.csv"))
+    assert len(out_files) == 1
+
+    df = pd.read_csv(out_files[0]).set_index("Source.Name")
+    assert df.loc["2025-06-13_000000.aris", "file_index"] == 0
+    assert df.loc["2025-06-14_000000.aris", "file_index"] == 1
 
 
 def test_summary_csv_empty_data(tmp_path):
