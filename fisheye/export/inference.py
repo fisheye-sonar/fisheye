@@ -186,8 +186,12 @@ class SummaryCSVExporter(BaseInferenceExporter):
         df = pd.DataFrame(flattened_data)
         df["ID"] = df.get("ID", pd.NA)
         df["Dir"] = df.get("Dir", pd.NA)
+        df["file_index"] = df.get("file_index", pd.NA)
 
         all_files = df["Source.Name"].unique()
+        file_index_by_name = df.drop_duplicates(subset=["Source.Name"]).set_index(
+            "Source.Name"
+        )["file_index"]
         valid_rows = df.dropna(subset=["ID", "Dir"])
 
         if not valid_rows.empty:
@@ -227,6 +231,7 @@ class SummaryCSVExporter(BaseInferenceExporter):
             columns={"index": "Source.Name"}
         )
         final_result["app_version"] = __app_version__ or "unknown"
+        final_result["file_index"] = final_result["Source.Name"].map(file_index_by_name)
 
         with open(out_file, "w") as f:
             final_result.to_csv(out_file, index=False)
