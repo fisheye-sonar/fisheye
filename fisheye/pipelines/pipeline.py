@@ -57,6 +57,7 @@ class DetectTrackCountPipeline:
         job_id: Optional[str] = None,
         upstream_direction: UpstreamDirectionTypes = UpstreamDirectionTypes.LEFT,
         distance_offset: Union[int, float] = 0.0,
+        file_index: Optional[int] = None,
     ) -> List:
 
         if not output_dir:
@@ -122,26 +123,30 @@ class DetectTrackCountPipeline:
         if crossing_frames and (left_count or right_count):
             formatted_crossings = [
                 format_single_crossing(
-                    Path(file).name,
-                    metadata,
-                    track_id,
-                    frame,
-                    bbox,
-                    upstream_direction,
-                    "left",
-                    len_outputs,
+                    filename=Path(file).name,
+                    metadata=metadata,
+                    source_path=str(Path(file).resolve()),
+                    track_id=track_id,
+                    frame=frame,
+                    bbox=bbox,
+                    upstream_direction=upstream_direction,
+                    crossing_direction="left",
+                    len_outputs=len_outputs,
+                    file_index=file_index,
                 )
                 for track_id, frame, bbox in crossing_frames["left"]
             ] + [
                 format_single_crossing(
-                    Path(file).name,
-                    metadata,
-                    track_id,
-                    frame,
-                    bbox,
-                    upstream_direction,
-                    "right",
-                    len_outputs,
+                    filename=Path(file).name,
+                    metadata=metadata,
+                    source_path=str(Path(file).resolve()),
+                    track_id=track_id,
+                    frame=frame,
+                    bbox=bbox,
+                    upstream_direction=upstream_direction,
+                    crossing_direction="right",
+                    len_outputs=len_outputs,
+                    file_index=file_index,
                 )
                 for track_id, frame, bbox in crossing_frames["right"]
             ]
@@ -167,6 +172,7 @@ class DetectTrackCountPipeline:
                 # Log stats for current ARIS file
                 logger.info(
                     "processed_file_stats",
+                    file_index=file_index,
                     num_counts=len(formatted_crossings),
                     num_tracks=num_tracks,
                     avg_bbox_width_meters=avg_bbox_width,
@@ -179,9 +185,16 @@ class DetectTrackCountPipeline:
                 pass
 
         else:
-            formatted_crossings = [format_single_crossing(Path(file).name, metadata)]
+            formatted_crossings = [
+                format_single_crossing(
+                    filename=Path(file).name,
+                    metadata=metadata,
+                    source_path=str(Path(file).resolve()),
+                    file_index=file_index,
+                )
+            ]
 
-            logger.warning("no_counts", file_path=str(file))
+            logger.warning("no_counts", file_path=str(file), file_index=file_index)
 
         remaining_export_types = [
             et
@@ -279,11 +292,19 @@ class DetectTrackCountPipeline:
             )
             return []
 
+        logger.info("files_discovered", num_files=len(valid_files))
+
         results = [
             self._run(
-                f, output_dir, export_types, job_id, upstream_direction, distance_offset
+                f,
+                output_dir,
+                export_types,
+                job_id,
+                upstream_direction,
+                distance_offset,
+                file_index,
             )
-            for f in valid_files
+            for file_index, f in enumerate(valid_files)
         ]
 
         return results

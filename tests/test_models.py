@@ -88,7 +88,7 @@ def test_yolov5_predict():
 
 def test_loading_yolov11(mock_yolo_model):
     """Mock YOLO class and confirm YOLOv11ObjectDetectionModel loads correctly."""
-    with patch("fisheye.detect.yolov11.YOLO", autospec=True) as mock_yolo_cls:
+    with patch("ultralytics.YOLO", autospec=True) as mock_yolo_cls:
         mock_yolo_instance = MagicMock()
         mock_yolo_instance.model = mock_yolo_model
         mock_yolo_cls.return_value = mock_yolo_instance
@@ -143,7 +143,7 @@ def test_yolov11_predict():
 
 def test_loading_yolov26(mock_yolo_model):
     """Mock YOLO class and confirm YOLOv26ObjectDetectionModel loads correctly."""
-    with patch("fisheye.detect.yolov26.YOLO", autospec=True) as mock_yolo_cls:
+    with patch("ultralytics.YOLO", autospec=True) as mock_yolo_cls:
         mock_yolo_instance = MagicMock()
         mock_yolo_instance.model = mock_yolo_model
         mock_yolo_cls.return_value = mock_yolo_instance

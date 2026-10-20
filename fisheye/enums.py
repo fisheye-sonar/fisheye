@@ -24,6 +24,7 @@ class ExportType(str, Enum):
     SUMMARY_CSV = "summary_csv"
     DETAILED_CSV = "detailed_csv"
     FC = "fc"
+    ECHOTASTIC = "echotastic"
     MOT = "mot"
     XML = "xml"
 

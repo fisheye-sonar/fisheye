@@ -5,7 +5,7 @@ import torch
 
 from fisheye.boxes import NMSProcessor
 from fisheye.common.generic import run_with_threads
-from fisheye.common.logging import log_progress
+from fisheye.common.logging import ProgressTracker
 from fisheye.configs import (
     YOLODatasetConfig,
     ObjectDetectionConfig,
@@ -45,6 +45,7 @@ class ObjectDetectionPipeline:
         self.dataloader: Optional[YOLODatasetConfig] = None
         self.dataset: Optional[Any] = None
         self.metadata: Optional[Any] = None
+        self._progress = ProgressTracker()
 
         self.use_multithreading = config.use_multithreading
         self.max_workers = config.max_workers
@@ -158,7 +159,7 @@ class ObjectDetectionPipeline:
                     }
                     all_high_length_estimates.update(high_length_estimates)
 
-                log_progress(
+                self._progress.log(
                     logger,
                     batch_idx,
                     len(self.dataloader),

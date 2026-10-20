@@ -42,6 +42,19 @@ class TestARISDataloader:
         assert batch_data.shape == torch.Size([3, 2686, 1307, 3])
         assert batch_unwarped.shape == torch.Size([3, 2684, 48, 3])
 
+    def test_return_unwarped_images_without_bg_subtraction(self):
+        config = BaseDatasetConfig(
+            filepath=ARIS_FILE,
+            return_unwarped=True,
+            do_bg_subtract=False,
+        )
+        dataloader, _ = create_dataloader(config)
+
+        batch = next(iter(dataloader))
+        batch_data, batch_unwarped = batch[0], batch[2]
+        assert batch_data.shape == torch.Size([3, 2684, 48, 1])
+        assert torch.equal(batch_data[..., 0], batch_unwarped)
+
     def test_return_echogram(self):
         config = BaseDatasetConfig(filepath=ARIS_FILE, return_echogram=True)
         dataloader, _ = create_dataloader(config)
@@ -336,3 +349,25 @@ def test_reset_start_end_frames_when_exceeding_total_frames():
 
     # originally 10 frames in file, but subtract 1 for optical flow
     assert len(dataset) == 9
+
+
+class TestLoadRawDataDefaults:
+    """Tests for load_raw_data default frame selection when called with sentinel -1 values."""
+
+    def test_invalid_endframe_falls_back_to_numframes(self):
+        """endframe=0 (corruption reset) should fall back to numframes."""
+        didson = DIDSON(ARIS_FILE)
+        num_frames = didson.info["numframes"]
+        didson.info["endframe"] = 0
+
+        data = didson.load_raw_data(start_frame=0)
+        assert data.shape[0] == num_frames
+
+    def test_endframe_less_than_numframes_uses_numframes(self):
+        """max(endframe, numframes) should load all frames even when endframe exists and is a smaller value."""
+        didson = DIDSON(ARIS_FILE)
+        num_frames = didson.info["numframes"]
+        didson.info["endframe"] = 2
+
+        data = didson.load_raw_data(start_frame=0)
+        assert data.shape[0] == num_frames

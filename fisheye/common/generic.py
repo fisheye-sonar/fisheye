@@ -13,6 +13,19 @@ import torch
 logger = structlog.get_logger()
 
 
+def safe_float(value, default=0.0) -> float:
+    """Convert value to float, returning the default on invalid inputs."""
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return default
+
+    if np.isnan(value):
+        return default
+
+    return value
+
+
 def safe_execution(
     default_return=None, max_retries=1, delay=0, exceptions=(Exception,)
 ):

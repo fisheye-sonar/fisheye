@@ -121,12 +121,14 @@ def dict_rows_to_mot_format(rows: List[Dict], img_width, img_height) -> List[Dic
 def format_single_crossing(
     filename: str,
     metadata: ARISMetadata,
+    source_path: str = None,
     track_id: int = None,
     frame: int = None,
     bbox: list = None,
     upstream_direction: str = None,
     crossing_direction: str = None,
     len_outputs: dict = None,
+    file_index: int = None,
 ) -> dict:
     """Format a single crossing event for export.
 
@@ -142,6 +144,9 @@ def format_single_crossing(
         upstream_direction: Upstream direction setting. Value from UpstreamDirectionTypes
         crossing_direction: Which side the fish crossed ("left" or "right")
         len_outputs: Length estimation results
+        file_index: Position of this file in the per-file processing loop. Serves as an
+        explicit join key back to per-file log events (e.g. processed_file_stats, no_counts)
+        that don't otherwise carry a file reference.
 
     Returns:
         Formatted crossing dictionary
@@ -149,6 +154,8 @@ def format_single_crossing(
     if track_id is None:
         return {
             "Source.Name": filename,
+            "Source.Path": source_path,
+            "file_index": file_index,
             "Frame#": None,
             "Dir": None,
             "ID": None,
@@ -162,6 +169,8 @@ def format_single_crossing(
 
     return {
         "Source.Name": filename,
+        "Source.Path": source_path,
+        "file_index": file_index,
         "Frame#": len_outputs.get(track_id, {}).get("frame_id_closest_to_mean")
         or frame,
         "Dir": "Up" if upstream_direction == crossing_direction else "Down",

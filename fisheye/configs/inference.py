@@ -1,7 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import List, Union, TypeVar, Generic, Dict
-
-import torch
 
 from fisheye.configs.models import (
     BaseModelConfig,

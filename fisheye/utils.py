@@ -172,7 +172,7 @@ def calculate_warped_points(points, info, xdim, ydim):
 
 
 def get_unwarped_distance_and_theta(row: pd.Series):
-    """Get the distance and theta to an unwarped point.
+    """Get the distance (range) and beam angle to a detection.
 
     Args:
         row (pd.Series): A DataFrame row with keys:
@@ -181,7 +181,7 @@ def get_unwarped_distance_and_theta(row: pd.Series):
 
     Returns:
         tuple: (distance: float, theta: float)
-            - distance: Distance to the unwarped point in meters
+            - distance: Distance (range) to the unwarped point in meters
             - theta: Beam center angle in degrees
     """
     metadata = row["metadata"]
@@ -194,23 +194,23 @@ def get_unwarped_distance_and_theta(row: pd.Series):
     bbox_xywh = np.array(row["bbox"]) * np.array(
         [metadata.xdim, metadata.ydim, metadata.xdim, metadata.ydim]
     )
-    # average_x, average y
-    bbox_xywh = [bbox_xywh[0] + bbox_xywh[2] / 2, bbox_xywh[1] + bbox_xywh[3] / 2, 1, 1]
-    bbox_xywh = np.expand_dims(np.array(bbox_xywh), axis=0)
+    x_center_px = bbox_xywh[0]
+    y_center_px = bbox_xywh[1]
 
-    points_xy = [bbox_xywh[0][0], bbox_xywh[0][1]]
     points_xy_unwarped = calculate_unwarped_points(
-        points_xy, metadata, metadata.xdim, metadata.ydim
+        [x_center_px, y_center_px], metadata, metadata.xdim, metadata.ydim
     )
-    distance = (
-        metadata.ydim - points_xy_unwarped[1]
-    ) * metadata.pixel_meter_size + metadata.y_meter_stop
+    beam_num = min(points_xy_unwarped[0], metadata.BeamCount - 1)
+    bin_num = points_xy_unwarped[1]
 
-    distance = round(distance, 2)
+    bin_length = metadata.sampleperiod * 0.000001 * metadata.soundspeed / 2.0
+    distance = round(
+        float(metadata.windowstart + (metadata.samplesperbeam - bin_num) * bin_length),
+        2,
+    )
+
     theta = round(
-        metadata.beam_width_data.iloc[
-            min(points_xy_unwarped[0], metadata.BeamCount - 1)
-        ]["beam_center"],
+        float(metadata.beam_width_data.iloc[beam_num]["beam_center"]),
         2,
     )
 

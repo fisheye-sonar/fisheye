@@ -4,10 +4,7 @@ Modified from: https://github.com/EminentCodfish/pyARIS
 Original @author: Chris Rillahan
 """
 
-import struct, array, pytz, datetime, tqdm
-import os
-from matplotlib import cm as colormap
-from PIL import Image
+import struct, array, pytz, datetime
 import numpy as np
 
 from .beams import load_beam_width_data
@@ -1252,43 +1249,6 @@ def get_box_for_sample(beam_num, bin_num, frame, beam_data):
     )
 
 
-def xy_to_sample(x, y, frame, beam_data):
-    """Convert an x,y location (in meters) to a beam sample.
-    Returns:
-        beam num
-        bin num
-    """
-
-    # Get the angle
-    angle = np.rad2deg(np.arctan(x / y))
-
-    beam_num = beam_data[
-        (beam_data["beam_left"] <= angle) & (angle <= beam_data["beam_right"])
-    ]
-
-    if beam_num.shape[0] == 0:
-        return None, None
-
-    beam_num = beam_num["beam_num"].iloc[0]
-
-    # Get the distance
-    hyp = y / np.cos(np.arctan(x / y))
-
-    # Take into account the window start
-    hyp -= frame.WinStart
-
-    # Sample length
-    bin_length = frame.sampleperiod * 0.000001 * frame.soundspeed / 2.0
-
-    # Convert to bins
-    bin_num = int(hyp / bin_length)
-
-    if bin_num < 0 or bin_num > (frame.BeamCount - 1):
-        return None, None
-
-    return beam_num, bin_num
-
-
 def get_minimum_pixel_meter_size(frame, beam_width_data):
     """Compute the smallest pixel size that will bound a sample."""
 
@@ -1516,94 +1476,3 @@ def compute_mapping_from_sample_to_image(
     write_to_cols = np.array(write_to[:, 1])
 
     return read_from_rows, read_from_cols, write_to_rows, write_to_cols
-
-
-def make_video(
-    data,
-    xdim,
-    ydim,
-    sample_read_rows,
-    sample_read_cols,
-    image_write_rows,
-    image_write_cols,
-    directory,
-    filename,
-    fps=24.0,
-    start_frame=1,
-    end_frame=None,
-    timestamp=False,
-    fontsize=30,
-    ts_pos=(0, 0),
-    save_raw=False,
-):
-    """Output video using the ffmpeg pipeline. The current implementation
-    outputs compresses png files and outputs a mp4.
-
-    Parameters
-    -----------
-    data : (Str) ARIS data structure returned via pyARIS.DataImport()
-    filename : (Str) output filename.  Must include file extension (i.e. 'video.mp4')
-    fps : (Float) Output video frame rate (frames per second). Default = 24 fps
-    start_frame, end_frame : (Int) Range of frames included in the output video
-    timestamp : (Bool) Add the timestamp from the sonar to the video frames
-    fontsize : (Int) Size of timestamp font
-    ts_pos : (Tuple) (x,y) location of the timestamp
-
-    Returns
-    -------
-    Returns a video into the current working directory
-
-    Notes
-    ------
-    Currently this function looks for ffmpeg.exe in the current working directory.
-    Must have the '*.mp4' file extension.
-    Uses the tqdm package to display a status bar.
-
-    Example
-    -------
-    >>> pyARIS.VideoExport(data, 'test_video.mp4', fps = 24)
-
-    """
-
-    # Command to send via the command prompt which specifies the pipe parameters
-    # command = ['ffmpeg',
-    #        '-y', # (optional) overwrite output file if it exists
-    #        '-f', 'image2pipe',
-    #        '-vcodec', 'mjpeg', #'mjpeg',
-    #        '-r', '1',
-    #        '-r', str(fps), # frames per second
-    #        '-i', '-', # The input comes from a pipe
-    #        '-an', # Tells FFMPEG not to expect any audio
-    #        '-vcodec', 'mpeg4',
-    #        '-b:v', '5000k',
-    #        directory + filename + "/"+filename+".mp4",
-    #        '-hide_banner',
-    #        '-loglevel', 'panic']
-
-    # Create directories if they don't exist
-    if not os.path.exists(os.path.join(directory, filename, "frames/")):
-        os.makedirs(os.path.join(directory, filename, "frames/"))
-    if save_raw and not os.path.exists(
-        os.path.join(directory, filename, "frames-raw/")
-    ):
-        os.makedirs(os.path.join(directory, filename, "frames-raw/"))
-
-    if end_frame == None:
-        end_frame = data.FrameCount
-
-    cm = colormap.get_cmap("viridis")
-
-    for i, frame_offset in enumerate(tqdm.tqdm(range(start_frame, end_frame))):
-        frame = FrameRead(data, frame_offset)
-        frame_image = np.zeros([ydim, xdim], dtype=np.uint8)
-        frame_image[image_write_rows, image_write_cols] = frame.frame_data[
-            sample_read_rows, sample_read_cols
-        ]
-
-        rgb_im = Image.fromarray(cm(frame_image, bytes=True)).convert("RGB")
-        rgb_im.save(os.path.join(directory, filename, "frames/", f"{i}.jpg"), "JPEG")
-
-        if save_raw:
-            Image.fromarray(np.uint8(frame.frame_data), mode="L").save(
-                os.path.join(directory, filename, "frames-raw/", f"{i}.jpg"), "JPEG"
-            )

@@ -1,0 +1,20 @@
+dataset:
+  batch_size: 32
+  workers: 0  # Windows has no fork(), only spawn
+  use_multithreading: true
+  max_workers: 8  # For multithreading
+  use_blur: true
+
+model:
+  type: yolov5
+  weights: weights/cfc_detect_yolov5m_v0.pt
+  device: cuda:0
+
+inference:
+  use_multithreading: false
+  max_workers: 8  # For multithreading
+  apply_nms_batchwise: true
+  apply_length_estimates_batchwise: false
+  length_config:
+    type: unet
+    weights: null

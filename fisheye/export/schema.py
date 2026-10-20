@@ -31,6 +31,22 @@ FC_SCHEMA = {
     "Comment": FCColumn(15, ""),
 }
 
+ECHOTASTIC_COLUMNS = [
+    "Sample",
+    "Ping",
+    "Time",
+    "Range",
+    "Amplitude",
+    "XAngle",
+    "YAngle",
+    "Direction",
+    "Length",
+    "Area",
+    "Operator",
+]
+ECHOTASTIC_VERSION = "2.0"
+ECHOTASTIC_OPERATOR = "<><"
+
 
 POINT_ORDER = {
     ("left", "Up"): ("left", "right"),

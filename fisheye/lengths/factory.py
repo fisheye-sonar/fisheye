@@ -6,14 +6,14 @@ import structlog
 from fisheye.configs.models import BaseLengthModelConfig
 from fisheye.enums import LengthEstimatorType
 from fisheye.lengths.base import BaseLengthEstimator
-from fisheye.lengths.estimator import UNetLengthEstimator
 
 logger = structlog.getLogger(__name__)
 
 
-LENGTH_ESTIMATOR_REGISTRY: Dict[LengthEstimatorType, Type[BaseLengthEstimator]] = {
-    LengthEstimatorType.UNET: UNetLengthEstimator,
-}
+def _get_registry() -> Dict[LengthEstimatorType, Type[BaseLengthEstimator]]:
+    from fisheye.lengths.estimator import UNetLengthEstimator
+
+    return {LengthEstimatorType.UNET: UNetLengthEstimator}
 
 
 def create_length_estimator(
@@ -64,7 +64,7 @@ def create_length_estimator(
         )
         return None
 
-    estimator_cls = LENGTH_ESTIMATOR_REGISTRY.get(model_type_enum)
+    estimator_cls = _get_registry().get(model_type_enum)
 
     if estimator_cls is None:
         logger.warning(

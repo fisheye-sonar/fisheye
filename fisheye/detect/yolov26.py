@@ -1,7 +1,6 @@
 from typing import Union, List
 
 import torch
-from ultralytics import YOLO
 
 from fisheye.configs import YOLOv26ModelConfig
 from fisheye.detect.base import BaseModel
@@ -26,6 +25,8 @@ class YOLOv26ObjectDetectionModel(BaseModel):
 
     def _load_model(self, weights, device):
         """Loads the weights & device."""
+        from ultralytics import YOLO
+
         model = YOLO(weights).model
 
         return model

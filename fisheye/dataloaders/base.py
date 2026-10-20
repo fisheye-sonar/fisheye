@@ -143,10 +143,8 @@ class BaseDataset(Dataset):
                 frame_images = (
                     self._stack_preprocessed_channels(
                         frames,
-                        mean_blurred_frame=getattr(self, "mean_blurred_frame", None),
-                        mean_normalization_value=getattr(
-                            self, "mean_normalization_value", None
-                        ),
+                        mean_blurred_frame=self.mean_blurred_frame,
+                        mean_normalization_value=self.mean_normalization_value,
                     )
                     if self.do_bg_subtract
                     else np.expand_dims(frames[:-1], -1)
@@ -194,10 +192,7 @@ class BaseDataset(Dataset):
         )
 
     def _stack_preprocessed_channels(
-        self,
-        frames: np.ndarray,
-        mean_blurred_frame: np.ndarray | None = None,
-        mean_normalization_value: float | np.ndarray | None = None,
+        self, frames: np.ndarray, mean_blurred_frame, mean_normalization_value
     ):
         """Generate a 3-channel representation of the frames.
 
@@ -210,58 +205,48 @@ class BaseDataset(Dataset):
                 - Channel 1: blurred + normalized frames
                 - Channel 2: temporal difference between consecutive blurred frames
         """
+        T, H, W = frames.shape
+
+        frame_image = np.empty((T - 1, H, W, 3), dtype=np.uint8)
+        frame_image[..., 0] = frames[:-1]
+
+        # Convert once
+        frames_f32 = (
+            frames.astype(np.float32, copy=False)
+            if frames.dtype == np.float32
+            else frames.astype(np.float32)
+        )
+
         if not self.use_blur:
-            blurred_frames = frames.astype(np.float32)
-
+            blurred_frames = frames_f32  # reuse
         else:
+            blurred_frames = np.empty_like(frames_f32)
+
             if self.use_multithreading:
-                blurred_frames = np.zeros_like(frames, dtype=np.float32)
-                blurred_frames_list = run_with_threads(
-                    lambda i: cv2.GaussianBlur(frames[i], (5, 5), 0),
-                    list(range(frames.shape[0])),
-                    max_workers=self.max_workers,
-                )
 
-                for i in range(frames.shape[0]):
-                    blurred_frames[i] = blurred_frames_list[i]
+                def worker(i):
+                    # input is float32, output is float32
+                    blurred_frames[i] = cv2.GaussianBlur(frames_f32[i], (5, 5), 0)
+
+                run_with_threads(worker, list(range(T)), max_workers=self.max_workers)
             else:
-                blurred_frames = frames.astype(np.float32)
-                for i in range(frames.shape[0]):
-                    blurred_frames[i] = cv2.GaussianBlur(blurred_frames[i], (5, 5), 0)
+                for i in range(T):
+                    blurred_frames[i] = cv2.GaussianBlur(frames_f32[i], (5, 5), 0)
 
-        if mean_blurred_frame is None or mean_normalization_value is None:
-            if self.return_unwarped:
-                mean_blurred_frame = getattr(self, "unwarped_mean_blurred_frame", None)
-                mean_normalization_value = getattr(
-                    self, "unwarped_mean_normalization_value", None
-                )
-            else:
-                mean_blurred_frame = getattr(self, "mean_blurred_frame", None)
-                mean_normalization_value = getattr(
-                    self, "mean_normalization_value", None
-                )
-
-        if mean_blurred_frame is None or mean_normalization_value is None:
-            raise ValueError(
-                "Background subtraction statistics are required to preprocess frames."
-            )
-
+        # Normalize in-place (float32)
         blurred_frames -= mean_blurred_frame
         blurred_frames /= mean_normalization_value
+        blurred_frames = (blurred_frames + 1.0) * 0.5  # combine two ops
 
-        # MAH 2025-11-24 17:09:09 I think we should not do this here and instead we should only take the positive values of the bgs
-        blurred_frames += 1
-        blurred_frames /= 2
+        # Convert to uint8 channels
+        # If you KNOW values are in [0,1], clip can be skipped; otherwise keep it.
+        ch1 = np.clip(blurred_frames[:-1] * 255.0, 0, 255).astype(np.uint8)
+        ch2 = np.clip(
+            np.abs(blurred_frames[1:] - blurred_frames[:-1]) * 255.0, 0, 255
+        ).astype(np.uint8)
 
-        frame_image = np.stack(
-            [
-                frames[:-1],
-                blurred_frames[:-1] * 255,
-                np.abs(blurred_frames[1:] - blurred_frames[:-1]) * 255,
-            ],
-            axis=-1,
-        ).astype(np.uint8, copy=False)
-
+        frame_image[..., 1] = ch1
+        frame_image[..., 2] = ch2
         return frame_image
 
     def _postprocess(
