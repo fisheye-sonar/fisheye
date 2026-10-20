@@ -46,10 +46,7 @@ def compute_echogram(
     )
     depth = unwarped_frames.shape[2]
 
-    frames_f32 = unwarped_frames.astype(np.float32)
-
-    raw_echogram = np.max(frames_f32, axis=2) / 255.0
-
+    bgs_echogram = None
     bgs_angle_echogram = None
     if do_bg_subtract_echogram:
         if mean_blurred_frame is None or mean_normalization_value is None:
@@ -57,35 +54,34 @@ def compute_echogram(
                 "mean_blurred_frame and mean_normalization_value are required when "
                 "do_bg_subtract_echogram=True"
             )
-        bgs_frames = np.subtract(frames_f32, mean_blurred_frame, dtype=np.float32)
+        bgs_frames = np.subtract(unwarped_frames, mean_blurred_frame, dtype=np.float32)
         bgs_frames /= np.where(
             np.asarray(mean_normalization_value) > 0, mean_normalization_value, 1.0
         )
-        bgs_echogram = np.max(bgs_frames, axis=2).astype(np.float32, copy=False)
+        if EchogramChannel.BGS in echogram_channels:
+            bgs_echogram = np.max(bgs_frames, axis=2)
         if EchogramChannel.BGS_ANGLE in echogram_channels:
             bgs_angle_echogram = np.argmax(bgs_frames, axis=2).astype(
                 np.float32
             ) / float(depth)
             bgs_angle_echogram -= 0.5
         del bgs_frames
-    else:
-        bgs_echogram = None
 
     for channel_index, channel_name in enumerate(echogram_channels):
         if channel_name == EchogramChannel.ZERO:
             continue
         elif channel_name == EchogramChannel.RAW:
-            output[:, :, channel_index] = raw_echogram
+            output[:, :, channel_index] = np.max(unwarped_frames, axis=2) / 255.0
         elif channel_name == EchogramChannel.BGS:
             output[:, :, channel_index] = bgs_echogram
         elif channel_name == EchogramChannel.BGS_ANGLE:
             output[:, :, channel_index] = bgs_angle_echogram
         elif channel_name == EchogramChannel.ANGLE:
             output[:, :, channel_index] = (
-                np.argmax(frames_f32, axis=2).astype(np.float32) / float(depth)
+                np.argmax(unwarped_frames, axis=2).astype(np.float32) / float(depth)
             ) - 0.5
         elif channel_name == EchogramChannel.CENTER_LINE:
-            center_line_echogram = frames_f32[:, :, frames_f32.shape[2] // 2]
+            center_line_echogram = unwarped_frames[:, :, depth // 2]
             output[:, :, channel_index] = _normalize_center_line(center_line_echogram)
         else:
             raise ValueError(f"Unsupported echogram channel {channel_name!r}")

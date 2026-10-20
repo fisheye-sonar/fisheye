@@ -39,6 +39,21 @@ class BaseDataset(Dataset):
         self.frame_labels = []
         self.extracted_unwarped_frames = {}
         self.extracted_echograms = {}
+        self.max_workers = config.max_workers
+        self.use_multithreading = config.use_multithreading
+        self.use_blur = config.use_blur
+        self.return_original_image = config.return_original_image
+        self._configure_outputs(config)
+        self._init_bg_frame()
+
+    def _configure_outputs(self, config: BaseDatasetConfig):
+        """Resolve the legacy and independent output contracts once.
+
+        Without an explicit return_frames, return_unwarped selects the primary
+        images and requesting an echogram also returns raw unwarped frames.
+        Explicit return_frames selects independent outputs: primary images are
+        warped, and auxiliary unwarped images follow do_bg_subtract.
+        """
         self.independent_outputs = config.return_frames is not None
         self.legacy_primary_unwarped = (
             not self.independent_outputs and config.return_unwarped
@@ -61,11 +76,6 @@ class BaseDataset(Dataset):
         self.do_bg_subtract_echogram = echogram_uses_bg_subtraction(
             self.echogram_channels
         )
-        self.max_workers = config.max_workers
-        self.use_multithreading = config.use_multithreading
-        self.use_blur = config.use_blur
-        self.return_original_image = config.return_original_image
-
         if (
             not self.return_frames
             and not self.return_unwarped
@@ -75,8 +85,6 @@ class BaseDataset(Dataset):
                 "At least one of return_frames, return_unwarped, or return_echogram "
                 "must be True"
             )
-
-        self._init_bg_frame()
 
     def _init_bg_frame(self):
         """Initialize background frame for subtraction."""
@@ -93,30 +101,18 @@ class BaseDataset(Dataset):
             available = self.end_frame - self.start_frame
             # Preserve the trained image pipeline's background window. Echogram
             # statistics use exactly the requested count, independent of batch size.
-            warped_count = (
-                min(
-                    available,
-                    self.num_frames_bg_subtract // self.batch_size * self.batch_size
-                    + 1,
-                )
-                if need_warped_bg_subtract
-                else 0
+            legacy_count = min(
+                available,
+                self.num_frames_bg_subtract // self.batch_size * self.batch_size + 1,
             )
-            unwarped_count = (
-                min(
-                    available,
-                    (
-                        self.num_frames_bg_subtract
-                        if self.independent_outputs
-                        else self.num_frames_bg_subtract
-                        // self.batch_size
-                        * self.batch_size
-                        + 1
-                    ),
+            warped_count = legacy_count if need_warped_bg_subtract else 0
+            unwarped_count = 0
+            if need_unwarped_bg_subtract:
+                unwarped_count = (
+                    min(available, self.num_frames_bg_subtract)
+                    if self.independent_outputs
+                    else legacy_count
                 )
-                if need_unwarped_bg_subtract
-                else 0
-            )
             num_frames_bg = max(warped_count, unwarped_count)
             frames_for_bg_subtract, unwarped_frames_for_bg_subtract = self.load_frames(
                 self.start_frame,
@@ -193,19 +189,8 @@ class BaseDataset(Dataset):
                 primary_frames = (
                     unwarped_frames if self.legacy_primary_unwarped else frames
                 )
-                mean_prefix = "unwarped_" if self.legacy_primary_unwarped else ""
-                frame_images = (
-                    self._stack_preprocessed_channels(
-                        primary_frames,
-                        mean_blurred_frame=getattr(
-                            self, mean_prefix + "mean_blurred_frame"
-                        ),
-                        mean_normalization_value=getattr(
-                            self, mean_prefix + "mean_normalization_value"
-                        ),
-                    )
-                    if self.do_bg_subtract
-                    else np.expand_dims(primary_frames[:-1], -1)
+                frame_images = self._preprocess_images(
+                    primary_frames, unwarped=self.legacy_primary_unwarped
                 )
 
             raw_unwarped_frames = unwarped_frames[:-1] if self.need_unwarped else None
@@ -213,11 +198,7 @@ class BaseDataset(Dataset):
             returned_unwarped_frames = None
             if self.return_unwarped:
                 returned_unwarped_frames = (
-                    self._stack_preprocessed_channels(
-                        unwarped_frames,
-                        mean_blurred_frame=self.unwarped_mean_blurred_frame,
-                        mean_normalization_value=self.unwarped_mean_normalization_value,
-                    )
+                    self._preprocess_images(unwarped_frames, unwarped=True)
                     if self.do_bg_subtract and self.independent_outputs
                     else raw_unwarped_frames
                 )
@@ -246,6 +227,18 @@ class BaseDataset(Dataset):
             echogram,
             self.return_original_image if self.return_frames else False,
         )
+
+    def _preprocess_images(self, frames, *, unwarped=False):
+        """Prepare primary or auxiliary images with their matching background."""
+        if not self.do_bg_subtract:
+            return np.expand_dims(frames[:-1], -1)
+        if unwarped:
+            mean = self.unwarped_mean_blurred_frame
+            scale = self.unwarped_mean_normalization_value
+        else:
+            mean = self.mean_blurred_frame
+            scale = self.mean_normalization_value
+        return self._stack_preprocessed_channels(frames, mean, scale)
 
     def _stack_preprocessed_channels(
         self, frames: np.ndarray, mean_blurred_frame, mean_normalization_value

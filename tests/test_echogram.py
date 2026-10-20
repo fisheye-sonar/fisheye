@@ -1,6 +1,8 @@
 """Numerical and output-contract regressions using small deterministic recordings."""
 
+import weakref
 from itertools import product
+from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
@@ -52,6 +54,30 @@ def test_channel_values_and_order():
     np.testing.assert_allclose(result[:, 0, 4], [-1 / 6, -1 / 6])
     assert np.all(result[..., 5] == 0)
     assert result.dtype == np.float32
+
+
+@pytest.mark.parametrize(
+    "channel,expected",
+    [
+        ("raw", [64 / 255, 128 / 255]),
+        ("center_line", [64 / 255, 128 / 255]),
+        ("angle", [-1 / 6, -1 / 6]),
+        ("bgs", [0.5, 1]),
+        ("bgs_angle", [-1 / 6, -1 / 6]),
+        ("0", [0, 0]),
+    ],
+)
+def test_single_channel_export(channel, expected):
+    frames = np.array([[[0, 64, 32]], [[0, 128, 16]]], dtype=np.uint8)
+    background = (
+        {"mean_blurred_frame": np.zeros((1, 3)), "mean_normalization_value": 128}
+        if channel in ["bgs", "bgs_angle"]
+        else {}
+    )
+    result = compute_echogram(frames, echogram_channels=[channel], **background)
+    assert result.shape == (2, 1, 1)
+    assert result.dtype == np.float32
+    np.testing.assert_allclose(result[:, 0, 0], expected)
 
 
 @pytest.mark.parametrize("channels", [[], [None], [None, "raw"], ["invalid"]])
@@ -267,8 +293,6 @@ def test_direct_loader_rejects_invalid_range(start, end):
 
 @pytest.mark.parametrize("fixture", ["sample.aris", "sample.ddf"])
 def test_chunked_loading_reads_real_sonar_frames(fixture):
-    from pathlib import Path
-
     sonar = DIDSON(Path(__file__).parent / "data" / fixture)
     end = min(5, sonar.info["numframes"])
     chunked = sonar.load_echogram(
@@ -278,6 +302,62 @@ def test_chunked_loading_reads_real_sonar_frames(fixture):
         end_frame=end, chunk_size=end, echogram_channels=["bgs", "bgs_angle", "raw"]
     )
     np.testing.assert_array_equal(chunked, eager)
+
+
+@pytest.mark.parametrize("fixture", ["sample.aris", "sample.ddf"])
+@pytest.mark.parametrize("blank_index", [0, 1])
+def test_chunked_loading_preserves_blank_frames(tmp_path, fixture, blank_index):
+    source = Path(__file__).parent / "data" / fixture
+    sonar = DIDSON(source)
+    info = sonar.info
+    end = min(5, info["numframes"])
+    _, frames = sonar.load_frames(
+        end_frame=end, return_unwarped=True, return_warped=False
+    )
+    frames[blank_index] = 0
+    mean, scale = compute_bg_subtraction(frames, use_blur=False)
+    channels = ["bgs", "bgs_angle", "raw"]
+    expected = compute_echogram(frames[:-1], mean, scale, channels)
+
+    content = bytearray(source.read_bytes())
+    offset = (
+        info["fileheadersize"]
+        + blank_index * (info["frameheadersize"] + info["framesize"])
+        + info["frameheadersize"]
+    )
+    content[offset : offset + info["framesize"]] = bytes(info["framesize"])
+    modified = tmp_path / fixture
+    modified.write_bytes(content)
+
+    for chunk_size in [1, end]:
+        actual = sonar.load_echogram(
+            file=modified,
+            end_frame=end,
+            chunk_size=chunk_size,
+            use_blur=False,
+            echogram_channels=channels,
+        )
+        np.testing.assert_array_equal(actual, expected)
+
+
+def test_direct_loader_releases_background_frames_before_reading_chunks():
+    sonar = DIDSON.__new__(DIDSON)
+    sonar.info = {"numframes": 9, "unwarped_shape": (4, 3)}
+    background_ref = None
+
+    def load(file=None, start_frame=0, end_frame=-1, **kwargs):
+        nonlocal background_ref
+        frames = FRAMES[start_frame:end_frame].copy()
+        if background_ref is None:
+            background_ref = weakref.ref(frames)
+        else:
+            assert background_ref() is None, "Background frames retained during export"
+        return None, frames
+
+    sonar.load_frames = load
+    actual = sonar.load_echogram(num_frames_bg_subtract=3, chunk_size=2, use_blur=False)
+    mean, scale = compute_bg_subtraction(FRAMES[:3], use_blur=False)
+    np.testing.assert_array_equal(actual, compute_echogram(FRAMES[:-1], mean, scale))
 
 
 def test_legacy_config_survives_copy_and_serialization():

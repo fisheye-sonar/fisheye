@@ -590,12 +590,12 @@ class DIDSON:
                 fid.read(framesize + frameheadersize)[:framesize], dtype=np.uint8
             )
 
-            # Possible byte misalignment if the data from the first frames is empty/zero. This can mean we are working
-            # with a modified, shortened clip.
-            if np.all(first_frame_data == 0):
+            # Recover an out-of-file frame index in a shortened clip. A full
+            # zero-valued frame is valid data and must retain its frame index.
+            if first_frame_data.size == 0:
                 warnings.warn(
-                    f"First frame at start_frame={start_frame} contains only zeroes. "
-                    "This may indicate a shorted clip (modified version of the original DIDSON/ARIS file."
+                    f"No frame data at start_frame={start_frame}. "
+                    "This may indicate a shortened DIDSON/ARIS clip. "
                     f"Resetting start_frame to 0 and adjusting the end_frame to {end_frame}."
                 )
                 end_frame = end_frame - start_frame + 1  # inclusive
@@ -794,6 +794,7 @@ class DIDSON:
                 use_multithreading=use_multithreading,
                 max_workers=max_workers,
             )
+            del unwarped_bg
 
         for chunk_start in range(start_frame, end_frame - 1, chunk_size):
             chunk_end = min(chunk_start + chunk_size, end_frame - 1)
