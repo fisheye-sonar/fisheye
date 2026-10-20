@@ -27,6 +27,7 @@ from fisheye.dataloaders.echogram import (
     echogram_uses_bg_subtraction,
 )
 from fisheye.dataloaders.compute_bg_subtraction import compute_bg_subtraction
+from fisheye.echogram_channels import normalize_echogram_channels
 
 BASE = Path(__file__).parent.parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
@@ -719,6 +720,7 @@ class DIDSON:
         use_multithreading=True,
         max_workers=2,
         echogram_channels=None,
+        chunk_size=256,
     ):
         """Load unwarped beam data and return an echogram without building warped frames.
         Parameters
@@ -736,6 +738,8 @@ class DIDSON:
             Ordered channel selection, using entries from
             ``{EchogramChannel.BGS, EchogramChannel.BGS_ANGLE, EchogramChannel.ANGLE,``
             ``EchogramChannel.RAW, EchogramChannel.CENTER_LINE, EchogramChannel.ZERO, None}``.
+        chunk_size : int, optional
+            Maximum number of beam frames processed at a time (default 256).
         Returns
         -------
         echogram : ndarray, shape (num_frames, height, num_channels), float32
@@ -754,6 +758,18 @@ class DIDSON:
             end_frame = max(
                 x for x in (self.info.get("endframe"), self.info.get("numframes")) if x
             )
+        if not 0 <= start_frame <= end_frame <= self.info["numframes"]:
+            raise ValueError("Expected 0 <= start_frame <= end_frame <= numframes")
+        if chunk_size <= 0 or num_frames_bg_subtract <= 0:
+            raise ValueError("chunk_size and num_frames_bg_subtract must be positive")
+        echogram_channels = normalize_echogram_channels(echogram_channels)
+        height = self.info["unwarped_shape"][0]
+        output = np.empty(
+            (max(0, end_frame - start_frame - 1), height, len(echogram_channels)),
+            dtype=np.float32,
+        )
+        if output.shape[0] == 0:
+            return output
         logger.info(
             "updated_echogram_frame_range",
             start_frame=start_frame,
@@ -779,18 +795,21 @@ class DIDSON:
                 max_workers=max_workers,
             )
 
-        _, unwarped_frames = self.load_frames(
-            file,
-            start_frame,
-            end_frame,
-            return_unwarped=True,
-            return_warped=False,
-        )
-        unwarped_frames = unwarped_frames[:-1]
-
-        return compute_echogram(
-            unwarped_frames,
-            mean_blurred_frame=mean_blurred_frame,
-            mean_normalization_value=mean_normalization_value,
-            echogram_channels=echogram_channels,
-        )
+        for chunk_start in range(start_frame, end_frame - 1, chunk_size):
+            chunk_end = min(chunk_start + chunk_size, end_frame - 1)
+            _, unwarped_frames = self.load_frames(
+                file,
+                chunk_start,
+                chunk_end,
+                return_unwarped=True,
+                return_warped=False,
+            )
+            output[chunk_start - start_frame : chunk_end - start_frame] = (
+                compute_echogram(
+                    unwarped_frames,
+                    mean_blurred_frame=mean_blurred_frame,
+                    mean_normalization_value=mean_normalization_value,
+                    echogram_channels=echogram_channels,
+                )
+            )
+        return output

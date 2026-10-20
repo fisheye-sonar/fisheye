@@ -96,8 +96,14 @@ class BaseDataset(Dataset):
             unwarped_count = (
                 min(
                     available,
-                    self.num_frames_bg_subtract if self.independent_outputs
-                    else self.num_frames_bg_subtract // self.batch_size * self.batch_size + 1,
+                    (
+                        self.num_frames_bg_subtract
+                        if self.independent_outputs
+                        else self.num_frames_bg_subtract
+                        // self.batch_size
+                        * self.batch_size
+                        + 1
+                    ),
                 )
                 if need_unwarped_bg_subtract
                 else 0
