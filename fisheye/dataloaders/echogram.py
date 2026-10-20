@@ -4,63 +4,23 @@ import numpy as np
 
 from fisheye.enums import EchogramChannel
 
-DEFAULT_ECHOGRAM_CHANNELS = [
-    EchogramChannel.BGS,
-    EchogramChannel.BGS_ANGLE,
-    EchogramChannel.RAW,
-]
-BGS_ECHOGRAM_CHANNELS = {
-    EchogramChannel.BGS,
-    EchogramChannel.BGS_ANGLE,
-}
-
-
-def _normalize_echogram_channels(
-    echogram_channels: Sequence[EchogramChannel | str | None] | None,
-) -> list[EchogramChannel]:
-    """Validate channel selection and trim an optional trailing None."""
-    if echogram_channels is None:
-        return DEFAULT_ECHOGRAM_CHANNELS.copy()
-
-    normalized_channels = []
-    for index, channel in enumerate(echogram_channels):
-        if channel is None:
-            if index != len(echogram_channels) - 1:
-                raise ValueError(
-                    "None is only supported as the last echogram channel entry"
-                )
-            break
-        try:
-            channel = EchogramChannel(channel)
-        except ValueError as exc:
-            valid_channels = [member.value for member in EchogramChannel]
-            raise ValueError(
-                f"Unsupported echogram channel {channel!r}. "
-                f"Expected one of {valid_channels} or None."
-            ) from exc
-        normalized_channels.append(channel)
-
-    if not normalized_channels:
-        raise ValueError("echogram_channels must include at least one active channel")
-
-    return normalized_channels
+from fisheye.echogram_channels import (
+    BGS_ECHOGRAM_CHANNELS,
+    normalize_echogram_channels,
+)
 
 
 def echogram_uses_bg_subtraction(
     echogram_channels: Sequence[EchogramChannel | str | None] | None,
 ) -> bool:
     """Return True when any selected channel requires background subtraction."""
-    normalized_channels = _normalize_echogram_channels(echogram_channels)
+    normalized_channels = normalize_echogram_channels(echogram_channels)
     return any(channel in BGS_ECHOGRAM_CHANNELS for channel in normalized_channels)
 
 
 def _normalize_center_line(center_line_echogram: np.ndarray) -> np.ndarray:
     """Clamp the center-line channel into a stable [0, 1] range."""
-    center_line_echogram = np.clip(center_line_echogram, 0, 1)
-    max_value = np.max(center_line_echogram)
-    if max_value > 0:
-        center_line_echogram = center_line_echogram / max_value
-    return center_line_echogram.astype(np.float32, copy=False)
+    return np.clip(center_line_echogram / 255.0, 0, 1).astype(np.float32, copy=False)
 
 
 def compute_echogram(
@@ -77,7 +37,7 @@ def compute_echogram(
     and an optional trailing ``None``.
     """
 
-    echogram_channels = _normalize_echogram_channels(echogram_channels)
+    echogram_channels = normalize_echogram_channels(echogram_channels)
     do_bg_subtract_echogram = echogram_uses_bg_subtraction(echogram_channels)
 
     output = np.zeros(
@@ -99,7 +59,9 @@ def compute_echogram(
                 "do_bg_subtract_echogram=True"
             )
         bgs_frames = bgs_frames - mean_blurred_frame
-        bgs_frames = bgs_frames / mean_normalization_value
+        bgs_frames = bgs_frames / np.where(
+            np.asarray(mean_normalization_value) > 0, mean_normalization_value, 1.0
+        )
         bgs_echogram = np.max(bgs_frames, axis=2).astype(np.float32, copy=False)
         if EchogramChannel.BGS_ANGLE in echogram_channels:
             bgs_angle_echogram = np.argmax(bgs_frames, axis=2).astype(

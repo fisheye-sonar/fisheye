@@ -11,6 +11,8 @@ def compute_bg_subtraction(
     max_workers=2,
 ):
     """Calculate the mean blurred frame and normalization value for echogram bg subtraction."""
+    if frames_for_bg_subtract.ndim != 3 or len(frames_for_bg_subtract) == 0:
+        raise ValueError("Background estimation requires at least one 2D frame")
     if not use_blur:
         mean_blurred_frame = np.mean(frames_for_bg_subtract, axis=0)
         max_blurred_frame = np.max(np.abs(frames_for_bg_subtract), axis=0).astype(
@@ -42,6 +44,6 @@ def compute_bg_subtraction(
 
         mean_blurred_frame /= frames_for_bg_subtract.shape[0]
     max_blurred_frame -= mean_blurred_frame
-    mean_normalization_value = np.max(max_blurred_frame)
+    mean_normalization_value = max(float(np.max(max_blurred_frame)), 1e-12)
 
     return mean_blurred_frame, mean_normalization_value

@@ -39,8 +39,8 @@ class TestARISDataloader:
 
         batch = next(iter(dataloader))
         batch_data, batch_unwarped = batch[0], batch[2]
-        assert batch_data.shape == torch.Size([3, 2686, 1307, 3])
-        assert batch_unwarped.shape == torch.Size([3, 2684, 48, 3])
+        assert batch_data.shape == torch.Size([3, 2684, 48, 3])
+        assert batch_unwarped.shape == torch.Size([3, 2684, 48])
 
     def test_return_unwarped_images_without_bg_subtraction(self):
         config = BaseDatasetConfig(
@@ -59,8 +59,8 @@ class TestARISDataloader:
         config = BaseDatasetConfig(filepath=ARIS_FILE, return_echogram=True)
         dataloader, _ = create_dataloader(config)
         _, _, batch_unwarped, batch_echogram, _ = next(iter(dataloader))
-        assert batch_unwarped is None
-        assert batch_echogram.shape == torch.Size([3, 2684, 3])
+        assert batch_unwarped.shape == torch.Size([3, 2684, 48])
+        assert batch_echogram.shape == torch.Size([3, 2684, 2])
 
     def test_echogram_without_warped_frames(self):
         """Test returning only the echogram via return_frames=False."""
@@ -72,7 +72,7 @@ class TestARISDataloader:
         assert frame_images is None
         assert unwarped_frames is None
         assert return_original_image is False
-        assert echogram.shape == (3, 2684, 3)
+        assert echogram.shape == (3, 2684, 2)
 
     def test_return_unwarped_without_warped_frames(self):
         config = BaseDatasetConfig(
@@ -148,7 +148,7 @@ class TestARISDataloader:
     def test_load_echogram(self):
         didson = DIDSON(ARIS_FILE)
         echogram = didson.load_echogram(end_frame=4)
-        assert echogram.shape == (3, 2684, 3)
+        assert echogram.shape == (3, 2684, 2)
         assert echogram.dtype == np.float32
 
     def test_load_echogram_matches_dataset(self):
