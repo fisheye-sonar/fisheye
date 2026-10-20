@@ -14,16 +14,26 @@ import struct
 import warnings
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Union
+from typing import BinaryIO, Union
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
+import structlog
 
 from . import pyARIS
 from .pyDIDSON_format import *
+from fisheye.dataloaders.echogram import (
+    compute_echogram,
+    echogram_uses_bg_subtraction,
+)
+from fisheye.dataloaders.compute_bg_subtraction import compute_bg_subtraction
+from fisheye.echogram_channels import normalize_echogram_channels
+from fisheye.enums import EchogramChannel
 
 BASE = Path(__file__).parent.parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
+logger = structlog.get_logger(__name__)
 
 
 class DIDSON:
@@ -580,12 +590,12 @@ class DIDSON:
                 fid.read(framesize + frameheadersize)[:framesize], dtype=np.uint8
             )
 
-            # Possible byte misalignment if the data from the first frames is empty/zero. This can mean we are working
-            # with a modified, shortened clip.
-            if np.all(first_frame_data == 0):
+            # Recover an out-of-file frame index in a shortened clip. A full
+            # zero-valued frame is valid data and must retain its frame index.
+            if first_frame_data.size == 0:
                 warnings.warn(
-                    f"First frame at start_frame={start_frame} contains only zeroes. "
-                    "This may indicate a shorted clip (modified version of the original DIDSON/ARIS file."
+                    f"No frame data at start_frame={start_frame}. "
+                    "This may indicate a shortened DIDSON/ARIS clip. "
                     f"Resetting start_frame to 0 and adjusting the end_frame to {end_frame}."
                 )
                 end_frame = end_frame - start_frame + 1  # inclusive
@@ -648,8 +658,13 @@ class DIDSON:
             return data
 
     def load_frames(
-        self, file=None, start_frame=0, end_frame=-1, return_unwarped=False
-    ):
+        self,
+        file: str | Path | BinaryIO | None = None,
+        start_frame: int = 0,
+        end_frame: int = -1,
+        return_unwarped: bool = False,
+        return_warped: bool = True,
+    ) -> tuple[np.ndarray | None, np.ndarray | None]:
         """Load and warp DIDSON frames into images.
 
         Parameters
@@ -660,11 +675,14 @@ class DIDSON:
             Zero-indexed start of frame range (inclusive). Defaults to the first available.
         end_frame : int, optional
             End of frame range (exclusive). Defaults to the last available frame.
-
+        return_unwarped : bool, optional
+            Whether to return the unwarped frames.
+        return_warped : bool, optional
+            Whether to return the warped frames.
         Returns
         -------
-        frames : (end_frame - start_frame, ydim, xdim) ndarray, np.uint8
-            Warped-to-scale sonar image tensor.
+        frames : (end_frame - start_frame, ydim, xdim) ndarray, np.uint8 or None
+            Warped-to-scale sonar image tensor, or None when ``return_warped`` is False.
 
         """
         data = self.load_raw_data(file, start_frame, end_frame)
@@ -684,9 +702,115 @@ class DIDSON:
             # indexing error without it
         else:
             unwarped_frames = None
-        frames = np.zeros(
-            (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
-        )
-        frames[:, self.write_rows, self.write_cols] = data[:, self.read_i]
+        if not return_warped:
+            frames = None
+        else:
+            frames = np.zeros(
+                (data.shape[0], self.info["ydim"], self.info["xdim"]), dtype=np.uint8
+            )
+            frames[:, self.write_rows, self.write_cols] = data[:, self.read_i]
 
         return frames, unwarped_frames
+
+    def load_echogram(
+        self,
+        file: str | Path | BinaryIO | None = None,
+        start_frame: int = 0,
+        end_frame: int = -1,
+        num_frames_bg_subtract: int = 1000,
+        use_blur: bool = True,
+        use_multithreading: bool = True,
+        max_workers: int = 2,
+        echogram_channels: Sequence[EchogramChannel | str | None] | None = None,
+        chunk_size: int = 256,
+    ) -> np.ndarray:
+        """Load unwarped beam data and return an echogram without building warped frames.
+        Parameters
+        ----------
+        file : file-like object, string, or pathlib.Path, optional
+            The DIDSON or ARIS file to read. Defaults to ``filename`` in ``info``.
+        start_frame, end_frame : int, optional
+            Zero-indexed frame range ``[start_frame, end_frame)``. ``end_frame=-1`` uses
+            the last frame in the file.
+        num_frames_bg_subtract : int, optional
+            Maximum number of leading frames used to estimate background statistics.
+        use_blur, use_multithreading, max_workers : optional
+            Background estimation options (same as :class:`BaseDataset`).
+        echogram_channels : list, optional
+            Ordered channel selection, using entries from
+            ``{EchogramChannel.BGS, EchogramChannel.BGS_ANGLE, EchogramChannel.ANGLE,``
+            ``EchogramChannel.RAW, EchogramChannel.CENTER_LINE, EchogramChannel.ZERO, None}``.
+        chunk_size : int, optional
+            Maximum number of beam frames processed at a time (default 256).
+        Returns
+        -------
+        echogram : ndarray, shape (num_frames, height, num_channels), float32
+            Echogram for the requested frame range. The last loaded frame is dropped to
+            match :class:`BaseDataset` behaviour.
+        """
+        logger.info(
+            "loading_echogram",
+            file=str(file) if file is not None else self.info.get("filename"),
+            start_frame=start_frame,
+            end_frame=end_frame,
+        )
+        if start_frame == -1:
+            start_frame = self.info.get("startframe", 0)
+        if end_frame == -1:
+            end_frame = self.info["numframes"]
+        if not 0 <= start_frame <= end_frame <= self.info["numframes"]:
+            raise ValueError("Expected 0 <= start_frame <= end_frame <= numframes")
+        if chunk_size <= 0 or num_frames_bg_subtract <= 0:
+            raise ValueError("chunk_size and num_frames_bg_subtract must be positive")
+        echogram_channels = normalize_echogram_channels(echogram_channels)
+        height = self.info["unwarped_shape"][0]
+        output = np.empty(
+            (max(0, end_frame - start_frame - 1), height, len(echogram_channels)),
+            dtype=np.float32,
+        )
+        if output.shape[0] == 0:
+            return output
+        logger.info(
+            "updated_echogram_frame_range",
+            start_frame=start_frame,
+            end_frame=end_frame,
+        )
+
+        do_bg_subtract_echogram = echogram_uses_bg_subtraction(echogram_channels)
+        mean_blurred_frame = None
+        mean_normalization_value = None
+        if do_bg_subtract_echogram:
+            num_frames_bg = min(end_frame - start_frame, num_frames_bg_subtract)
+            _, unwarped_bg = self.load_frames(
+                file,
+                start_frame,
+                start_frame + num_frames_bg,
+                return_unwarped=True,
+                return_warped=False,
+            )
+            mean_blurred_frame, mean_normalization_value = compute_bg_subtraction(
+                unwarped_bg,
+                use_blur=use_blur,
+                use_multithreading=use_multithreading,
+                max_workers=max_workers,
+            )
+            del unwarped_bg
+
+        for chunk_start in range(start_frame, end_frame - 1, chunk_size):
+            chunk_end = min(chunk_start + chunk_size, end_frame - 1)
+            _, unwarped_frames = self.load_frames(
+                file,
+                chunk_start,
+                chunk_end,
+                return_unwarped=True,
+                return_warped=False,
+            )
+            output[chunk_start - start_frame : chunk_end - start_frame] = (
+                compute_echogram(
+                    unwarped_frames,
+                    mean_blurred_frame=mean_blurred_frame,
+                    mean_normalization_value=mean_normalization_value,
+                    echogram_channels=echogram_channels,
+                )
+            )
+        return output

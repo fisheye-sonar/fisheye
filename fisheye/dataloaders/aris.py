@@ -1,4 +1,5 @@
 import structlog
+import numpy as np
 
 from fisheye.configs import BaseDatasetConfig
 from fisheye.configs.datasets import ARISMetadata, BEAM_WIDTH_DIR
@@ -66,12 +67,26 @@ class ARISBatchedDataset(BaseDataset):
             framerate=info.get("framerate", 0),
         )
 
-    def load_frames(self, start_frame, end_frame, return_unwarped=False):
-        """Load ARIS frames."""
+    def load_frames(
+        self,
+        start_frame: int,
+        end_frame: int,
+        return_unwarped: bool = False,
+        return_warped: bool = True,
+    ) -> tuple[np.ndarray | None, np.ndarray | None]:
+        """Load ARIS frames.
+
+        Args:
+            start_frame (int): The start frame index.
+            end_frame (int): The end frame index.
+            return_unwarped (bool): Whether to return the unwarped frames.
+            return_warped (bool): Whether to return the warped frames.
+        """
         return self.didson.load_frames(
             start_frame=start_frame,
             end_frame=end_frame,
             return_unwarped=return_unwarped,
+            return_warped=return_warped,
         )
 
     def _validate_frame_range(self, config):

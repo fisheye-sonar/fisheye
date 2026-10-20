@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from fisheye.enums import EchogramChannel
+from fisheye.echogram_channels import normalize_echogram_channels
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 BEAM_WIDTH_DIR = BASE_DIR / "beam_widths"
@@ -23,13 +25,23 @@ class BaseDatasetConfig:
     start_frame: int = 0  # Default to first frame (zero-indexed)
     end_frame: int = 0
     num_frames_bg_subtract: int = 1000
+    # None retains main's primary/auxiliary output contract. A bool opts into
+    # independent warped/unwarped/echogram outputs.
+    return_frames: bool | None = None
     return_unwarped: bool = False
     return_echogram: bool = False
     return_echogram_with_bg_subtracted: bool = True
+    echogram_channels: list[EchogramChannel | str | None] | None = None
     use_multithreading: bool = True  # For dataloader threading
     max_workers: int = 2
     use_blur: bool = True  # For background subtraction blurring
     return_original_image: bool = False
+
+    def __post_init__(self):
+        if self.batch_size <= 0 or self.num_frames_bg_subtract <= 0:
+            raise ValueError("batch_size and num_frames_bg_subtract must be positive")
+        if self.echogram_channels is not None:
+            self.echogram_channels = normalize_echogram_channels(self.echogram_channels)
 
 
 @dataclass

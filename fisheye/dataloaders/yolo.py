@@ -25,6 +25,11 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         Args:
             config (YOLODatasetConfig): Configuration object containing all dataset parameters optimized.
         """
+        if config.return_frames is False:
+            raise ValueError(
+                "YOLO requires return_frames=True for warped sonar images. "
+                "Use BaseDatasetConfig to export echograms for other methods."
+            )
         super().__init__(config)
 
         self.stride = config.stride

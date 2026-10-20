@@ -206,6 +206,85 @@ cd ~/home/fisheye/code/fisheye/
 
 ---
 
+## Saving Echograms for Other Methods
+
+Echogram loading is for exporting sonar data to other methods. YOLO continues to
+operate on image frames; this feature does not add echogram detection.
+
+Save a three-channel echogram without allocating warped frame images:
+
+```python
+import numpy as np
+
+from fisheye.dataloaders.didson.pyDIDSON import DIDSON
+from fisheye.enums import EchogramChannel
+
+sonar = DIDSON("recording.aris")  # .ddf is also supported
+channels = [EchogramChannel.BGS, EchogramChannel.BGS_ANGLE, EchogramChannel.RAW]
+echogram = sonar.load_echogram(echogram_channels=channels, chunk_size=256)
+np.save("recording_echogram.npy", echogram)
+```
+
+The direct loader returns a float32 array shaped `(frames, range_samples, channels)`.
+It processes at most `chunk_size` beam frames at once, after estimating the
+background from at most `num_frames_bg_subtract` leading frames. The full echogram
+array remains in memory. `start_frame` is inclusive and `end_frame` is exclusive;
+`end_frame=-1` selects the end of the recording. The last selected frame is omitted
+for alignment with the image pipeline's temporal differences. Empty and one-frame
+ranges return an empty array; invalid ranges raise `ValueError`.
+
+For batched export, use the standard loader with explicit independent outputs:
+
+```python
+from fisheye.configs import BaseDatasetConfig
+from fisheye.dataloaders import create_dataloader
+
+loader, dataset = create_dataloader(BaseDatasetConfig(
+    filepath="recording.aris",
+    return_frames=False,
+    return_unwarped=False,
+    return_echogram=True,
+    echogram_channels=channels,
+))
+for index, (_, _, _, batch_echogram, _) in enumerate(loader):
+    np.save(f"echogram_{index:05d}.npy", batch_echogram.numpy())
+```
+
+Channel order follows `echogram_channels`, which accepts enums or their string
+values. An optional trailing `None` is ignored; `"0"` adds a zero-filled channel.
+The default remains `["bgs", "bgs_angle"]`. Request `["raw", "angle"]` for raw
+intensity with its angle, or append `"raw"` to the default for a third channel.
+
+| Channel | Values |
+| --- | --- |
+| `raw` | Maximum beam intensity divided by 255, in `[0, 1]` |
+| `bgs` | Maximum background-subtracted intensity divided by the background normalization scale; signed and not clipped |
+| `angle` | Raw intensity's peak beam index divided by beam count, minus 0.5 |
+| `bgs_angle` | Background-subtracted intensity's peak beam index divided by beam count, minus 0.5 |
+| `center_line` | Intensity at the middle beam divided by 255, in `[0, 1]` |
+| `0` | Zero |
+
+`do_bg_subtract` controls frame preprocessing. Echogram background subtraction
+is determined independently by the selected channels. Explicit echogram-only
+loading uses the requested background frame count regardless of batch size.
+
+Existing calls that omit `return_frames` keep the original output contract:
+`return_unwarped=True` selects the primary image representation and the auxiliary
+unwarped output stays raw. The old `return_echogram_with_bg_subtracted=False`
+argument remains supported, including its original raw intensity scale `[0, 255]`.
+Explicit `echogram_channels` takes precedence over that argument and uses the
+channel scales above.
+
+Setting `return_frames=True` or `False` opts into independent outputs: the primary
+slot contains warped frames or `None`, the auxiliary unwarped slot is controlled by
+`return_unwarped`, and the echogram slot by `return_echogram`. With BGS enabled,
+returned images have three channels (original, BGS, temporal difference); without
+BGS, warped images have one channel and auxiliary unwarped frames stay raw.
+`YOLODatasetConfig(return_frames=False)` is rejected; use `BaseDatasetConfig` for
+saving echograms.
+
+---
+
 ## Building Training Datasets (Beta)
 
 ⚠️ This feature is under active development.
