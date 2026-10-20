@@ -40,14 +40,8 @@ class BaseDatasetConfig:
     def __post_init__(self):
         if self.batch_size <= 0 or self.num_frames_bg_subtract <= 0:
             raise ValueError("batch_size and num_frames_bg_subtract must be positive")
-        self._legacy_raw_echogram = (
-            self.echogram_channels is None
-            and not self.return_echogram_with_bg_subtracted
-        )
-        channels = self.echogram_channels
-        if self._legacy_raw_echogram:
-            channels = [EchogramChannel.RAW, EchogramChannel.ANGLE]
-        self.echogram_channels = normalize_echogram_channels(channels)
+        if self.echogram_channels is not None:
+            self.echogram_channels = normalize_echogram_channels(self.echogram_channels)
 
 
 @dataclass

@@ -14,7 +14,8 @@ import struct
 import warnings
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Union
+from typing import BinaryIO, Union
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
@@ -28,6 +29,7 @@ from fisheye.dataloaders.echogram import (
 )
 from fisheye.dataloaders.compute_bg_subtraction import compute_bg_subtraction
 from fisheye.echogram_channels import normalize_echogram_channels
+from fisheye.enums import EchogramChannel
 
 BASE = Path(__file__).parent.parent.parent
 BEAM_WIDTH_DIR = (BASE / "beam_widths").resolve()
@@ -657,12 +659,12 @@ class DIDSON:
 
     def load_frames(
         self,
-        file=None,
-        start_frame=0,
-        end_frame=-1,
-        return_unwarped=False,
-        return_warped=True,
-    ):
+        file: str | Path | BinaryIO | None = None,
+        start_frame: int = 0,
+        end_frame: int = -1,
+        return_unwarped: bool = False,
+        return_warped: bool = True,
+    ) -> tuple[np.ndarray | None, np.ndarray | None]:
         """Load and warp DIDSON frames into images.
 
         Parameters
@@ -712,16 +714,16 @@ class DIDSON:
 
     def load_echogram(
         self,
-        file=None,
-        start_frame=0,
-        end_frame=-1,
-        num_frames_bg_subtract=1000,
-        use_blur=True,
-        use_multithreading=True,
-        max_workers=2,
-        echogram_channels=None,
-        chunk_size=256,
-    ):
+        file: str | Path | BinaryIO | None = None,
+        start_frame: int = 0,
+        end_frame: int = -1,
+        num_frames_bg_subtract: int = 1000,
+        use_blur: bool = True,
+        use_multithreading: bool = True,
+        max_workers: int = 2,
+        echogram_channels: Sequence[EchogramChannel | str | None] | None = None,
+        chunk_size: int = 256,
+    ) -> np.ndarray:
         """Load unwarped beam data and return an echogram without building warped frames.
         Parameters
         ----------
@@ -755,9 +757,7 @@ class DIDSON:
         if start_frame == -1:
             start_frame = self.info.get("startframe", 0)
         if end_frame == -1:
-            end_frame = max(
-                x for x in (self.info.get("endframe"), self.info.get("numframes")) if x
-            )
+            end_frame = self.info["numframes"]
         if not 0 <= start_frame <= end_frame <= self.info["numframes"]:
             raise ValueError("Expected 0 <= start_frame <= end_frame <= numframes")
         if chunk_size <= 0 or num_frames_bg_subtract <= 0:

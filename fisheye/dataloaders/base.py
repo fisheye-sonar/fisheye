@@ -4,6 +4,8 @@ from torch.utils.data import Dataset
 
 from fisheye.common.generic import run_with_threads
 from fisheye.configs import BaseDatasetConfig
+from fisheye.echogram_channels import normalize_echogram_channels
+from fisheye.enums import EchogramChannel
 from fisheye.dataloaders.echogram import (
     compute_echogram,
     echogram_uses_bg_subtraction,
@@ -42,13 +44,20 @@ class BaseDataset(Dataset):
             not self.independent_outputs and config.return_unwarped
         )
         self.return_frames = config.return_frames if self.independent_outputs else True
-        self.legacy_raw_echogram = config._legacy_raw_echogram
+        self.legacy_raw_echogram = (
+            config.echogram_channels is None
+            and not config.return_echogram_with_bg_subtracted
+        )
         self.return_unwarped = config.return_unwarped or (
             not self.independent_outputs and config.return_echogram
         )
         self.return_echogram = config.return_echogram
         self.need_unwarped = self.return_unwarped or self.return_echogram
-        self.echogram_channels = config.echogram_channels
+        self.echogram_channels = normalize_echogram_channels(
+            [EchogramChannel.RAW, EchogramChannel.ANGLE]
+            if self.legacy_raw_echogram
+            else config.echogram_channels
+        )
         self.do_bg_subtract_echogram = echogram_uses_bg_subtraction(
             self.echogram_channels
         )

@@ -52,14 +52,13 @@ def compute_echogram(
 
     bgs_angle_echogram = None
     if do_bg_subtract_echogram:
-        bgs_frames = frames_f32
         if mean_blurred_frame is None or mean_normalization_value is None:
             raise ValueError(
                 "mean_blurred_frame and mean_normalization_value are required when "
                 "do_bg_subtract_echogram=True"
             )
-        bgs_frames = bgs_frames - mean_blurred_frame
-        bgs_frames = bgs_frames / np.where(
+        bgs_frames = np.subtract(frames_f32, mean_blurred_frame, dtype=np.float32)
+        bgs_frames /= np.where(
             np.asarray(mean_normalization_value) > 0, mean_normalization_value, 1.0
         )
         bgs_echogram = np.max(bgs_frames, axis=2).astype(np.float32, copy=False)
@@ -86,8 +85,8 @@ def compute_echogram(
                 np.argmax(frames_f32, axis=2).astype(np.float32) / float(depth)
             ) - 0.5
         elif channel_name == EchogramChannel.CENTER_LINE:
-            center_line_echgram = frames_f32[:, :, frames_f32.shape[2] // 2]
-            output[:, :, channel_index] = _normalize_center_line(center_line_echgram)
+            center_line_echogram = frames_f32[:, :, frames_f32.shape[2] // 2]
+            output[:, :, channel_index] = _normalize_center_line(center_line_echogram)
         else:
             raise ValueError(f"Unsupported echogram channel {channel_name!r}")
 

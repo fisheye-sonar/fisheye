@@ -263,3 +263,37 @@ def test_direct_loader_rejects_invalid_range(start, end):
     didson.info = {"numframes": 9, "unwarped_shape": (4, 3)}
     with pytest.raises(ValueError, match="start_frame"):
         didson.load_echogram(start_frame=start, end_frame=end)
+
+
+@pytest.mark.parametrize("fixture", ["sample.aris", "sample.ddf"])
+def test_chunked_loading_reads_real_sonar_frames(fixture):
+    from pathlib import Path
+
+    sonar = DIDSON(Path(__file__).parent / "data" / fixture)
+    end = min(5, sonar.info["numframes"])
+    chunked = sonar.load_echogram(
+        end_frame=end, chunk_size=1, echogram_channels=["bgs", "bgs_angle", "raw"]
+    )
+    eager = sonar.load_echogram(
+        end_frame=end, chunk_size=end, echogram_channels=["bgs", "bgs_angle", "raw"]
+    )
+    np.testing.assert_array_equal(chunked, eager)
+
+
+def test_legacy_config_survives_copy_and_serialization():
+    from dataclasses import asdict, replace
+
+    original = config(
+        return_frames=False,
+        return_echogram=True,
+        return_echogram_with_bg_subtracted=False,
+    )
+    for copied in [replace(original), BaseDatasetConfig(**asdict(original))]:
+        result = SmallDataset(copied)[0][3]
+        np.testing.assert_array_equal(result[..., 0], FRAMES[:-1].max(axis=2))
+
+
+def test_direct_empty_recording_returns_empty_array():
+    sonar = DIDSON.__new__(DIDSON)
+    sonar.info = {"numframes": 0, "unwarped_shape": (4, 3)}
+    assert sonar.load_echogram().shape == (0, 4, 2)
