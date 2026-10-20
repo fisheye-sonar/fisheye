@@ -263,3 +263,11 @@ The builder produces:
 
 ## Did you find a bug?
 If you're experiencing a bug or unexpected behavior in the FishEye software, please [submit an issue in GitHub](https://github.com/fisheye-sonar/fisheye/issues/new?template=bug_report.md). This helps us identify and fix the issue quickly.
+
+## Optional Positive-Only Background Subtraction
+
+`BaseDatasetConfig(only_pos_bgs=True)` clips negative background-subtracted image
+values to zero before scaling to uint8. The temporal-difference channel is computed
+from that positive-only signal. The default is `False`, preserving existing model
+inputs. This changes image preprocessing; assess model behavior before enabling it
+with weights trained on the default representation. It does not change echograms.

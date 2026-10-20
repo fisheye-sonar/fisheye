@@ -28,6 +28,7 @@ class BaseDataset(Dataset):
         self.cache_bg_frames = config.cache_bg_frames
         self.num_frames_bg_subtract = config.num_frames_bg_subtract
         self.do_bg_subtract = config.do_bg_subtract
+        self.only_pos_bgs = config.only_pos_bgs
         self.return_echogram_with_bg_subtracted = (
             config.return_echogram_with_bg_subtracted
         )
@@ -189,6 +190,7 @@ class BaseDataset(Dataset):
         This method:
             • Applies Gaussian blurring to each frame (optionally with multithreading)
             • Normalizes blurred frames using either warped or unwarped mean statistics
+            • Optionally clips negative normalized values for positive-only BGS
             • Scales normalized values into the [0, 255] range
             • Constructs a 3-channel image stack consisting of:
                 - Channel 0: original frames (excluding the last)
@@ -226,7 +228,10 @@ class BaseDataset(Dataset):
         # Normalize in-place (float32)
         blurred_frames -= mean_blurred_frame
         blurred_frames /= mean_normalization_value
-        blurred_frames = (blurred_frames + 1.0) * 0.5  # combine two ops
+        if self.only_pos_bgs:
+            np.maximum(blurred_frames, 0, out=blurred_frames)
+        else:
+            blurred_frames = (blurred_frames + 1.0) * 0.5
 
         # Convert to uint8 channels
         # If you KNOW values are in [0,1], clip can be skipped; otherwise keep it.
