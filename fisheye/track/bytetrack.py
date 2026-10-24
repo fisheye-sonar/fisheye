@@ -56,6 +56,7 @@ class ByteTracker(BaseTracker):
 
         NOTE: The number of objects returned may differ from the number of detections provided.
         """
+        self.last_detection_matches = {}
         self.frame_count += 1
         # get predicted locations from existing trackers.
         low_dets = dets[0]
@@ -85,15 +86,18 @@ class ByteTracker(BaseTracker):
         matched_tracks = []
         for m in high_matched:
             self.trackers[m[1]].update(high_dets[m[0], :])
+            self.last_detection_matches[self.trackers[m[1]].id + 1] = (1, int(m[0]))
             matched_tracks.append(m[1])
         for m in low_matched:
             if m[1] not in matched_tracks:
                 self.trackers[m[1]].update(low_dets[m[0], :])
+                self.last_detection_matches[self.trackers[m[1]].id + 1] = (0, int(m[0]))
 
         # create and initialise new trackers for unmatched detections
         for i in unmatched_high_dets:
             trk = KalmanBoxTracker(high_dets[i, :])
             self.trackers.append(trk)
+            self.last_detection_matches[trk.id + 1] = (1, int(i))
 
         i = len(self.trackers)
         for trk in reversed(self.trackers):

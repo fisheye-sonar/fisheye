@@ -1,4 +1,7 @@
 from typing import Dict, Any, Optional, Tuple
+from dataclasses import asdict, is_dataclass
+from pathlib import Path
+import hashlib
 
 import structlog
 import torch
@@ -14,6 +17,7 @@ from fisheye.configs import NMSConfig, get_length_model_config
 from fisheye.dataloaders import create_dataloader
 from fisheye.detect.base import BaseModel
 from fisheye.enums import LengthEstimatorType
+from fisheye.endpoints.config import EndpointConfig
 from fisheye.lengths.factory import create_length_estimator
 
 logger = structlog.get_logger()
@@ -53,6 +57,37 @@ class ObjectDetectionPipeline:
         self.apply_nms_batchwise = config.apply_nms_batchwise
         self.apply_length_estimates_batchwise = config.apply_length_estimates_batchwise
         self.length_config = config.length_config
+        self.endpoint_config = EndpointConfig.from_value(config.endpoints)
+        self.endpoint_session = None
+        self._endpoint_model_provenance = None
+        if self.endpoint_config.enabled:
+            if not self.apply_nms_batchwise:
+                raise ValueError("Endpoint inference requires batchwise NMS")
+            self.apply_length_estimates_batchwise = False
+
+    def endpoint_detection_provenance(self):
+        """Hash detector weights once per worker and record actual NMS policies."""
+        if self._endpoint_model_provenance is None:
+            cfg = self.model.config
+            values = asdict(cfg) if is_dataclass(cfg) else {}
+            weights = values.get("weights")
+            digest = None
+            if weights and Path(weights).is_file():
+                hasher = hashlib.sha256()
+                with Path(weights).open("rb") as stream:
+                    for block in iter(lambda: stream.read(1024 * 1024), b""):
+                        hasher.update(block)
+                digest = hasher.hexdigest()
+            self._endpoint_model_provenance = {
+                "model_class": type(self.model).__name__,
+                "config": values,
+                "checkpoint_sha256": digest,
+            }
+        return {
+            **self._endpoint_model_provenance,
+            "nms": asdict(self.nms_config),
+            "nms_confidence_groups": {"low": 0.1, "high": 0.3},
+        }
 
     def __call__(self, *args, **kwargs):
         """Executes the detection pipeline."""
@@ -98,7 +133,14 @@ class ObjectDetectionPipeline:
             )
 
         with torch.inference_mode():
-            for batch_idx, (img, _, shapes, original_img) in enumerate(self.dataloader):
+            for batch_idx, batch in enumerate(self.dataloader):
+                img, _, shapes, original_img = batch[:4]
+                if self.endpoint_config.enabled:
+                    if self.endpoint_session is None or len(batch) != 5:
+                        raise RuntimeError(
+                            "Endpoint frame capture/session is not configured"
+                        )
+                    self.endpoint_session.capture(batch[4], batch_idx, len(img))
                 if original_img is not None:
                     original_img = original_img.to(self.device, non_blocking=True)
 

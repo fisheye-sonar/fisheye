@@ -166,21 +166,33 @@ def format_single_crossing(
         }
 
     len_outputs = len_outputs or {}
+    estimate = len_outputs.get(track_id) or {}
+    length_frame = estimate.get("frame_id_closest_to_mean")
 
-    return {
+    crossing = {
         "Source.Name": filename,
         "Source.Path": source_path,
         "file_index": file_index,
-        "Frame#": len_outputs.get(track_id, {}).get("frame_id_closest_to_mean")
-        or frame,
+        "Frame#": length_frame if length_frame is not None else frame,
         "Dir": "Up" if upstream_direction == crossing_direction else "Down",
         "ID": track_id,
         "bbox": bbox,
         "metadata": metadata,
-        "global_coords_px": len_outputs.get(track_id, {}).get("global_coords_px"),
+        "global_coords_px": estimate.get("global_coords_px"),
         "L(cm)": round(
-            len_outputs.get(track_id, {}).get("filtered_lengths_cm")
-            or FC_SCHEMA["L(cm)"].default,
+            estimate.get("filtered_lengths_cm") or FC_SCHEMA["L(cm)"].default,
             2,
         ),
     }
+    if estimate.get("length_method") == "track_percentile":
+        crossing.update(
+            {
+                "Crossing Frame#": frame,
+                "length_method": estimate["length_method"],
+                "length_percentile": estimate["length_percentile"],
+                "length_percentiles_cm": estimate.get("length_percentiles_cm"),
+                "length_observations": estimate["length_observations"],
+                "representative_length_cm": estimate["representative_length_cm"],
+            }
+        )
+    return crossing

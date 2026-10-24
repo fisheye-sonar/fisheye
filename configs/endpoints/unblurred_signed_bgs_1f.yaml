@@ -1,0 +1,29 @@
+# @package _global_
+# Signed-BGS seed 2, native detector channel 1, one center frame.
+platform:
+  dataset:
+    use_blur: false
+    only_pos_bgs: false
+    do_bg_subtract: true
+    return_unwarped: false
+    return_original_image: false
+  inference:
+    endpoints:
+      enabled: true
+      model:
+        bundle: weights/endpoints/unblurred_signed_bgs_1f_seed2
+      device: cpu
+      crop_batch_size: 1
+      frame_store:
+        ram_limit_mb: 512
+        disk_limit_gb: 20
+        directory: null
+      export_predictions: true
+      track_length:
+        enabled: true
+        # Perpendicular distance to either calibrated sonar cone SIDE, in native px.
+        edge_margin_px: 25
+        # Require this many usable observations AFTER endpoint/length filtering.
+        min_track_points: 5
+        # 50 = median; valid range 0..100, using linear interpolation.
+        percentile: 50

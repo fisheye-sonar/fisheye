@@ -4,6 +4,7 @@ import warnings
 
 from fisheye.configs import YOLOv5ModelConfig
 from fisheye.detect.base import BaseModel
+from fisheye._yolov5_compat import prepare_yolov5_loading
 
 
 # Suppress the `torch.cuda.amp.autocast(args...)` warning is deprecated.* raised in yolov5.models.common
@@ -35,6 +36,7 @@ class YOLOv5ObjectDetectionModel(BaseModel):
 
     def _load_model(self, weights, device):
         """Loads the weights & device. Modified version from Ultralytics."""
+        prepare_yolov5_loading()
         model = yolov5.load(weights, device)
 
         # Set model parameters

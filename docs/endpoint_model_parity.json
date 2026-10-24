@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "reference_revision": "e29d4614ce523f483027bc4a61b8cb5993fade11",
+  "selection": "Fixed evenly spaced reviewed validation indexes; checkpoints preselected using validation metrics",
+  "scope": "Identical historical reviewed images and explicit evaluator crops; source-image equivalence with newly generated FishEye BGS is a separate check",
+  "device": "cpu",
+  "models": {
+    "yolo_5f": {
+      "backend": "yolo_pose",
+      "source_checkpoint": "runs/yolo_pose/yolo26s_pose_manual_lr1e4_gpu1/best_percentage_length_error.pt",
+      "source_checkpoint_sha256": "4c7815bea1a98d424281bf9fda063ceacbd48b502dc43084b4776d3782820d65",
+      "portable_checkpoint_sha256": "67740c12a6568924af2f32a27d1fba7b84f995395e168ba6901b6ae6eb2187fe",
+      "role": "val",
+      "available_queries": 3627,
+      "queries": [
+        {
+          "dataset_index": 0,
+          "location": "chemainus",
+          "clip_name": "MEDIUM_2023-10-19_Chemainus_LeftBank_080000_1_1783_00507_01507",
+          "track_id": 1,
+          "track_frame_index": 0,
+          "file_name": "MEDIUM_2023-10-19_Chemainus_LeftBank_080000_1_1783_00507_01507_00314.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": null,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              218.36685180664062,
+              912.93212890625
+            ],
+            [
+              243.72056579589844,
+              910.7379150390625
+            ]
+          ]
+        },
+        {
+          "dataset_index": 1813,
+          "location": "kenai-rightbank-stratum1",
+          "clip_name": "2018-06-04-JD155_RightFar_Stratum1_Set1_RO_2018-06-04_090004_04452_04652",
+          "track_id": 1,
+          "track_frame_index": 10,
+          "file_name": "2018-06-04-JD155_RightFar_Stratum1_Set1_RO_2018-06-04_090004_04452_04652_00099.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": null,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              98.33474731445312,
+              601.3515625
+            ],
+            [
+              208.81369018554688,
+              610.8155517578125
+            ]
+          ]
+        },
+        {
+          "dataset_index": 3626,
+          "location": "nushagak",
+          "clip_name": "RB_Nusagak_Sonar_Files_2018_RB_2018-07-13_121000_04500_04800",
+          "track_id": 8,
+          "track_frame_index": 42,
+          "file_name": "RB_Nusagak_Sonar_Files_2018_RB_2018-07-13_121000_04500_04800_00042.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": null,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              294.2367248535156,
+              1261.6700439453125
+            ],
+            [
+              395.51812744140625,
+              1212.8638916015625
+            ]
+          ]
+        }
+      ]
+    },
+    "heatmap_5f": {
+      "backend": "yolo_target_heatmap",
+      "source_checkpoint": "runs/endpoint_experiments/target_heatmap/best_percentage_length_error.pt",
+      "source_checkpoint_sha256": "c1dc6c8210ae57b0ba1cb9320a5c95d0910f8a6d686b6d6e7f3fbdd48a719b6a",
+      "portable_checkpoint_sha256": "4ce8c2d98fae17b49e69adce5e74e09c51da9482383e4f8d92242de7cff6616c",
+      "role": "val",
+      "available_queries": 3627,
+      "queries": [
+        {
+          "dataset_index": 0,
+          "location": "chemainus",
+          "clip_name": "MEDIUM_2023-10-19_Chemainus_LeftBank_080000_1_1783_00507_01507",
+          "track_id": 1,
+          "track_frame_index": 0,
+          "file_name": "MEDIUM_2023-10-19_Chemainus_LeftBank_080000_1_1783_00507_01507_00314.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              218.58328247070312,
+              913.28759765625
+            ],
+            [
+              243.35313415527344,
+              910.9075317382812
+            ]
+          ]
+        },
+        {
+          "dataset_index": 1813,
+          "location": "kenai-rightbank-stratum1",
+          "clip_name": "2018-06-04-JD155_RightFar_Stratum1_Set1_RO_2018-06-04_090004_04452_04652",
+          "track_id": 1,
+          "track_frame_index": 10,
+          "file_name": "2018-06-04-JD155_RightFar_Stratum1_Set1_RO_2018-06-04_090004_04452_04652_00099.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              97.86255645751953,
+              602.2520141601562
+            ],
+            [
+              206.91395568847656,
+              609.6561279296875
+            ]
+          ]
+        },
+        {
+          "dataset_index": 3626,
+          "location": "nushagak",
+          "clip_name": "RB_Nusagak_Sonar_Files_2018_RB_2018-07-13_121000_04500_04800",
+          "track_id": 8,
+          "track_frame_index": 42,
+          "file_name": "RB_Nusagak_Sonar_Files_2018_RB_2018-07-13_121000_04500_04800_00042.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              293.8077392578125,
+              1259.734130859375
+            ],
+            [
+              385.12237548828125,
+              1208.8297119140625
+            ]
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,739 @@
+{
+  "schema_version": 1,
+  "reference_revision": "e29d4614ce523f483027bc4a61b8cb5993fade11",
+  "selection": "Fixed evenly spaced reviewed validation indexes; checkpoints preselected using validation metrics",
+  "scope": "Identical historical reviewed images and explicit evaluator crops; source-image equivalence with newly generated FishEye BGS is a separate check",
+  "device": "cpu",
+  "models": {
+    "unblurred_signed_bgs_1f": {
+      "backend": "yolo_pose",
+      "source_checkpoint": "/mnt/data/length_annotator/experiments/fisheye_inputs/unblurred_signed_bgs_center_pose_1f_bs16_cos100_seed2/best_percentage_length_error.pt",
+      "source_checkpoint_sha256": "05bb9af3649301539d013821a1bfa25fc1401885cf92454b166f4f271e19af5f",
+      "portable_checkpoint_sha256": "d9aa1e5aee9f986437fd437ddf8712474ffd1d467802564770024daee01da33e",
+      "role": "val",
+      "available_queries": 3627,
+      "queries": [
+        {
+          "dataset_index": 0,
+          "location": "chemainus",
+          "clip_name": "MEDIUM_2023-10-19_Chemainus_LeftBank_080000_1_1783_00507_01507",
+          "track_id": 1,
+          "track_frame_index": 0,
+          "file_name": "MEDIUM_2023-10-19_Chemainus_LeftBank_080000_1_1783_00507_01507_00314.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              218.00486755371094,
+              912.66064453125
+            ],
+            [
+              242.57485961914062,
+              910.9229736328125
+            ]
+          ]
+        },
+        {
+          "dataset_index": 125,
+          "location": "chemainus",
+          "clip_name": "MEDIUM_2023-10-19_Chemainus_LeftBank_080000_1_1783_00507_01507",
+          "track_id": 8,
+          "track_frame_index": 6,
+          "file_name": "MEDIUM_2023-10-19_Chemainus_LeftBank_080000_1_1783_00507_01507_00840.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              287.5745849609375,
+              852.5457153320312
+            ],
+            [
+              299.8578186035156,
+              853.6177368164062
+            ]
+          ]
+        },
+        {
+          "dataset_index": 250,
+          "location": "chemainus",
+          "clip_name": "MEDIUM_2023-10-19_Chemainus_LeftBank_080000_3566_5349_01540_01783",
+          "track_id": 2,
+          "track_frame_index": 43,
+          "file_name": "MEDIUM_2023-10-19_Chemainus_LeftBank_080000_3566_5349_01540_01783_00133.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              300.364990234375,
+              419.1195373535156
+            ],
+            [
+              326.29522705078125,
+              428.9139404296875
+            ]
+          ]
+        },
+        {
+          "dataset_index": 375,
+          "location": "dungeness",
+          "clip_name": "MEDIUM_2022-03-14-Dungeness-03-14_190000_5100_5273_00000_00173",
+          "track_id": 1,
+          "track_frame_index": 29,
+          "file_name": "MEDIUM_2022-03-14-Dungeness-03-14_190000_5100_5273_00000_00173_00048.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              347.62396240234375,
+              1034.62744140625
+            ],
+            [
+              358.6065368652344,
+              1040.4635009765625
+            ]
+          ]
+        },
+        {
+          "dataset_index": 500,
+          "location": "eel",
+          "clip_name": "ARIS_2023-11-07_090000_03700_03800",
+          "track_id": 1,
+          "track_frame_index": 16,
+          "file_name": "ARIS_2023-11-07_090000_03700_03800_00070.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              632.664306640625,
+              2482.91943359375
+            ],
+            [
+              658.1591796875,
+              2484.16259765625
+            ]
+          ]
+        },
+        {
+          "dataset_index": 625,
+          "location": "eel",
+          "clip_name": "ARIS_2023-11-07_090000_06100_06280",
+          "track_id": 1,
+          "track_frame_index": 25,
+          "file_name": "ARIS_2023-11-07_090000_06100_06280_00106.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              537.3161010742188,
+              1472.1268310546875
+            ],
+            [
+              635.46484375,
+              1474.2523193359375
+            ]
+          ]
+        },
+        {
+          "dataset_index": 750,
+          "location": "elwha",
+          "clip_name": "Elwha_2018_OM_ARIS_2018_07_26_2018-07-26_010003_00605_00805",
+          "track_id": 1,
+          "track_frame_index": 12,
+          "file_name": "Elwha_2018_OM_ARIS_2018_07_26_2018-07-26_010003_00605_00805_00093.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              163.8075714111328,
+              165.7097625732422
+            ],
+            [
+              229.47430419921875,
+              178.1033935546875
+            ]
+          ]
+        },
+        {
+          "dataset_index": 875,
+          "location": "elwha",
+          "clip_name": "Elwha_2018_OM_ARIS_2018_07_27_2018-07-27_060000_03567_04018",
+          "track_id": 1,
+          "track_frame_index": 43,
+          "file_name": "Elwha_2018_OM_ARIS_2018_07_27_2018-07-27_060000_03567_04018_00043.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              485.9920349121094,
+              219.2490234375
+            ],
+            [
+              573.4878540039062,
+              258.4276123046875
+            ]
+          ]
+        },
+        {
+          "dataset_index": 1000,
+          "location": "elwha",
+          "clip_name": "Elwha_2018_OM_ARIS_2018_07_27_2018-07-27_060000_03567_04018",
+          "track_id": 3,
+          "track_frame_index": 155,
+          "file_name": "Elwha_2018_OM_ARIS_2018_07_27_2018-07-27_060000_03567_04018_00425.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              266.3819580078125,
+              300.05340576171875
+            ],
+            [
+              360.2330322265625,
+              303.6965637207031
+            ]
+          ]
+        },
+        {
+          "dataset_index": 1125,
+          "location": "kenai-channel-stratum1",
+          "clip_name": "2018-08-16-JD228_Channel_Stratum1_Set1_CH_2018-08-16_090006_00328_00528",
+          "track_id": 2,
+          "track_frame_index": 25,
+          "file_name": "2018-08-16-JD228_Channel_Stratum1_Set1_CH_2018-08-16_090006_00328_00528_00184.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              76.45758056640625,
+              286.16912841796875
+            ],
+            [
+              133.310302734375,
+              284.9352111816406
+            ]
+          ]
+        },
+        {
+          "dataset_index": 1250,
+          "location": "kenai-channel-stratum3",
+          "clip_name": "2018-08-16-JD228_Channel_Stratum3_Set1_CH_2018-08-16_082000_00587_00787",
+          "track_id": 1,
+          "track_frame_index": 23,
+          "file_name": "2018-08-16-JD228_Channel_Stratum3_Set1_CH_2018-08-16_082000_00587_00787_00023.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              136.98121643066406,
+              279.1228332519531
+            ],
+            [
+              203.86441040039062,
+              284.14776611328125
+            ]
+          ]
+        },
+        {
+          "dataset_index": 1375,
+          "location": "kenai-channel-stratum3",
+          "clip_name": "2018-08-16-JD228_Channel_Stratum3_Set1_CH_2018-08-16_082000_00587_00787",
+          "track_id": 5,
+          "track_frame_index": 115,
+          "file_name": "2018-08-16-JD228_Channel_Stratum3_Set1_CH_2018-08-16_082000_00587_00787_00176.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              140.87828063964844,
+              465.488525390625
+            ],
+            [
+              214.9367218017578,
+              466.1340026855469
+            ]
+          ]
+        },
+        {
+          "dataset_index": 1500,
+          "location": "kenai-leftbank-stratum1",
+          "clip_name": "2018-06-06-JD157_LeftNear_Stratum1_Set1_LN_2018-06-06_010000_00669_00869",
+          "track_id": 3,
+          "track_frame_index": 8,
+          "file_name": "2018-06-06-JD157_LeftNear_Stratum1_Set1_LN_2018-06-06_010000_00669_00869_00148.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              181.42575073242188,
+              762.9937744140625
+            ],
+            [
+              231.0758056640625,
+              750.9464721679688
+            ]
+          ]
+        },
+        {
+          "dataset_index": 1625,
+          "location": "kenai-leftbank-stratum2",
+          "clip_name": "2018-06-02-JD153_LeftFar_Stratum2_Set1_LO_2018-06-02_061003_03416_03813",
+          "track_id": 1,
+          "track_frame_index": 85,
+          "file_name": "2018-06-02-JD153_LeftFar_Stratum2_Set1_LO_2018-06-02_061003_03416_03813_00266.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              438.0278015136719,
+              1494.926025390625
+            ],
+            [
+              590.46435546875,
+              1461.573974609375
+            ]
+          ]
+        },
+        {
+          "dataset_index": 1750,
+          "location": "kenai-leftbank-stratum3",
+          "clip_name": "2018-06-01-JD152_LeftFar_Stratum3_Set1_LO_2018-06-01_172000_00127_00528",
+          "track_id": 1,
+          "track_frame_index": 20,
+          "file_name": "2018-06-01-JD152_LeftFar_Stratum3_Set1_LO_2018-06-01_172000_00127_00528_00150.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              279.55712890625,
+              641.2364501953125
+            ],
+            [
+              363.1031494140625,
+              623.2910766601562
+            ]
+          ]
+        },
+        {
+          "dataset_index": 1875,
+          "location": "kenai-rightbank-stratum1",
+          "clip_name": "2018-06-07-JD158_RightNear_Stratum1_Set1_RN_2018-06-07_020004_00784_00984",
+          "track_id": 1,
+          "track_frame_index": 25,
+          "file_name": "2018-06-07-JD158_RightNear_Stratum1_Set1_RN_2018-06-07_020004_00784_00984_00103.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              18.634336471557617,
+              141.54273986816406
+            ],
+            [
+              84.06305694580078,
+              112.38459777832031
+            ]
+          ]
+        },
+        {
+          "dataset_index": 2000,
+          "location": "kenai-rightbank-stratum2",
+          "clip_name": "2018-06-09-JD160_RightNear_Stratum2_Set1_RN_2018-06-09_053004_00298_00498",
+          "track_id": 2,
+          "track_frame_index": 6,
+          "file_name": "2018-06-09-JD160_RightNear_Stratum2_Set1_RN_2018-06-09_053004_00298_00498_00077.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              406.9007568359375,
+              491.63885498046875
+            ],
+            [
+              452.7334899902344,
+              479.6575622558594
+            ]
+          ]
+        },
+        {
+          "dataset_index": 2125,
+          "location": "kenai-rightbank-stratum2",
+          "clip_name": "2018-06-09-JD160_RightNear_Stratum2_Set1_RN_2018-06-09_053004_00298_00498",
+          "track_id": 3,
+          "track_frame_index": 60,
+          "file_name": "2018-06-09-JD160_RightNear_Stratum2_Set1_RN_2018-06-09_053004_00298_00498_00140.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              163.1817626953125,
+              526.5928955078125
+            ],
+            [
+              254.3099822998047,
+              527.295166015625
+            ]
+          ]
+        },
+        {
+          "dataset_index": 2250,
+          "location": "kenai-rightbank-stratum3",
+          "clip_name": "2018-06-02-JD153_RightFar_Stratum3_Set1_RO_2018-06-02_072000_02734_03131",
+          "track_id": 2,
+          "track_frame_index": 27,
+          "file_name": "2018-06-02-JD153_RightFar_Stratum3_Set1_RO_2018-06-02_072000_02734_03131_00208.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              388.67327880859375,
+              237.7261962890625
+            ],
+            [
+              481.64129638671875,
+              211.41690063476562
+            ]
+          ]
+        },
+        {
+          "dataset_index": 2375,
+          "location": "kenai-rightbank-stratum3",
+          "clip_name": "2018-06-02-JD153_RightFar_Stratum3_Set1_RO_2018-06-02_072000_02734_03131",
+          "track_id": 3,
+          "track_frame_index": 178,
+          "file_name": "2018-06-02-JD153_RightFar_Stratum3_Set1_RO_2018-06-02_072000_02734_03131_00364.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              738.43359375,
+              1314.1318359375
+            ],
+            [
+              774.3758544921875,
+              1299.0091552734375
+            ]
+          ]
+        },
+        {
+          "dataset_index": 2500,
+          "location": "klamath",
+          "clip_name": "2024-11-06_053000_04017_04117",
+          "track_id": 1,
+          "track_frame_index": 50,
+          "file_name": "2024-11-06_053000_04017_04117_00059.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              650.3680419921875,
+              346.71795654296875
+            ],
+            [
+              738.9600830078125,
+              340.6050109863281
+            ]
+          ]
+        },
+        {
+          "dataset_index": 2625,
+          "location": "klamath",
+          "clip_name": "2024-11-07_070000_06137_06237",
+          "track_id": 1,
+          "track_frame_index": 75,
+          "file_name": "2024-11-07_070000_06137_06237_00075.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              523.4822998046875,
+              1786.8165283203125
+            ],
+            [
+              574.7575073242188,
+              1779.617431640625
+            ]
+          ]
+        },
+        {
+          "dataset_index": 2750,
+          "location": "mad",
+          "clip_name": "2024-11-14_120000_04673_04805",
+          "track_id": 2,
+          "track_frame_index": 9,
+          "file_name": "2024-11-14_120000_04673_04805_00018.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              306.40838623046875,
+              1291.5125732421875
+            ],
+            [
+              329.68914794921875,
+              1282.219970703125
+            ]
+          ]
+        },
+        {
+          "dataset_index": 2875,
+          "location": "mad",
+          "clip_name": "2024-11-14_130000_03726_03969",
+          "track_id": 1,
+          "track_frame_index": 90,
+          "file_name": "2024-11-14_130000_03726_03969_00096.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              378.06072998046875,
+              1075.3660888671875
+            ],
+            [
+              409.7259826660156,
+              1063.785888671875
+            ]
+          ]
+        },
+        {
+          "dataset_index": 3000,
+          "location": "nanaimo",
+          "clip_name": "EASY_2022-10-19_Nanaimo_RightBank2022_10_19_190000_00759_01438",
+          "track_id": 1,
+          "track_frame_index": 63,
+          "file_name": "EASY_2022-10-19_Nanaimo_RightBank2022_10_19_190000_00759_01438_00250.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              302.69091796875,
+              1221.7950439453125
+            ],
+            [
+              317.8083190917969,
+              1219.848876953125
+            ]
+          ]
+        },
+        {
+          "dataset_index": 3125,
+          "location": "nanaimo",
+          "clip_name": "EASY_2022-10-19_Nanaimo_RightBank2022_10_19_190000_04094_04499",
+          "track_id": 2,
+          "track_frame_index": 84,
+          "file_name": "EASY_2022-10-19_Nanaimo_RightBank2022_10_19_190000_04094_04499_00085.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              342.11737060546875,
+              804.0875244140625
+            ],
+            [
+              363.7820129394531,
+              800.7651977539062
+            ]
+          ]
+        },
+        {
+          "dataset_index": 3250,
+          "location": "nanaimo",
+          "clip_name": "EASY_2022-10-19_Nanaimo_RightBank2022_10_19_190000_04094_04499",
+          "track_id": 2,
+          "track_frame_index": 285,
+          "file_name": "EASY_2022-10-19_Nanaimo_RightBank2022_10_19_190000_04094_04499_00286.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              346.5456848144531,
+              796.2098388671875
+            ],
+            [
+              374.5005798339844,
+              796.6460571289062
+            ]
+          ]
+        },
+        {
+          "dataset_index": 3375,
+          "location": "nushagak",
+          "clip_name": "RB_Nusagak_Sonar_Files_2018_RB_2018-07-12_121000_00900_01200",
+          "track_id": 5,
+          "track_frame_index": 30,
+          "file_name": "RB_Nusagak_Sonar_Files_2018_RB_2018-07-12_121000_00900_01200_00030.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              434.448974609375,
+              1072.1722412109375
+            ],
+            [
+              547.4860229492188,
+              1056.7725830078125
+            ]
+          ]
+        },
+        {
+          "dataset_index": 3500,
+          "location": "nushagak",
+          "clip_name": "RB_Nusagak_Sonar_Files_2018_RB_2018-07-13_121000_04500_04800",
+          "track_id": 3,
+          "track_frame_index": 4,
+          "file_name": "RB_Nusagak_Sonar_Files_2018_RB_2018-07-13_121000_04500_04800_00004.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              200.92431640625,
+              880.4826049804688
+            ],
+            [
+              319.788330078125,
+              795.41943359375
+            ]
+          ]
+        },
+        {
+          "dataset_index": 3626,
+          "location": "nushagak",
+          "clip_name": "RB_Nusagak_Sonar_Files_2018_RB_2018-07-13_121000_04500_04800",
+          "track_id": 8,
+          "track_frame_index": 42,
+          "file_name": "RB_Nusagak_Sonar_Files_2018_RB_2018-07-13_121000_04500_04800_00042.jpg",
+          "status": "ok",
+          "prepared_tensor_equal": true,
+          "target_box_equal": true,
+          "support_equal": true,
+          "all_raw_output_tensors_equal": true,
+          "max_endpoint_error_px": 0.0,
+          "endpoints_xy_px": [
+            [
+              293.10894775390625,
+              1264.5196533203125
+            ],
+            [
+              389.8891906738281,
+              1205.026123046875
+            ]
+          ]
+        }
+      ]
+    }
+  }
+}

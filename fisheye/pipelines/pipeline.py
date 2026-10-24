@@ -1,6 +1,7 @@
 from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Optional, List, Union
+from uuid import uuid4
 
 import structlog
 
@@ -10,6 +11,12 @@ from fisheye.boxes import (
     std_bbox_width_yolo_to_image,
 )
 from fisheye.common.generic import safe_execution
+from fisheye.endpoints.config import (
+    EndpointBatchError,
+    EndpointConfig,
+    EndpointPipelineError,
+    validate_capture_config,
+)
 from fisheye.common.file_system import get_valid_files
 from fisheye.configs import YOLODatasetConfig
 from fisheye.configs.inference import (
@@ -47,9 +54,42 @@ class DetectTrackCountPipeline:
         self.dataset_cfg = dataset_cfg if dataset_cfg else YOLODatasetConfig()
         self.length_cfg = LengthEstimationConfig()
         self.target_size = target_size or TargetSizeConfig()
+        self.endpoint_config = EndpointConfig.from_value(
+            getattr(detect_pipe, "endpoint_config", None)
+        )
+        self.endpoint_processor = None
+        if self.endpoint_config.enabled:
+            if self.dataset_cfg.return_unwarped:
+                raise ValueError("Endpoint inference requires warped image coordinates")
+            from fisheye.endpoints.processor import EndpointProcessor
 
-    @safe_execution(default_return=[], max_retries=3, delay=2)
-    def _run(
+            self.endpoint_processor = EndpointProcessor(self.endpoint_config)
+            self.dataset_cfg = replace(
+                self.dataset_cfg,
+                capture_endpoint_frames=True,
+            )
+            validate_capture_config(self.dataset_cfg)
+
+    @safe_execution(
+        default_return=[], max_retries=3, delay=2, passthrough=(EndpointPipelineError,)
+    )
+    def _run(self, file, output_dir, *args, **kwargs):
+        if self.endpoint_processor is None:
+            return self._run_clip(file, output_dir, *args, **kwargs)
+        try:
+            with self.endpoint_processor.session(str(Path(file).resolve())) as session:
+                self.detect_pipe.endpoint_session = session
+                try:
+                    return self._run_clip(file, output_dir, *args, **kwargs)
+                finally:
+                    self.detect_pipe.endpoint_session = None
+        except Exception as exc:
+            logger.error("endpoint_clip_failed", file=str(file), error=str(exc))
+            raise EndpointPipelineError(
+                f"Endpoint processing failed for {file}: {exc}"
+            ) from exc
+
+    def _run_clip(
         self,
         file: Union[Path, List[Path]],
         output_dir: Union[str, Path],
@@ -74,20 +114,44 @@ class DetectTrackCountPipeline:
         )
         metadata = self.detect_pipe.metadata
 
+        tracker_options = {}
+        if self.endpoint_processor is not None:
+            tracker_options = {
+                "frame_ids": self.detect_pipe.endpoint_session.frame_ids,
+                "record_detection_matches": True,
+            }
         tracker_output = run_tracker(
-            low_preds,  # xyxy format relative to the original image pixel space
-            high_preds,  # xyxy format relative to the original image pixel space
+            low_preds,  # normalized xyxy in original warped image coordinates
+            high_preds,
             metadata.image_meter_width,
             metadata.image_meter_height,
             self.tracker_cfg,
             min_length=self.target_size.min_length,
+            **tracker_options,
         )
 
-        len_outputs = self._estimate_lengths(
-            tracker_output,
-            low_length_estimates,
-            high_length_estimates,
-        )
+        if self.endpoint_processor is not None:
+            self.endpoint_processor.process(
+                self.detect_pipe.endpoint_session,
+                tracker_output,
+                low_preds,
+                high_preds,
+                metadata,
+                Path(output_dir),
+                Path(file).stem,
+                detector_provenance=self.detect_pipe.endpoint_detection_provenance(),
+                tracker_config={
+                    **asdict(self.tracker_cfg),
+                    "target_size": asdict(self.target_size),
+                },
+            )
+            len_outputs = self.endpoint_processor.last_length_outputs
+        else:
+            len_outputs = self._estimate_lengths(
+                tracker_output,
+                low_length_estimates,
+                high_length_estimates,
+            )
 
         if len_outputs:
             num_fish_with_lengths = sum(
@@ -284,7 +348,11 @@ class DetectTrackCountPipeline:
             dict: Tracking results and counts.
         """
 
-        valid_files = get_valid_files(file, output_dir)
+        valid_files = get_valid_files(
+            file,
+            output_dir,
+            skip_existing_fc=getattr(self, "endpoint_processor", None) is None,
+        )
         if not valid_files:
             logger.error(
                 f"Unable to process valid files. Please verify that the file path is correct and that the "
@@ -294,17 +362,71 @@ class DetectTrackCountPipeline:
 
         logger.info("files_discovered", num_files=len(valid_files))
 
-        results = [
-            self._run(
-                f,
-                output_dir,
-                export_types,
-                job_id,
-                upstream_direction,
-                distance_offset,
-                file_index,
-            )
-            for file_index, f in enumerate(valid_files)
-        ]
+        results, failures = [], []
+        for file_index, source in enumerate(valid_files):
+            try:
+                result = self._run(
+                    source,
+                    output_dir,
+                    export_types,
+                    job_id,
+                    upstream_direction,
+                    distance_offset,
+                    file_index,
+                )
+            except EndpointPipelineError as exc:
+                failures.append(
+                    {
+                        "source_path": str(Path(source).resolve()),
+                        "file_index": file_index,
+                        "error_type": type(exc.__cause__ or exc).__name__,
+                        "message": str(exc),
+                    }
+                )
+                logger.error(
+                    "endpoint_file_failed_continuing",
+                    file=str(source),
+                    file_index=file_index,
+                    error=str(exc),
+                )
+            else:
+                results.append(result)
+
+        if failures:
+            from fisheye.endpoints.processor import atomic_json
+
+            # Match normal per-clip output placement when no shared directory
+            # was supplied. Use a unique basename to retain previous failures.
+            directories = {
+                Path(output_dir) if output_dir else Path(f["source_path"]).parent
+                for f in failures
+            }
+            basename = f"endpoint_failures_{uuid4().hex}.json"
+            reports, report_errors = [], []
+            for directory in sorted(directories):
+                path = directory / basename
+                try:
+                    atomic_json(
+                        path,
+                        {
+                            "schema_version": 1,
+                            "status": "partial_failure",
+                            "job_id": job_id,
+                            "attempted_clips": len(valid_files),
+                            "successful_clips": len(results),
+                            "failed_clips": len(failures),
+                            "failures": failures,
+                        },
+                    )
+                except OSError as exc:
+                    # A full output disk must not discard successful results
+                    # before the runner can attempt their combined summary.
+                    report_errors.append({"path": str(path), "message": str(exc)})
+                    logger.error(
+                        "endpoint_failure_report_failed", path=str(path), error=str(exc)
+                    )
+                else:
+                    reports.append(str(path))
+            raise EndpointBatchError(results, failures, reports, report_errors)
 
         return results

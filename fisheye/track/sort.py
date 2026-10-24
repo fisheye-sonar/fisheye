@@ -48,6 +48,7 @@ class Sort(BaseTracker):
 
         NOTE: The number of objects returned may differ from the number of detections provided.
         """
+        self.last_detection_matches = {}
         self.frame_count += 1
         # get predicted locations from existing trackers.
         trks = np.zeros((len(self.trackers), 5))
@@ -69,11 +70,13 @@ class Sort(BaseTracker):
         # update matched trackers with assigned detections
         for m in matched:
             self.trackers[m[1]].update(dets[m[0], :])
+            self.last_detection_matches[self.trackers[m[1]].id + 1] = (0, int(m[0]))
 
         # create and initialise new trackers for unmatched detections
         for i in unmatched_dets:
             trk = KalmanBoxTracker(dets[i, :])
             self.trackers.append(trk)
+            self.last_detection_matches[trk.id + 1] = (0, int(i))
 
         i = len(self.trackers)
         for trk in reversed(self.trackers):

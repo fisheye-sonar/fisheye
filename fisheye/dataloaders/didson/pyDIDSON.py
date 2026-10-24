@@ -621,6 +621,11 @@ class DIDSON:
                 frames.append(np.frombuffer(frame_data[:framesize], dtype=np.uint8))
                 frame_count += 1
 
+            # Preserve actual source IDs after the shortened-clip fallback above.
+            # Consumers must not infer these from the requested range.
+            self.last_loaded_frame_ids = tuple(
+                range(start_frame, start_frame + len(frames))
+            )
             return np.array(frames, dtype=np.uint8)
 
     def load_raw_data(self, file=None, start_frame=-1, end_frame=-1):

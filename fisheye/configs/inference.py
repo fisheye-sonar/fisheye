@@ -10,6 +10,7 @@ from fisheye.configs.models import (
     UNetLengthModelConfig,
 )
 from fisheye.enums import TrackingMethod
+from fisheye.endpoints.config import EndpointConfig
 
 T = TypeVar("T", bound=BaseModelConfig)
 
@@ -66,6 +67,7 @@ class ObjectDetectionConfig(Generic[T]):
     """Objection detection configuration."""
 
     model: T = field(default_factory=YOLOv5ModelConfig)
+    endpoints: EndpointConfig = field(default_factory=EndpointConfig)
     conf: float = 0.05  # Confidence threshold for detections
     use_multithreading: bool = True  # Multithreading for model inference
     max_workers: int = 2

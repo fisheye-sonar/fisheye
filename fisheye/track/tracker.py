@@ -26,6 +26,7 @@ class Tracker:
         self,
         clip_info,
         config: TrackerConfig,
+        record_detection_matches=False,
     ):
         self.algorithm = self._initialize_tracker(
             config.type,
@@ -38,6 +39,7 @@ class Tracker:
         self.fish_ids = Counter()
         self.reverse = config.reverse
         self.min_hits = config.min_hits
+        self.record_detection_matches = record_detection_matches
         self.json_data = deepcopy(clip_info)
 
         if self.reverse:
@@ -85,6 +87,12 @@ class Tracker:
                     if improved_match:
                         det_index = i
                         best_bbox_index = bbox_index
+
+            if self.record_detection_matches:
+                match = self.algorithm.last_detection_matches.get(int(track[4]))
+                det_index, best_bbox_index = (
+                    match if match is not None else (None, None)
+                )
 
             # Assign Track
             self.fish_ids[int(track[4])] += 1
@@ -206,6 +214,8 @@ def run_tracker(
     min_length=TargetSizeConfig.min_length,
     gp=None,
     verbose=False,
+    frame_ids=None,
+    record_detection_matches=False,
 ):
     """Factory method to run tracker."""
     logger.info(
@@ -220,9 +230,18 @@ def run_tracker(
     if gp:
         gp(0, f"Tracking using {tracking_config}...")
 
+    if set(low_preds) != set(high_preds):
+        raise ValueError("Low/high detection frame keys must match exactly")
+    # Frame identity is independent of endpoint inference and tracking direction.
+    # Legacy callers without source IDs enumerate chronological detection keys.
+    if frame_ids is None:
+        frame_ids = {key: index for index, key in enumerate(sorted(low_preds))}
+    elif set(frame_ids) != set(low_preds):
+        raise ValueError("Source frame IDs and detection frame keys must match exactly")
+
     clip_info = {
-        "start_frame": 0,
-        "end_frame": len(low_preds),
+        "start_frame": min(frame_ids.values()) if frame_ids else 0,
+        "end_frame": max(frame_ids.values()) if frame_ids else 0,
         "image_meter_width": image_meter_width,
         "image_meter_height": image_meter_height,
     }
@@ -230,6 +249,7 @@ def run_tracker(
     tracker = Tracker(
         clip_info=clip_info,
         config=tracking_config,
+        record_detection_matches=record_detection_matches,
     )
 
     with tqdm(
@@ -252,7 +272,11 @@ def run_tracker(
                 high_boxes if high_boxes is not None else np.empty((0, 5)),
             )
 
-            tracker.update(boxes)
+            tracker.frame_id = frame_ids[key]
+            if tracking_config.type == TrackingMethod.SORT:
+                tracker.update(boxes[0])
+            else:
+                tracker.update(boxes)
             pbar.update(1)
 
     json_data = tracker.finalize(

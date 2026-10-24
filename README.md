@@ -271,3 +271,15 @@ values to zero before scaling to uint8. The temporal-difference channel is compu
 from that positive-only signal. The default is `False`, preserving existing model
 inputs. This changes image preprocessing; assess model behavior before enabling it
 with weights trained on the default representation. It does not change echograms.
+
+## Endpoint predictions
+
+FishEye predicts fish endpoints and track lengths using signed BGS from the
+regular dataloader and the selected one-frame YOLO pose model. See
+[the endpoint guide](docs/endpoints.md) for bundle setup, configuration, and
+per-frame prediction exports and filtered track lengths. The feature is disabled
+by default. Enable the selected signed-BGS seed-2 model with
+`+endpoints=unblurred_signed_bgs_1f`. Its editable settings are in
+[`configs/endpoints/unblurred_signed_bgs_1f.yaml`](configs/endpoints/unblurred_signed_bgs_1f.yaml):
+`edge_margin_px: 25` (perpendicular to the sonar cone sides), `min_track_points: 5` (after filtering), and
+`percentile: 50` (median).

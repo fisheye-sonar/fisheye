@@ -9,6 +9,7 @@ from fisheye.common.logging import setup_logging
 from fisheye.common.system import check_disk_space, generate_job_id
 from fisheye.configs.inference import TargetSizeConfig
 from fisheye.enums import ExportType
+from fisheye.endpoints.config import EndpointBatchError
 from fisheye.export import parse_export_options, save_to_disk
 from fisheye.pipelines.pipeline import DetectTrackCountPipeline
 from fisheye.version import __app_version__, get_version_from_detector
@@ -34,14 +35,21 @@ class PipelineRunner:
     ) -> List:
         """Run the pipeline and handle result orchestration."""
 
-        results = self.pipeline.run(
-            input_path,
-            output_dir,
-            export_types,
-            job_id,
-            upstream_direction,
-            distance_offset,
-        )
+        batch_error = None
+        try:
+            results = self.pipeline.run(
+                input_path,
+                output_dir,
+                export_types,
+                job_id,
+                upstream_direction,
+                distance_offset,
+            )
+        except EndpointBatchError as exc:
+            # Summarize successful clips before signalling a failing job to the
+            # CLI/API caller. Failed clips never become zero-count results.
+            results = exc.results
+            batch_error = exc
 
         if results and ExportType.SUMMARY_CSV in export_types:
             self._save_summary_csv(
@@ -52,6 +60,9 @@ class PipelineRunner:
                 upstream_direction,
                 distance_offset,
             )
+
+        if batch_error is not None:
+            raise batch_error
 
         return results
 
@@ -107,6 +118,8 @@ def run_job(
     platform_cfg = cfg.platform
 
     # Check disk space
+    if output_dir:
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
     check_disk_space(path=output_dir if output_dir else input_path)
 
     project_root = Path(__file__).resolve().parents[1]

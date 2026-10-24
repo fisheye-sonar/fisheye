@@ -64,6 +64,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         unwarped_frames,
         echogram,
         return_original_image,
+        endpoint_capture=None,
     ):
         """
         Return a batch of data in the format used by ScaledYOLOv4.
@@ -79,7 +80,7 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
         """
         outputs = []
         frame_labels = frame_labels or [None for _ in frame_images]
-        for image, labels in zip(frame_images, frame_labels):
+        for position, (image, labels) in enumerate(zip(frame_images, frame_labels)):
             # resized_img, original hw, resized hw, original img
             resized_img, (h0, w0), (h, w), img_original = self.load_image(
                 image, return_original_image=return_original_image
@@ -100,9 +101,16 @@ class YOLOARISBatchedDataset(ARISBatchedDataset):
             labels_out = self._process_labels(
                 labels, ratio, pad, resized_img_tensor.shape
             )
-            outputs.append(
-                (resized_img_tensor, labels_out, shapes, original_img_tensor)
-            )
+            output = (resized_img_tensor, labels_out, shapes, original_img_tensor)
+            if endpoint_capture is not None:
+                output += (
+                    {
+                        "frame_ids": (endpoint_capture["frame_ids"][position],),
+                        "images": (endpoint_capture["images"][position],),
+                        "preprocessing": endpoint_capture["preprocessing"],
+                    },
+                )
+            outputs.append(output)
         return outputs
 
     def _process_labels(self, labels, ratio, pad, img_shape):

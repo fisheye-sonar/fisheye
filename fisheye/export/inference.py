@@ -1,4 +1,5 @@
 import os
+import json
 import re
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
@@ -349,6 +350,21 @@ def _echotastic_header_datetime(stem: str) -> tuple[str, str]:
 class FCExporter(BaseInferenceExporter):
     """Export counts to FC format."""
 
+    @staticmethod
+    def _comment(row):
+        parts = [row["app_version"]]
+        comment = row.get("Comment")
+        if pd.notna(comment) and comment:
+            parts.append(str(comment))
+        percentiles = row.get("length_percentiles_cm")
+        if isinstance(percentiles, dict) and percentiles:
+            parts.append(f"length_percentile={row['length_percentile']:g}")
+            values = {key: round(value, 2) for key, value in percentiles.items()}
+            parts.append(
+                "length_percentiles_cm=" + json.dumps(values, separators=(",", ":"))
+            )
+        return "; ".join(parts)
+
     def export(self, data: List[List[Dict]]) -> None:
         df = self._prepare_dataframe(data)
         if not self._has_data_to_export(df):
@@ -383,7 +399,7 @@ class FCExporter(BaseInferenceExporter):
 
                 group_df["Date"] = date
                 group_df["Total"] = range(1, len(group_df) + 1)
-                group_df["Comment"] = group_df["app_version"]
+                group_df["Comment"] = group_df.apply(self._comment, axis=1)
 
                 lines = [title + "\n\n", header_line + "\n", separator_line + "\n"]
 
@@ -399,9 +415,11 @@ class FCExporter(BaseInferenceExporter):
                     lines.append(
                         "".join(
                             f"{str(val):>{column_widths[headers[i]]}}"
-                            for i, val in enumerate(row)
+                            for i, val in enumerate(row[:-1])
                         )
-                        + "\n"
+                        # Comment is the final, variable-length field. Always
+                        # separate long notes from the preceding N column.
+                        + f" {str(row[-1]):>{column_widths['Comment'] - 1}}\n"
                     )
 
             file_stem = Path(str(file_name)).stem
@@ -627,6 +645,17 @@ class XMLExporter(BaseInferenceExporter):
             )
 
             global_coords_px = d.get("global_coords_px", [])
+            if d.get("length_method") == "track_percentile":
+                # Coordinates identify a real representative observation; an
+                # interpolated track percentile need not equal its segment.
+                for attribute, key in (
+                    ("LengthMethod", "length_method"),
+                    ("LengthPercentile", "length_percentile"),
+                    ("LengthObservations", "length_observations"),
+                    ("RepresentativeLengthCm", "representative_length_cm"),
+                    ("CrossingFrameIndex", "Crossing Frame#"),
+                ):
+                    marked.set(attribute, str(d[key]))
             if not global_coords_px:
                 continue
 

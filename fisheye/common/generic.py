@@ -27,7 +27,11 @@ def safe_float(value, default=0.0) -> float:
 
 
 def safe_execution(
-    default_return=None, max_retries=1, delay=0, exceptions=(Exception,)
+    default_return=None,
+    max_retries=1,
+    delay=0,
+    exceptions=(Exception,),
+    passthrough=(),
 ):
     """
     A decorator to catch and log exceptions, with retry logic and exponential backoff.
@@ -50,6 +54,8 @@ def safe_execution(
             for attempt in range(1, max_retries + 1):
                 try:
                     return func(*args, **kwargs)
+                except passthrough:
+                    raise
                 except exceptions as e:
                     last_exception = e
                     tb = traceback.extract_tb(e.__traceback__)

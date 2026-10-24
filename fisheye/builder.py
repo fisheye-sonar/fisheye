@@ -7,6 +7,7 @@ from fisheye.configs import (
     get_length_model_config,
 )
 from fisheye.common.weights import ensure_weights
+from fisheye.endpoints.config import EndpointConfig
 from fisheye.detect.factory import DETECTOR_CLASS_REGISTRY
 from fisheye.enums import DetectorType, LengthEstimatorType
 from fisheye.pipelines import ObjectDetectionPipeline
@@ -63,6 +64,11 @@ class PipelineFactory:
                 model_type, **length_cfg_dict
             )
 
+        if "endpoints" in runtime_config:
+            runtime_config["endpoints"] = EndpointConfig.from_value(
+                runtime_config["endpoints"]
+            ).resolve_paths(project_root)
+
         runtime_config["model"] = detector_cfg
         return runtime_config
 
@@ -75,7 +81,10 @@ class PipelineFactory:
     ) -> DetectTrackCountPipeline:
         """Build the main processing pipeline."""
 
-        if runtime_config.get("apply_length_estimates_batchwise", False):
+        endpoints = EndpointConfig.from_value(runtime_config.get("endpoints"))
+        if not endpoints.enabled and runtime_config.get(
+            "apply_length_estimates_batchwise", False
+        ):
             dataset_cfg.return_original_image = True
 
         # Build out individual pipeline(s)

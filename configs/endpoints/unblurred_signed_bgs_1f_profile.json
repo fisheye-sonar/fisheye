@@ -1,0 +1,42 @@
+{
+  "preprocessing": {
+    "representation": "bgs_signed_u8",
+    "temporal_offsets": [
+      0
+    ],
+    "crop_expansion": 1.0,
+    "spatial_mode": "letterbox",
+    "image_size": 640,
+    "stride": 32,
+    "target_mask": false,
+    "pad_value": 0.4470588235294118,
+    "native_canvas": "stride"
+  },
+  "image_preparation": {
+    "id": "fisheye_unblurred_signed_bgs.v1",
+    "coordinate_space": "warped_original",
+    "use_blur": false,
+    "only_positive": false,
+    "quantization": "uint8",
+    "source": "detector_center_channel",
+    "source_channel": 1,
+    "background_statistics": "Reuse detector unblurred clip background and normalization; channel 1 before detector resizing; signed residuals shifted by (r+1)/2 and clipped to uint8",
+    "source_value_range": [
+      0,
+      255
+    ]
+  },
+  "decoder": {
+    "name": "yolo_pose",
+    "candidate_confidence": 0.001,
+    "iou_threshold": 0.7,
+    "max_det": 300
+  },
+  "notes": {
+    "purpose": "Deploy signed-BGS single-frame center-pose seed 2, selected by lowest validation percentage length error with >=99% availability",
+    "source_resolution": "Native warped pixels retained before cropping; model crops use their trained 640 letterbox",
+    "seed": 2,
+    "source_run": "unblurred_signed_bgs_center_pose_1f_bs16_cos100_seed2",
+    "source_checkpoint_sha256": "05bb9af3649301539d013821a1bfa25fc1401885cf92454b166f4f271e19af5f"
+  }
+}

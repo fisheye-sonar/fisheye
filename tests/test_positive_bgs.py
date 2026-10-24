@@ -43,3 +43,16 @@ def test_positive_only_clips_before_temporal_difference_and_saturates():
     np.testing.assert_array_equal(result[:, 0, 0, 0], frames[:-1, 0, 0])
     np.testing.assert_array_equal(result[:, 0, 0, 1], [0, 0, 0, 127, 255])
     np.testing.assert_array_equal(result[:, 0, 0, 2], [0, 0, 127, 127, 255])
+
+
+@pytest.mark.parametrize("positive_only", [False, True])
+def test_flat_background_retains_later_signal_without_division_by_zero(positive_only):
+    frames = np.array([20, 220, 220], dtype=np.uint8).reshape(-1, 1, 1)
+    ds = PreprocessingDataset(
+        BaseDatasetConfig(use_blur=False, only_pos_bgs=positive_only)
+    )
+    with np.errstate(divide="raise", invalid="raise"):
+        result = ds._stack_preprocessed_channels(frames, 20.0, 0.0)
+    expected = [0, 200] if positive_only else [127, 227]
+    np.testing.assert_array_equal(result[:, 0, 0, 1], expected)
+    assert result[0, 0, 0, 2] > 0

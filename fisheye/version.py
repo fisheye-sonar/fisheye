@@ -53,10 +53,13 @@ def get_version_from_detector(path: str, detector_type: Optional[str] = None):
 
             model = YOLO(model_path).model
         else:
+            from fisheye._yolov5_compat import prepare_yolov5_loading
             from torch.serialization import SourceChangeWarning
-            from yolov5.models.experimental import attempt_load
 
             warnings.filterwarnings("ignore", category=SourceChangeWarning)
+            prepare_yolov5_loading()
+            from yolov5.models.experimental import attempt_load
+
             model = attempt_load(model_path, inplace=True)
 
     except FileNotFoundError as e:

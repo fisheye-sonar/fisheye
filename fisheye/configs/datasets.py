@@ -31,6 +31,8 @@ class BaseDatasetConfig:
     max_workers: int = 2
     use_blur: bool = True  # For background subtraction blurring
     return_original_image: bool = False
+    # Capture native detector BGS channel 1 for endpoint inference.
+    capture_endpoint_frames: bool = False
 
 
 @dataclass

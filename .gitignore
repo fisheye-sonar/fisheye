@@ -43,3 +43,8 @@ weights/
 *.pt
 outputs/
 xml_dataset/
+# Versioned endpoint profiles and qualification reports are source artifacts.
+!configs/endpoints/*_profile.json
+!docs/endpoint_model_parity.json
+
+!docs/signed_bgs_seed2_parity.json
